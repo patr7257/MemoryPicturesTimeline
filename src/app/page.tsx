@@ -1,25 +1,43 @@
-import { requireSession } from "@/lib/session";
-import { UserActions } from "@/components/auth/UserActions";
+import Link from "next/link";
+import { Camera } from "lucide-react";
 
-export default async function TimelinePage() {
-  const session = await requireSession();
+import { requireSession } from "@/lib/session";
+import { getTimelineData } from "@/lib/queries";
+import { Header } from "@/components/site/Header";
+import { PersonFilter } from "@/components/timeline/PersonFilter";
+import { Timeline } from "@/components/timeline/Timeline";
+import { Button } from "@/components/ui/button";
+
+export default async function TimelinePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ person?: string }>;
+}) {
+  await requireSession();
+  const { person } = await searchParams;
+  const { years, allPeople, totalTrips } = await getTimelineData(person);
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <header className="flex items-center justify-between gap-4 pb-10">
-        <h1 className="font-hand text-4xl">Family Memories</h1>
-        <UserActions />
-      </header>
+    <main>
+      <Header />
+      <PersonFilter people={allPeople} activeId={person} basePath="/" />
 
-      {/* M3 replaces this with the real scrapbook timeline. */}
-      <section className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        <p className="font-hand text-2xl">
-          Hi {session.user.name || session.user.email}!
-        </p>
-        <p className="mt-2 text-sm">
-          The timeline is on its way. Soon this page scrolls down memory lane.
-        </p>
-      </section>
+      {totalTrips === 0 ? (
+        <section className="mx-auto max-w-md px-6 py-24 text-center">
+          <Camera className="mx-auto size-10 text-muted-foreground" />
+          <p className="font-hand mt-4 text-3xl">
+            {person ? "No trips with this person yet." : "Memory lane is still empty."}
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Add the first vacation photos and the timeline starts here.
+          </p>
+          <Button size="lg" className="mt-6" nativeButton={false} render={<Link href="/upload" />}>
+            Add the first photos
+          </Button>
+        </section>
+      ) : (
+        <Timeline years={years} />
+      )}
     </main>
   );
 }
