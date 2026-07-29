@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Caveat, Nunito } from "next/font/google";
 import { Toaster } from "sonner";
 
@@ -18,6 +18,19 @@ export const metadata: Metadata = {
   title: "Family Memories",
   description: "Our family photo timeline: every trip, down memory lane.",
   robots: { index: false, follow: false },
+  // Installable home-screen app (iOS needs a linked manifest, no service
+  // worker). Icons regenerate via node scripts/gen-app-icons.mjs.
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Memories",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  // Single warm light theme (no dark mode in v1), same cream as the icon tile.
+  themeColor: "#f5efe3",
 };
 
 export default function RootLayout({

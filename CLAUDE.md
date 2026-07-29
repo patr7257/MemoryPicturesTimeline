@@ -35,6 +35,12 @@ family-only login, photos never publicly reachable.
   mismatches; never introduce it.
 - **typedRoutes**: after adding a route, run `pnpm build` (or dev) once to
   regenerate route types, else `pnpm check-types` fails on Link hrefs.
+- **Installable PWA**: one static manifest `public/manifest.webmanifest`
+  (scope `/`, short_name "Memories") linked via `metadata.manifest` in
+  `src/app/layout.tsx`, plus `appleWebApp` metadata and `src/app/apple-icon.png`.
+  Install-only by design: NO service worker (auth-gated photos need the
+  network anyway). Icons regenerate from `src/app/icon.svg` via
+  `node scripts/gen-app-icons.mjs` (sharp).
 
 ## Commands
 
