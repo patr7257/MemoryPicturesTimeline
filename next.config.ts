@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   // at upload time (sharp) and streamed through the authenticated
   // /api/img/[id]/[size] proxy, so runtime optimization has nothing to add.
   images: { unoptimized: true },
+  // Standalone tracing misses sharp's libvips .so under pnpm (it only kept the
+  // one belonging to Next's own sharp), so finalize died with ERR_DLOPEN_FAILED
+  // in the Linux image. Force-include every libvips build for the API routes.
+  outputFileTracingIncludes: {
+    "/api/**": ["./node_modules/.pnpm/@img+sharp-libvips-linux-x64@*/node_modules/@img/sharp-libvips-linux-x64/**/*"],
+  },
   async headers() {
     return [
       // Pages and the manifest always revalidate so a Home Screen app never
