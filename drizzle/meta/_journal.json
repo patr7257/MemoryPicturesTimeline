@@ -8,6 +8,13 @@
       "when": 1785199889653,
       "tag": "0000_woozy_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791703419195,
+      "tag": "0001_faulty_zodiak",
+      "breakpoints": true
     }
   ]
 }

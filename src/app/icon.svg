@@ -1,10 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="12" fill="#f5efe3"/>
-  <g transform="rotate(-4 32 32)">
-    <rect x="12" y="14" width="40" height="36" rx="2" fill="#fffdf8" stroke="#d9c9a8" stroke-width="1.5"/>
-    <rect x="16" y="18" width="32" height="24" fill="#b3562e"/>
-    <circle cx="32" cy="30" r="7" fill="#f5efe3"/>
-    <circle cx="32" cy="30" r="4" fill="#4a3b2c"/>
-    <rect x="24" y="10" width="16" height="7" rx="1" fill="#e8d5a8" opacity="0.9" transform="rotate(3 32 13)"/>
+  <g transform="rotate(-4 32 34)">
+    <!-- polaroid print sliding out of the top -->
+    <rect x="19" y="7" width="26" height="25" rx="1.5" fill="#fffdf8" stroke="#d9c9a8" stroke-width="1.2"/>
+    <rect x="22" y="10" width="20" height="15" fill="#e8d5a8"/>
+    <circle cx="35" cy="15" r="2.6" fill="#fffdf8" opacity="0.9"/>
+    <path d="M22 25 L29 18 L34 22.5 L37.5 19.5 L42 24 V25 Z" fill="#b3562e" opacity="0.85"/>
+    <!-- camera body -->
+    <rect x="9" y="27" width="46" height="28" rx="6" fill="#b3562e"/>
+    <rect x="9" y="27" width="46" height="7" rx="3.5" fill="#9c4624"/>
+    <rect x="13" y="31" width="9" height="5" rx="1.5" fill="#e8d5a8"/>
+    <circle cx="48" cy="33.5" r="2" fill="#f5efe3"/>
+    <!-- lens -->
+    <circle cx="32" cy="43" r="9.5" fill="#fffdf8"/>
+    <circle cx="32" cy="43" r="7" fill="#4a3b2c"/>
+    <circle cx="32" cy="43" r="3.6" fill="#6b5640"/>
+    <circle cx="29.6" cy="40.8" r="1.4" fill="#fffdf8" opacity="0.9"/>
   </g>
 </svg>

@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { tripPeople, trips } from "@/db/schema";
+import { tripCreatedPayload } from "@/lib/push/copy";
+import { broadcastPush } from "@/lib/push/send";
 import { requireSession } from "@/lib/session";
 
 export type CreateTripInput = {
@@ -16,7 +19,7 @@ export type CreateTripInput = {
 };
 
 export async function createTrip(input: CreateTripInput): Promise<{ id: string }> {
-  await requireSession();
+  const session = await requireSession();
   const title = input.title?.trim();
   if (!title) throw new Error("Title is required");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate ?? "")) {
@@ -34,6 +37,19 @@ export async function createTrip(input: CreateTripInput): Promise<{ id: string }
       description: input.description?.trim() || null,
     })
     .returning({ id: trips.id });
+
+  // Push after the response; a failing push must never fail the create.
+  after(async () => {
+    try {
+      await broadcastPush(
+        "trip_created",
+        tripCreatedPayload({ tripId: row.id, tripTitle: title }),
+        { excludeUserId: session.user.id },
+      );
+    } catch (err) {
+      console.error("[push] trip_created failed", err instanceof Error ? err.message : err);
+    }
+  });
 
   revalidatePath("/");
   return { id: row.id };
