@@ -64,7 +64,7 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
     return id;
   }
 
-  async function uploadOne(index: number, state: FileState, targetTripId: string) {
+  async function uploadOne(index: number, state: FileState, targetTripId: string): Promise<boolean> {
     try {
       patchFile(index, { status: "uploading", message: undefined });
 
@@ -126,11 +126,13 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
         throw new Error(err?.error ?? `Processing failed (${finalizeRes.status})`);
       }
       patchFile(index, { status: "done" });
+      return true;
     } catch (err) {
       patchFile(index, {
         status: "error",
         message: err instanceof Error ? err.message : "Failed",
       });
+      return false;
     }
   }
 
@@ -145,11 +147,12 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
         .filter(({ f }) => f.status === "queued" || f.status === "error");
 
       let cursor = 0;
+      let doneInBatch = 0;
       async function worker() {
         while (cursor < pending.length) {
           const item = pending[cursor];
           cursor += 1;
-          await uploadOne(item.i, item.f, targetTripId!);
+          if (await uploadOne(item.i, item.f, targetTripId!)) doneInBatch += 1;
         }
       }
       await Promise.all(
@@ -157,6 +160,14 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
       );
       router.refresh();
       toast.success("Upload finished");
+      // One push per batch per trip, never per photo. Best effort.
+      if (doneInBatch > 0) {
+        void fetch("/api/push/photos-added", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tripId: targetTripId, count: doneInBatch }),
+        }).catch(() => {});
+      }
     } finally {
       setBusy(false);
     }

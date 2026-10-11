@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Upload, Users } from "lucide-react";
+import { Bell, MapPin, Upload, Users } from "lucide-react";
 
 import { UserActions } from "@/components/auth/UserActions";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,10 @@ export function Header() {
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/people" />}>
           <Users data-slot="icon" />
           People
+        </Button>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/notifications" />}>
+          <Bell data-slot="icon" />
+          Alerts
         </Button>
         <UserActions />
       </nav>

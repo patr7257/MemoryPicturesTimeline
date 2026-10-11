@@ -38,9 +38,17 @@ family-only login, photos never publicly reachable.
 - **Installable PWA**: one static manifest `public/manifest.webmanifest`
   (scope `/`, short_name "Memories") linked via `metadata.manifest` in
   `src/app/layout.tsx`, plus `appleWebApp` metadata and `src/app/apple-icon.png`.
-  Install-only by design: NO service worker (auth-gated photos need the
-  network anyway). Icons regenerate from `src/app/icon.svg` via
-  `node scripts/gen-app-icons.mjs` (sharp).
+  Icons regenerate from `src/app/icon.svg` via `node scripts/gen-app-icons.mjs`
+  (sharp; also writes the monochrome `public/icons/badge-96.png`).
+- **Web Push**: push-only worker `public/sw.js` (NO fetch handler, NO caching,
+  path is permanent, served `no-cache` via `next.config.ts`; skipWaiting +
+  clients.claim). Code in `src/lib/push/` (type registry in `registry.ts`),
+  routes under `/api/push/*`, UI at `/notifications`. Types: `photos_added`
+  (client fires once per upload batch), `trip_created`, `on_this_day`
+  (`POST /api/cron/on-this-day`, `CRON_SECRET` bearer, idempotent per
+  Copenhagen day). Sends only when `PUSH_SEND=1` (prod only; dev shares the
+  prod DB) and VAPID keys exist. One prod VAPID keypair via
+  `node scripts/gen-vapid-keys.mjs`; never rotate (kills all subscriptions).
 
 ## Commands
 

@@ -5,6 +5,7 @@ import { Fingerprint, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { disablePush } from "@/lib/push/client";
 import { Button } from "@/components/ui/button";
 
 export function UserActions() {
@@ -22,6 +23,9 @@ export function UserActions() {
   }
 
   async function signOut() {
+    // Deliberate sign-out is the only event that removes this device's push
+    // subscription (a lapsed session must leave it alone).
+    await disablePush().catch(() => {});
     await authClient.signOut();
     router.push("/login");
     router.refresh();

@@ -16,6 +16,7 @@ $defaults = @{
     "NEXT_PUBLIC_BASE_URL" = "http://localhost:3000"
     "PASSKEY_RP_ID"        = "localhost"
     "PASSKEY_ORIGIN"       = "http://localhost:3000"
+    "VAPID_SUBJECT"        = "mailto:patr7257@gmail.com"
 }
 
 # Start from the existing .env, else from .env.example's key list.
@@ -43,6 +44,14 @@ if ([string]::IsNullOrEmpty($values["BETTER_AUTH_SECRET"])) {
     Write-Host "BETTER_AUTH_SECRET: generated"
 }
 
+# Generate the cron bearer secret once, never prompt for it.
+if ([string]::IsNullOrEmpty($values["CRON_SECRET"])) {
+    $bytes = New-Object byte[] 32
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    $values["CRON_SECRET"] = [Convert]::ToBase64String($bytes)
+    Write-Host "CRON_SECRET: generated"
+}
+
 Write-Host ""
 Write-Host "Prompting for empty keys only. Enter skips (leaves empty)."
 Write-Host "(Input is raw: special characters are safe here.)"
@@ -50,6 +59,11 @@ Write-Host ""
 
 $keys = @($values.Keys)
 foreach ($key in $keys) {
+    if ($key -eq "PUSH_SEND") { continue }  # prod-only switch, stays empty locally
+    if ($key -eq "VAPID_PUBLIC_KEY" -or $key -eq "VAPID_PRIVATE_KEY") {
+        if ([string]::IsNullOrEmpty($values[$key])) { Write-Host "${key}: empty, run: node scripts/gen-vapid-keys.mjs" }
+        continue
+    }
     if ([string]::IsNullOrEmpty($values[$key])) {
         $answer = Read-Host "$key (Enter to skip)"
         if (-not [string]::IsNullOrEmpty($answer)) { $values[$key] = $answer.Trim() }

@@ -35,11 +35,26 @@ for i in "${!keys[@]}"; do
   fi
 done
 
+set_default VAPID_SUBJECT "mailto:patr7257@gmail.com"
+for i in "${!keys[@]}"; do
+  if [ "${keys[$i]}" = "CRON_SECRET" ] && [ -z "${vals[$i]}" ]; then
+    vals[$i]="$(head -c 32 /dev/urandom | base64)"
+    echo "CRON_SECRET: generated"
+  fi
+done
+
 echo ""
 echo "Prompting for empty keys only. Enter skips (leaves empty)."
 echo ""
 
 for i in "${!keys[@]}"; do
+  # PUSH_SEND is a prod-only switch; VAPID keys come from scripts/gen-vapid-keys.mjs.
+  case "${keys[$i]}" in
+    PUSH_SEND) continue ;;
+    VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY)
+      [ -z "${vals[$i]}" ] && echo "${keys[$i]}: empty, run: node scripts/gen-vapid-keys.mjs"
+      continue ;;
+  esac
   if [ -z "${vals[$i]}" ]; then
     read -r -p "${keys[$i]} (Enter to skip): " answer
     if [ -n "$answer" ]; then vals[$i]="$answer"; fi
