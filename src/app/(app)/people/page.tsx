@@ -1,23 +1,17 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import { getViewer } from "@/lib/access";
-import { getAllPeople } from "@/lib/queries";
+import { canAdminister } from "@/lib/access-policy";
+import { getPeopleView } from "@/lib/member-queries";
 import { PeopleManager } from "@/components/people/PeopleManager";
 
 export default async function PeoplePage() {
-  await getViewer();
-  const people = await getAllPeople();
+  const viewer = await getViewer();
+  const isAdmin = canAdminister(viewer);
+  const people = await getPeopleView(isAdmin);
 
   return (
-    <main className="mx-auto max-w-xl px-6 pb-24">
-      <header className="flex items-center gap-3 py-6">
-        <Link href="/" className="text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <h1 className="font-hand text-4xl">People</h1>
-      </header>
-      <PeopleManager people={people} />
+    <main className="mx-auto max-w-xl px-4 pt-6 pb-24 sm:px-6">
+      <h1 className="font-hand mb-6 text-4xl">People</h1>
+      <PeopleManager people={people} isAdmin={isAdmin} />
     </main>
   );
 }
