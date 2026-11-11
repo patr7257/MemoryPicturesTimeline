@@ -1,4 +1,5 @@
-.git
+# .git is NOT ignored: scripts/build-info.mjs reads the commit from it in the
+# build stage (version gate). It never reaches the run image.
 node_modules
 .next
 .env*

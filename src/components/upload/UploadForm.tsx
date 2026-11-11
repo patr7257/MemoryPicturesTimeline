@@ -303,9 +303,12 @@ export function UploadForm({
     created && !trips.some((t) => t.id === created.id) ? [created, ...trips] : trips;
   const queuedCount = files.filter((f) => f.status === "queued" || f.status === "error").length;
   const hint = uploadHint({ ready, fileCount: files.length, pickerOpen, busy });
+  // Queued or sending photos would be lost by the version gate's automatic
+  // reload (src/lib/stale-bundle.ts), so the form marks itself.
+  const unsavedWork = busy || files.some((f) => f.status !== "done");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" data-unsaved-work={unsavedWork ? "" : undefined}>
       <div className="flex flex-col gap-3">
         <Label htmlFor="trip">Vacation</Label>
         <select

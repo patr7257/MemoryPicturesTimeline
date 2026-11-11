@@ -70,6 +70,16 @@ family-only login, photos never publicly reachable.
   Copenhagen day). Sends only when `PUSH_SEND=1` (prod only; dev shares the
   prod DB) and VAPID keys exist. One prod VAPID keypair via
   `node scripts/gen-vapid-keys.mjs`; never rotate (kills all subscriptions).
+- **Version gate**: the Dockerfile stamps the commit (`scripts/build-info.mjs`
+  reads `.git`, so `.git` must stay out of `.dockerignore`) into
+  `NEXT_PUBLIC_COMMIT_SHA`; `/version.json` serves it. Signed-in pages poll it
+  (`src/lib/use-app-version-gate.ts`) and show "A new version is ready"
+  (`UpdateBanner`), or reload by themselves while hidden and idle. Anything
+  holding work a reload would lose sets `data-unsaved-work` on its root.
+- **Upload failures** leave a trace: presign and finalize log every refusal
+  (`[upload] ... rejected`), and the phone posts its own failures to
+  `/api/upload/report` (`[upload] client failure`). Read them with
+  `docker service logs` on the VPS.
 
 ## Commands
 
