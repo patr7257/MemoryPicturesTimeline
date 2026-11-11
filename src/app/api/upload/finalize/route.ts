@@ -12,11 +12,18 @@ import { reverseGeocode } from "@/lib/geocode";
 // One photo per call; sharp on a large photo can take a while on a small box.
 export const maxDuration = 60;
 
+// Every refusal is logged: a rejected upload must leave a trace on the server.
+function reject(status: number, error: string, context: Record<string, unknown>): Response {
+  console.warn("[upload] finalize rejected", JSON.stringify({ status, error, ...context }));
+  return Response.json({ error }, { status });
+}
+
 export async function POST(req: Request): Promise<Response> {
   const viewer = await getViewerOrNull();
-  if (!viewer) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!viewer) return reject(401, "Unauthorized", {});
+  const user = viewer.userId;
   if (!r2Configured()) {
-    return Response.json({ error: "Storage not configured" }, { status: 503 });
+    return reject(503, "Storage not configured", { user });
   }
 
   const body = (await req.json().catch(() => null)) as {
@@ -28,10 +35,11 @@ export async function POST(req: Request): Promise<Response> {
     lng?: number | null;
   } | null;
   if (!body?.photoId || !body.key || !body.tripId) {
-    return Response.json({ error: "Bad request" }, { status: 400 });
+    return reject(400, "Bad request", { user });
   }
+  const context = { user, trip: body.tripId, photo: body.photoId };
   if (!body.key.startsWith("originals/")) {
-    return Response.json({ error: "Bad key" }, { status: 400 });
+    return reject(400, "Bad key", context);
   }
 
   const db = getDb();
@@ -39,7 +47,7 @@ export async function POST(req: Request): Promise<Response> {
   // Uploading needs sight of the trip. Checked before the idempotent lookup so
   // a guessed key never returns a photo row from a trip the viewer cannot see.
   const trip = await findVisibleTrip(viewer, body.tripId);
-  if (!trip) return Response.json({ error: "Trip not found" }, { status: 404 });
+  if (!trip) return reject(404, "Trip not found", context);
 
   // Idempotent: a retry after a half-completed finalize returns the row that
   // already exists (r2_key_original is UNIQUE).
@@ -48,7 +56,7 @@ export async function POST(req: Request): Promise<Response> {
   });
   if (existing) {
     if (existing.tripId !== trip.id) {
-      return Response.json({ error: "Bad key" }, { status: 400 });
+      return reject(400, "Bad key", context);
     }
     return Response.json({ photo: existing, existed: true });
   }
@@ -58,14 +66,20 @@ export async function POST(req: Request): Promise<Response> {
     original = await getObjectBuffer(body.key);
   } catch {
     // The PUT to R2 never landed; the client must re-upload from presign.
-    return Response.json({ error: "Original not found in storage, upload again" }, { status: 410 });
+    return reject(410, "Original not found in storage, upload again", context);
   }
 
-  const processed = await processOriginal(original);
-  await Promise.all([
-    putObject(thumbKey(body.photoId, 400), processed.thumb400, "image/webp"),
-    putObject(thumbKey(body.photoId, 1200), processed.thumb1200, "image/webp"),
-  ]);
+  let processed: Awaited<ReturnType<typeof processOriginal>>;
+  try {
+    processed = await processOriginal(original);
+    await Promise.all([
+      putObject(thumbKey(body.photoId, 400), processed.thumb400, "image/webp"),
+      putObject(thumbKey(body.photoId, 1200), processed.thumb1200, "image/webp"),
+    ]);
+  } catch (err) {
+    console.error("[upload] finalize processing failed", JSON.stringify(context), err);
+    return Response.json({ error: "Processing the photo failed. Press retry." }, { status: 500 });
+  }
 
   const lat = typeof body.lat === "number" ? body.lat : null;
   const lng = typeof body.lng === "number" ? body.lng : null;
