@@ -24,16 +24,19 @@ export function pushConfig(env: Env): PushConfig {
 
 export type SubRow = { id: string; userId: string; endpoint: string; p256dh: string; auth: string };
 
-// Apply, in order: exclude the actor, then the per-user preference for type.
-// (No extra audience rule: every allowlisted family user qualifies.)
+// Apply, in order: the audience (onlyUserIds: the users who may see the trip
+// the push is about; an empty list means nobody), exclude the actor, then the
+// per-user preference for type.
 export function selectRecipients(
   subs: SubRow[],
   prefsByUser: Map<string, PrefRow[]>,
   type: NotificationType,
-  opts: { excludeUserId?: string } = {},
+  opts: { excludeUserId?: string; onlyUserIds?: readonly string[] } = {},
 ): SubRow[] {
+  const only = opts.onlyUserIds ? new Set(opts.onlyUserIds) : null;
   return subs.filter(
     (s) =>
+      (only === null || only.has(s.userId)) &&
       s.userId !== opts.excludeUserId &&
       effectivePref(type, prefsByUser.get(s.userId) ?? []),
   );

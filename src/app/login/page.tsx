@@ -1,7 +1,6 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/lib/auth";
+import { getViewerOrNull } from "@/lib/access";
 import { SignInForm } from "@/components/auth/SignInForm";
 import {
   Card,
@@ -12,8 +11,9 @@ import {
 } from "@/components/ui/card";
 
 export default async function LoginPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (session) redirect("/");
+  // Only an allowed login skips the form: a removed member with a leftover
+  // session stays here instead of bouncing between / and /login.
+  if (await getViewerOrNull()) redirect("/timeline");
 
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">

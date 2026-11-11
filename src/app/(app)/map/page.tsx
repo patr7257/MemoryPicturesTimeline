@@ -1,6 +1,5 @@
-import { requireSession } from "@/lib/session";
+import { getViewer } from "@/lib/access";
 import { getTimelineData } from "@/lib/queries";
-import { Header } from "@/components/site/Header";
 import { PersonFilter } from "@/components/timeline/PersonFilter";
 import { TripsMap, type MapTrip } from "@/components/map/TripsMap";
 
@@ -9,9 +8,9 @@ export default async function MapPage({
 }: {
   searchParams: Promise<{ person?: string }>;
 }) {
-  await requireSession();
+  const viewer = await getViewer();
   const { person } = await searchParams;
-  const { years, allPeople } = await getTimelineData(person);
+  const { years, allPeople } = await getTimelineData(viewer, person);
 
   const mapTrips: MapTrip[] = years
     .flatMap((y) => y.trips)
@@ -30,7 +29,6 @@ export default async function MapPage({
 
   return (
     <main className="pb-12">
-      <Header />
       <PersonFilter people={allPeople} activeId={person} basePath="/map" />
       <div className="px-6">
         <TripsMap trips={mapTrips} />

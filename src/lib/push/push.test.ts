@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { onThisDayPayload, photosAddedPayload, tripCreatedPayload } from "./copy";
 import { isAllowedPushEndpoint } from "./endpoint";
 import { pushConfig, selectRecipients, type SubRow } from "./gate";
-import { copenhagenDay, dayKey, tripsOnThisDay } from "./on-this-day";
+import { copenhagenDay, dayKey, groupByVisibleMatches, tripsOnThisDay } from "./on-this-day";
 import { fitPushPayload, pushSnippet } from "./payload";
 import { effectivePref, effectivePrefs, isNotificationType } from "./registry";
 import {
@@ -65,6 +65,38 @@ describe("selectRecipients", () => {
   it("a pref for another type does not mute this one", () => {
     const prefs = new Map([["kid", [{ type: "trip_created", enabled: false }]]]);
     expect(selectRecipients(subs, prefs, "photos_added").map((s) => s.id)).toContain("4");
+  });
+  it("onlyUserIds limits the audience to who may see the trip", () => {
+    const out = selectRecipients(subs, new Map(), "photos_added", {
+      excludeUserId: "mom",
+      onlyUserIds: ["mom", "dad"],
+    });
+    expect(out.map((s) => s.id)).toEqual(["2", "3"]);
+  });
+  it("an empty audience reaches nobody (never falls back to everyone)", () => {
+    expect(selectRecipients(subs, new Map(), "photos_added", { onlyUserIds: [] })).toEqual([]);
+  });
+});
+
+describe("groupByVisibleMatches (on this day per audience)", () => {
+  const krakow = { id: "t1", title: "Krakow" };
+  const garda = { id: "t2", title: "Garda" };
+  it("users with the same visible trips share one group, order kept", () => {
+    const groups = groupByVisibleMatches(
+      [krakow, garda],
+      new Map([
+        ["t1", ["mom", "dad", "kid"]],
+        ["t2", ["mom", "dad"]],
+      ]),
+    );
+    expect(groups).toEqual([
+      { items: [krakow, garda], userIds: ["mom", "dad"] },
+      { items: [krakow], userIds: ["kid"] },
+    ]);
+  });
+  it("a trip nobody may see produces no group", () => {
+    expect(groupByVisibleMatches([krakow], new Map([["t1", []]]))).toEqual([]);
+    expect(groupByVisibleMatches([krakow], new Map())).toEqual([]);
   });
 });
 

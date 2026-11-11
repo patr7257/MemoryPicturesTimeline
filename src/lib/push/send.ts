@@ -49,12 +49,14 @@ async function deliver(subs: SubRow[], payload: PushPayload): Promise<number> {
   return ok;
 }
 
-// Everyone with a subscription, minus the actor, minus users who switched
-// this type off. Returns the number of accepted sends.
+// Everyone in the audience with a subscription, minus the actor, minus users
+// who switched this type off. Pushes about a trip MUST pass onlyUserIds
+// (tripAudienceUserIds): a push must never reveal a trip to someone who
+// cannot see it. Returns the number of accepted sends.
 export async function broadcastPush(
   type: NotificationType,
   payload: PushPayload,
-  opts: { excludeUserId?: string } = {},
+  opts: { excludeUserId?: string; onlyUserIds?: readonly string[] } = {},
 ): Promise<number> {
   if (!pushEnabled()) {
     console.log(`[push] disabled, skipping ${type}`);

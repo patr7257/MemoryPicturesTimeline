@@ -9,6 +9,7 @@
     "check-types": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "pnpm build && pnpm check-types && pnpm test",
     "test:scripts": "node --test scripts/*.test.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

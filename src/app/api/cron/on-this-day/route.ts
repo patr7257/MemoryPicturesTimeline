@@ -3,7 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import { getDb } from "@/db";
 import { pushDispatchLog, trips } from "@/db/schema";
 import { onThisDayPayload } from "@/lib/push/copy";
-import { copenhagenDay, dayKey, tripsOnThisDay } from "@/lib/push/on-this-day";
+import { tripAudienceUserIds } from "@/lib/access";
+import { copenhagenDay, dayKey, groupByVisibleMatches, tripsOnThisDay } from "@/lib/push/on-this-day";
 import { broadcastPush, pushEnabled } from "@/lib/push/send";
 
 // Daily trigger, called by an external scheduler:
@@ -38,8 +39,7 @@ export async function POST(req: Request): Promise<Response> {
     await db.select({ id: trips.id, title: trips.title, startDate: trips.startDate }).from(trips),
     today,
   );
-  const payload = onThisDayPayload(matches, key);
-  if (!payload) return Response.json({ day: key, trips: 0, sent: 0 });
+  if (matches.length === 0) return Response.json({ day: key, trips: 0, sent: 0 });
 
   // Claim the day first: the primary key makes a concurrent or repeated call a no-op.
   const claimed = await db
@@ -49,6 +49,13 @@ export async function POST(req: Request): Promise<Response> {
     .returning({ key: pushDispatchLog.key });
   if (claimed.length === 0) return Response.json({ day: key, skipped: "already sent" });
 
-  const sent = await broadcastPush("on_this_day", payload);
+  // A member is only reminded of trips they may see.
+  const audienceByTrip = new Map<string, string[]>();
+  for (const m of matches) audienceByTrip.set(m.id, await tripAudienceUserIds(m.id));
+  let sent = 0;
+  for (const group of groupByVisibleMatches(matches, audienceByTrip)) {
+    const payload = onThisDayPayload(group.items, key);
+    if (payload) sent += await broadcastPush("on_this_day", payload, { onlyUserIds: group.userIds });
+  }
   return Response.json({ day: key, trips: matches.length, sent });
 }

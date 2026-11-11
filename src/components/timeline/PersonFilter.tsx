@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 export function PersonFilter({
   people,
   activeId,
-  basePath = "/",
+  basePath = "/timeline",
 }: {
   people: PersonRef[];
   activeId?: string;
-  basePath?: "/" | "/map";
+  basePath?: "/timeline" | "/map" | "/vacations";
 }) {
   if (people.length === 0) return null;
   const chip = (active: boolean) =>

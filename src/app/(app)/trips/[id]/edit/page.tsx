@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { requireSession } from "@/lib/session";
+import { getViewer } from "@/lib/access";
 import { getAllPeople, getTripWithPhotos } from "@/lib/queries";
 import { EditTripForm } from "@/components/trip/EditTripForm";
 
@@ -11,10 +11,11 @@ export default async function EditTripPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireSession();
+  const viewer = await getViewer();
   const { id } = await params;
-  const [data, allPeople] = await Promise.all([getTripWithPhotos(id), getAllPeople()]);
-  if (!data) notFound();
+  const [data, allPeople] = await Promise.all([getTripWithPhotos(viewer, id), getAllPeople()]);
+  // Editing belongs to the creator and super admins.
+  if (!data || !data.canManage) notFound();
 
   return (
     <main className="mx-auto max-w-2xl px-6 pb-24">

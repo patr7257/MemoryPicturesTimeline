@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { requireSession } from "@/lib/session";
+import { getViewer } from "@/lib/access";
 import { getAllPeople } from "@/lib/queries";
 import { PeopleManager } from "@/components/people/PeopleManager";
 
 export default async function PeoplePage() {
-  await requireSession();
+  await getViewer();
   const people = await getAllPeople();
 
   return (

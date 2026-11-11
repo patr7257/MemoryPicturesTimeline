@@ -27,7 +27,7 @@ $bytes = New-Object byte[] 32
 [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
 $prodSecret = [Convert]::ToBase64String($bytes)
 
-$copyKeys = @("DATABASE_URL", "FAMILY_EMAILS", "ZEPTOMAIL_TOKEN", "ZEPTOMAIL_FROM", "ZEPTOMAIL_BASE_URL", "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "CRON_SECRET")
+$copyKeys = @("DATABASE_URL", "SUPER_ADMIN_EMAILS", "FAMILY_EMAILS", "ZEPTOMAIL_TOKEN", "ZEPTOMAIL_FROM", "ZEPTOMAIL_BASE_URL", "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "CRON_SECRET")
 $prod = New-Object System.Collections.Generic.List[string]
 # Push sending is ON in prod only (local dev shares the database, so it stays off).
 $prod.Add("PUSH_SEND=1")

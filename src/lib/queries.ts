@@ -1,10 +1,15 @@
 // Read-side queries for the timeline. At family scale (dozens of trips,
 // hundreds of photos) fetching everything and grouping in JS is the boring,
 // correct choice: one round trip per table, no clever SQL.
+//
+// Every read takes the Viewer and returns only what that viewer may see
+// (src/lib/access-policy.ts). There is no unfiltered variant on purpose.
 import { asc, desc, eq, inArray } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { people, photos, tripPeople, trips } from "@/db/schema";
+import { findVisibleTrip, visibleTripIds } from "@/lib/access";
+import { canManageTrip, type Viewer } from "@/lib/access-policy";
 
 export type PersonRef = { id: string; name: string };
 
@@ -15,6 +20,7 @@ export type PhotoPreview = {
   blurhash: string | null;
   takenAt: Date | null;
   city: string | null;
+  caption: string | null;
 };
 
 export type TimelineTrip = {
@@ -30,20 +36,27 @@ export type TimelineTrip = {
   photoCount: number;
   previewPhotos: PhotoPreview[];
   coverPhotoId: string | null;
+  createdBy: string | null;
+  // The viewer may edit details, change tags and delete this trip.
+  canManage: boolean;
 };
 
 export type TimelineYear = { year: number; trips: TimelineTrip[] };
 
 const PREVIEW_COUNT = 5;
 
-export async function getTimelineData(personId?: string): Promise<{
+export async function getTimelineData(
+  viewer: Viewer,
+  personId?: string,
+): Promise<{
   years: TimelineYear[];
   allPeople: PersonRef[];
   totalTrips: number;
 }> {
   const db = getDb();
 
-  const [allTrips, allTripPeople, allPeople, allPhotos] = await Promise.all([
+  const [visible, everyTrip, allTripPeople, allPeople, everyPhoto] = await Promise.all([
+    visibleTripIds(viewer),
     db.select().from(trips).orderBy(desc(trips.startDate)),
     db.select().from(tripPeople),
     db.select({ id: people.id, name: people.name }).from(people).orderBy(asc(people.name)),
@@ -56,10 +69,14 @@ export async function getTimelineData(personId?: string): Promise<{
         blurhash: photos.blurhash,
         takenAt: photos.takenAt,
         city: photos.city,
+        caption: photos.caption,
       })
       .from(photos)
       .orderBy(asc(photos.takenAt)),
   ]);
+  const allTrips = visible === "all" ? everyTrip : everyTrip.filter((t) => visible.has(t.id));
+  const tripIds = new Set(allTrips.map((t) => t.id));
+  const allPhotos = everyPhoto.filter((p) => tripIds.has(p.tripId));
 
   const peopleByTrip = new Map<string, PersonRef[]>();
   const personById = new Map(allPeople.map((p) => [p.id, p]));
@@ -101,6 +118,8 @@ export async function getTimelineData(personId?: string): Promise<{
       photoCount: tripPhotos.length,
       previewPhotos: tripPhotos.slice(0, PREVIEW_COUNT),
       coverPhotoId: t.coverPhotoId ?? tripPhotos[0]?.id ?? null,
+      createdBy: t.createdBy,
+      canManage: canManageTrip(viewer, t),
     };
     const list = yearsMap.get(year) ?? [];
     list.push(entry);
@@ -114,9 +133,10 @@ export async function getTimelineData(personId?: string): Promise<{
   return { years, allPeople, totalTrips: filtered.length };
 }
 
-export async function getTripWithPhotos(tripId: string) {
+// Null when the trip does not exist OR the viewer may not see it.
+export async function getTripWithPhotos(viewer: Viewer, tripId: string) {
   const db = getDb();
-  const trip = await db.query.trips.findFirst({ where: eq(trips.id, tripId) });
+  const trip = await findVisibleTrip(viewer, tripId);
   if (!trip) return null;
 
   const [tripPhotos, links] = await Promise.all([
@@ -131,7 +151,21 @@ export async function getTripWithPhotos(tripId: string) {
         .where(inArray(people.id, personIds))
     : [];
 
-  return { trip, photos: tripPhotos, people: tripPersons };
+  return { trip, photos: tripPhotos, people: tripPersons, canManage: canManageTrip(viewer, trip) };
+}
+
+export type TripOption = { id: string; title: string; startDate: string };
+
+// Trips the viewer may upload to (every trip they can see), newest first.
+export async function getVisibleTripOptions(viewer: Viewer): Promise<TripOption[]> {
+  const [visible, rows] = await Promise.all([
+    visibleTripIds(viewer),
+    getDb()
+      .select({ id: trips.id, title: trips.title, startDate: trips.startDate })
+      .from(trips)
+      .orderBy(desc(trips.startDate)),
+  ]);
+  return visible === "all" ? rows : rows.filter((t) => visible.has(t.id));
 }
 
 export async function getAllPeople(): Promise<PersonRef[]> {

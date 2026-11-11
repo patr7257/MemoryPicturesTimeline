@@ -36,3 +36,28 @@ export function tripsOnThisDay<T extends { id: string; title: string; startDate:
   }
   return out.sort((a, b) => b.yearsAgo - a.yearsAgo);
 }
+
+// Members see different trips, so "on this day" is sent per audience: users
+// who may see exactly the same matches share one push. audienceByTrip maps a
+// trip id to the user ids that may see it. Item order is kept.
+export function groupByVisibleMatches<T extends { id: string }>(
+  matches: T[],
+  audienceByTrip: ReadonlyMap<string, readonly string[]>,
+): { items: T[]; userIds: string[] }[] {
+  const itemsByUser = new Map<string, T[]>();
+  for (const m of matches) {
+    for (const userId of audienceByTrip.get(m.id) ?? []) {
+      const list = itemsByUser.get(userId) ?? [];
+      list.push(m);
+      itemsByUser.set(userId, list);
+    }
+  }
+  const groups = new Map<string, { items: T[]; userIds: string[] }>();
+  for (const [userId, items] of itemsByUser) {
+    const key = items.map((i) => i.id).join("|");
+    const group = groups.get(key) ?? { items, userIds: [] };
+    group.userIds.push(userId);
+    groups.set(key, group);
+  }
+  return Array.from(groups.values());
+}

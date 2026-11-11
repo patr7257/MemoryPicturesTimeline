@@ -4,16 +4,20 @@ import { magicLink } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 
 import { getDb } from "@/db";
+import { members } from "@/db/schema";
+import { loginAllowed } from "@/lib/access-policy";
 import { sendMagicLinkEmail } from "@/lib/email";
 
-// Comma-separated family allowlist. Read per call so a Dokploy env change
-// only needs a container restart, not a rebuild.
-function familyEmails(): string[] {
-  return (process.env.FAMILY_EMAILS ?? "")
-    .toLowerCase()
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+// Who may receive a login mail: members invited in the app, plus the env
+// lists (SUPER_ADMIN_EMAILS, and FAMILY_EMAILS as a legacy fallback). The env
+// is read per call so a Dokploy env change only needs a container restart.
+async function mayLogIn(email: string): Promise<boolean> {
+  const rows = await getDb().select({ email: members.email }).from(members);
+  return loginAllowed(
+    email,
+    rows.map((r) => r.email),
+    process.env,
+  );
 }
 
 export const auth = betterAuth({
@@ -30,7 +34,7 @@ export const auth = betterAuth({
     magicLink({
       expiresIn: 600,
       sendMagicLink: async ({ email, url }) => {
-        if (!familyEmails().includes(email.toLowerCase())) {
+        if (!(await mayLogIn(email))) {
           // Silently drop so the UI's generic "check your email" never
           // reveals who is on the family allowlist.
           console.warn("auth: magic-link request for non-family email dropped");

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Pencil } from "lucide-react";
 
-import { requireSession } from "@/lib/session";
+import { getViewer } from "@/lib/access";
 import { getTripWithPhotos } from "@/lib/queries";
 import { formatTripDates } from "@/lib/dates";
 import { rotationFor } from "@/lib/scrapbook";
@@ -14,11 +14,11 @@ export default async function TripPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireSession();
+  const viewer = await getViewer();
   const { id } = await params;
-  const data = await getTripWithPhotos(id);
+  const data = await getTripWithPhotos(viewer, id);
   if (!data) notFound();
-  const { trip, photos, people } = data;
+  const { trip, photos, people, canManage } = data;
 
   return (
     <main className="mx-auto max-w-5xl px-6 pb-24">
@@ -56,10 +56,12 @@ export default async function TripPage({
             )}
           </div>
         </div>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/trips/${trip.id}/edit`} />}>
-          <Pencil data-icon="inline-start" />
-          Edit trip
-        </Button>
+        {canManage && (
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/trips/${trip.id}/edit`} />}>
+            <Pencil data-icon="inline-start" />
+            Edit trip
+          </Button>
+        )}
       </header>
 
       {photos.length === 0 ? (

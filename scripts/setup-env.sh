@@ -17,6 +17,17 @@ while IFS= read -r line; do
   vals+=("$val")
 done < "$source_file"
 
+# Keys added to .env.example after this .env was created (still empty here).
+while IFS= read -r line; do
+  case "$line" in \#*|"") continue ;; esac
+  key="${line%%=*}"
+  found=0
+  for k in "${keys[@]}"; do
+    if [ "$k" = "$key" ]; then found=1; fi
+  done
+  if [ "$found" = 0 ]; then keys+=("$key"); vals+=(""); fi
+done < .env.example
+
 set_default() {
   local k="$1" d="$2" i
   for i in "${!keys[@]}"; do
@@ -36,6 +47,7 @@ for i in "${!keys[@]}"; do
 done
 
 set_default VAPID_SUBJECT "mailto:patr7257@gmail.com"
+set_default SUPER_ADMIN_EMAILS "patr7257@gmail.com"
 for i in "${!keys[@]}"; do
   if [ "${keys[$i]}" = "CRON_SECRET" ] && [ -z "${vals[$i]}" ]; then
     vals[$i]="$(head -c 32 /dev/urandom | base64)"

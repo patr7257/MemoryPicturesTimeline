@@ -15,6 +15,13 @@
       "when": 1791703419195,
       "tag": "0001_faulty_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794402516690,
+      "tag": "0002_smart_madame_web",
+      "breakpoints": true
     }
   ]
 }

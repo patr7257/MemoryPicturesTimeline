@@ -17,6 +17,7 @@ $defaults = @{
     "PASSKEY_RP_ID"        = "localhost"
     "PASSKEY_ORIGIN"       = "http://localhost:3000"
     "VAPID_SUBJECT"        = "mailto:patr7257@gmail.com"
+    "SUPER_ADMIN_EMAILS"   = "patr7257@gmail.com"
 }
 
 # Start from the existing .env, else from .env.example's key list.
@@ -27,6 +28,13 @@ foreach ($line in [System.IO.File]::ReadAllLines($sourcePath)) {
     if ($line -match '^\s*#') { continue }
     if ($line -match '^([A-Z0-9_]+)=(.*)$') {
         $values[$Matches[1]] = $Matches[2]
+    }
+}
+
+# Keys added to .env.example after this .env was created (still empty here).
+foreach ($line in [System.IO.File]::ReadAllLines($examplePath)) {
+    if ($line -match '^([A-Z0-9_]+)=') {
+        if (-not $values.Contains($Matches[1])) { $values[$Matches[1]] = "" }
     }
 }
 

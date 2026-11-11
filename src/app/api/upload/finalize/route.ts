@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { photos, trips } from "@/db/schema";
-import { getSession } from "@/lib/session";
+import { findVisibleTrip, getViewerOrNull } from "@/lib/access";
 import { processOriginal } from "@/lib/images";
 import { thumbKey } from "@/lib/keys";
 import { getObjectBuffer, putObject, r2Configured } from "@/lib/r2";
@@ -13,8 +13,8 @@ import { reverseGeocode } from "@/lib/geocode";
 export const maxDuration = 60;
 
 export async function POST(req: Request): Promise<Response> {
-  const session = await getSession();
-  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const viewer = await getViewerOrNull();
+  if (!viewer) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!r2Configured()) {
     return Response.json({ error: "Storage not configured" }, { status: 503 });
   }
@@ -36,17 +36,22 @@ export async function POST(req: Request): Promise<Response> {
 
   const db = getDb();
 
+  // Uploading needs sight of the trip. Checked before the idempotent lookup so
+  // a guessed key never returns a photo row from a trip the viewer cannot see.
+  const trip = await findVisibleTrip(viewer, body.tripId);
+  if (!trip) return Response.json({ error: "Trip not found" }, { status: 404 });
+
   // Idempotent: a retry after a half-completed finalize returns the row that
   // already exists (r2_key_original is UNIQUE).
   const existing = await db.query.photos.findFirst({
     where: eq(photos.r2KeyOriginal, body.key),
   });
-  if (existing) return Response.json({ photo: existing, existed: true });
-
-  const trip = await db.query.trips.findFirst({
-    where: eq(trips.id, body.tripId),
-  });
-  if (!trip) return Response.json({ error: "Trip not found" }, { status: 404 });
+  if (existing) {
+    if (existing.tripId !== trip.id) {
+      return Response.json({ error: "Bad key" }, { status: 400 });
+    }
+    return Response.json({ photo: existing, existed: true });
+  }
 
   let original: Buffer;
   try {
@@ -85,7 +90,7 @@ export async function POST(req: Request): Promise<Response> {
       lng,
       city: geo.city,
       country: geo.country,
-      uploaderId: session.user.id,
+      uploaderId: viewer.userId,
     })
     .onConflictDoNothing({ target: photos.r2KeyOriginal })
     .returning();
@@ -98,6 +103,6 @@ export async function POST(req: Request): Promise<Response> {
       .where(and(eq(trips.id, body.tripId), isNull(trips.lat)));
   }
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   return Response.json({ photo: row ?? null, existed: false });
 }
