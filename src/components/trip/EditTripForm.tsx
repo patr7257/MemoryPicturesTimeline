@@ -6,6 +6,15 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { deleteTrip, setTripPeople, updateTrip } from "@/actions/trips";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +44,7 @@ export function EditTripForm({
   const [endDate, setEndDate] = useState(trip.endDate ?? "");
   const [locationName, setLocationName] = useState(trip.locationName ?? "");
   const [description, setDescription] = useState(trip.description ?? "");
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set(taggedIds));
 
   function togglePerson(id: string) {
@@ -58,7 +68,7 @@ export function EditTripForm({
           description: description || null,
         });
         await setTripPeople(trip.id, Array.from(selected));
-        toast.success("Trip saved");
+        toast.success("Vacation saved");
         router.push(`/trips/${trip.id}`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Save failed");
@@ -67,11 +77,15 @@ export function EditTripForm({
   }
 
   function remove() {
-    if (!confirm(`Delete "${trip.title}" and all its photos from the timeline?`)) return;
     startTransition(async () => {
-      await deleteTrip(trip.id);
-      toast.success("Trip deleted");
-      router.push("/");
+      try {
+        await deleteTrip(trip.id);
+        toast.success("Vacation deleted");
+        router.push("/vacations");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Delete failed");
+        setConfirmOpen(false);
+      }
     });
   }
 
@@ -133,14 +147,43 @@ export function EditTripForm({
       </div>
 
       <div className="flex items-center justify-between pt-2">
-        <Button variant="destructive" size="sm" onClick={remove} disabled={pending}>
+        <Button
+          variant="destructive"
+          className="min-h-11 sm:min-h-8"
+          onClick={() => setConfirmOpen(true)}
+          disabled={pending}
+        >
           <Trash2 data-icon="inline-start" />
-          Delete trip
+          Delete vacation
         </Button>
-        <Button onClick={save} disabled={pending} size="lg">
-          {pending ? "Saving..." : "Save trip"}
+        <Button onClick={save} disabled={pending} size="lg" className="min-h-11 sm:min-h-9">
+          {pending ? "Saving..." : "Save vacation"}
         </Button>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete &quot;{trip.title}&quot;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The vacation, all its photos and notes are removed for everyone. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-11 sm:min-h-8" disabled={pending}>
+              Keep it
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              className="min-h-11 sm:min-h-8"
+              onClick={remove}
+              disabled={pending}
+            >
+              {pending ? "Deleting..." : "Delete vacation"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

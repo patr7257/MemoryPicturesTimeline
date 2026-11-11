@@ -5,6 +5,7 @@
 // are pinned to WHEN_REQUIRED; path-style addressing avoids bucket-subdomain
 // DNS issues.
 import {
+  DeleteObjectsCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -81,4 +82,20 @@ export async function putObject(
       ContentType: contentType,
     }),
   );
+}
+
+// Deletes up to 1000 keys in one call. Throws when the call fails or any key
+// is reported back as an error, so the caller decides how loud to be.
+export async function deleteObjects(keys: string[]): Promise<void> {
+  const unique = Array.from(new Set(keys.filter(Boolean)));
+  if (unique.length === 0) return;
+  const res = await getR2().send(
+    new DeleteObjectsCommand({
+      Bucket: r2Bucket(),
+      Delete: { Objects: unique.map((Key) => ({ Key })), Quiet: true },
+    }),
+  );
+  if (res.Errors && res.Errors.length > 0) {
+    throw new Error(`${res.Errors.length} object(s) could not be deleted`);
+  }
 }
