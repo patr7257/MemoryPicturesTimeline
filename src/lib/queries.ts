@@ -10,6 +10,7 @@ import { getDb } from "@/db";
 import { people, photos, tripPeople, trips } from "@/db/schema";
 import { findVisibleTrip, visibleTripIds } from "@/lib/access";
 import { canManageTrip, type Viewer } from "@/lib/access-policy";
+import { matchesPeople } from "@/lib/person-filter";
 
 export type PersonRef = { id: string; name: string };
 
@@ -47,7 +48,7 @@ const PREVIEW_COUNT = 5;
 
 export async function getTimelineData(
   viewer: Viewer,
-  personId?: string,
+  personIds?: readonly string[],
 ): Promise<{
   years: TimelineYear[];
   allPeople: PersonRef[];
@@ -95,11 +96,13 @@ export async function getTimelineData(
     photosByTrip.set(p.tripId, list);
   }
 
-  const filtered = personId
-    ? allTrips.filter((t) =>
-        (peopleByTrip.get(t.id) ?? []).some((p) => p.id === personId),
-      )
-    : allTrips;
+  // Any selected person tagged on the trip matches; empty or undefined = everyone.
+  const filtered = allTrips.filter((t) =>
+    matchesPeople(
+      personIds ?? [],
+      (peopleByTrip.get(t.id) ?? []).map((p) => p.id),
+    ),
+  );
 
   const yearsMap = new Map<number, TimelineTrip[]>();
   for (const t of filtered) {
