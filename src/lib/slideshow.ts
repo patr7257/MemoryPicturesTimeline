@@ -25,16 +25,26 @@ export type SlideshowPhoto = {
 
 export type SlideshowOrder = "time" | "shuffle";
 
+// "projector" is the default 3D slide projector; "simple" is the plain fade
+// (also what the player falls back to without WebGL or with reduced motion).
+export type SlideshowStyle = "projector" | "simple";
+
 export type SlideshowSettings = {
   order: SlideshowOrder;
   // Dates, places, captions and comments on top of the photo.
   showInfo: boolean;
   seconds: number;
+  style: SlideshowStyle;
 };
 
 export const MIN_SECONDS = 2;
 export const MAX_SECONDS = 30;
-export const DEFAULT_SETTINGS: SlideshowSettings = { order: "time", showInfo: true, seconds: 5 };
+export const DEFAULT_SETTINGS: SlideshowSettings = {
+  order: "time",
+  showInfo: true,
+  seconds: 5,
+  style: "projector",
+};
 export const SETTINGS_STORAGE_KEY = "memories.slideshow.settings.v1";
 
 export function clampSeconds(value: number): number {
@@ -57,11 +67,42 @@ export function parseSettings(raw: string | null | undefined): SlideshowSettings
     order: d.order === "shuffle" || d.order === "time" ? d.order : DEFAULT_SETTINGS.order,
     showInfo: typeof d.showInfo === "boolean" ? d.showInfo : DEFAULT_SETTINGS.showInfo,
     seconds: typeof d.seconds === "number" ? clampSeconds(d.seconds) : DEFAULT_SETTINGS.seconds,
+    style: d.style === "projector" || d.style === "simple" ? d.style : DEFAULT_SETTINGS.style,
   };
 }
 
-// mulberry32: tiny seeded PRNG, enough for a photo order.
-function prng(seed: number): () => number {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Repeated `person` query params (Next hands over string | string[] | undefined):
+// keeps only well-formed ids, lower-cased, deduped, in first-seen order. Whether
+// an id belongs to a real person is the caller's business. This is the one place
+// that parses the param, so it can be swapped for the shared person-filter helper.
+export function parsePersonParam(raw: string | readonly string[] | undefined): string[] {
+  const list = raw === undefined ? [] : typeof raw === "string" ? [raw] : raw;
+  const out: string[] = [];
+  for (const value of list) {
+    if (typeof value !== "string" || !UUID.test(value)) continue;
+    const id = value.toLowerCase();
+    if (!out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+// The selection after clicking a person's chip: removes the id when it is
+// selected, otherwise appends it.
+export function togglePerson(selected: readonly string[], id: string): string[] {
+  return selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
+}
+
+// "everyone", "Anna", "Anna and Ben", "Anna, Ben and Cleo".
+export function selectionTitle(names: readonly string[]): string {
+  if (names.length === 0) return "everyone";
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+// mulberry32: tiny seeded PRNG, also used for the projector's dust and drift.
+export function prng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -176,11 +217,16 @@ export function dateAndPlaceLine(
 
 // Small deterministic Ken Burns drift (percent) derived from the photo id, so
 // a photo always drifts the same way and render stays pure.
-export function driftFor(id: string): { x: number; y: number } {
+export function hashId(id: string): number {
   let h = 2166136261;
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-  const a = (h >>> 0) % 5;
-  const b = ((h >>> 8) >>> 0) % 5;
+  return h >>> 0;
+}
+
+export function driftFor(id: string): { x: number; y: number } {
+  const h = hashId(id);
+  const a = h % 5;
+  const b = (h >>> 8) % 5;
   return { x: a - 2, y: b - 2 };
 }
 

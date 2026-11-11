@@ -8,11 +8,14 @@ import {
   estimateLabel,
   formatPlace,
   formatTakenAt,
+  parsePersonParam,
   parseSettings,
+  selectionTitle,
   shuffle,
   sortByTime,
   stepIndex,
   summaryLabel,
+  togglePerson,
   tripCountOf,
 } from "./slideshow";
 
@@ -102,12 +105,24 @@ describe("settings", () => {
       order: "shuffle",
       showInfo: false,
       seconds: 12,
+      style: "projector",
     });
     expect(parseSettings('{"order":"sideways","showInfo":"yes","seconds":500}')).toEqual({
       order: "time",
       showInfo: true,
       seconds: 30,
+      style: "projector",
     });
+  });
+  it("defaults to the projector and gives an old saved object the default style", () => {
+    expect(DEFAULT_SETTINGS.style).toBe("projector");
+    expect(parseSettings('{"order":"shuffle","showInfo":false,"seconds":9}').style).toBe("projector");
+  });
+  it("remembers the simple style and repairs an invalid one", () => {
+    expect(parseSettings('{"style":"simple"}').style).toBe("simple");
+    expect(parseSettings('{"style":"projector"}').style).toBe("projector");
+    expect(parseSettings('{"style":"cinema"}').style).toBe("projector");
+    expect(parseSettings('{"style":3}').style).toBe("projector");
   });
 });
 
@@ -154,5 +169,34 @@ describe("driftFor", () => {
     const d = driftFor("some-photo-id");
     expect(Math.abs(d.x)).toBeLessThanOrEqual(2);
     expect(Math.abs(d.y)).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("parsePersonParam", () => {
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  it("accepts one id, repeated ids and nothing", () => {
+    expect(parsePersonParam(undefined)).toEqual([]);
+    expect(parsePersonParam(A)).toEqual([A]);
+    expect(parsePersonParam([A, B])).toEqual([A, B]);
+  });
+  it("ignores malformed ids, dedupes and lower-cases", () => {
+    expect(parsePersonParam(["nope", A, "", A.toUpperCase(), "1; drop table"])).toEqual([A]);
+    expect(parsePersonParam("not-a-uuid")).toEqual([]);
+    expect(parsePersonParam([])).toEqual([]);
+  });
+});
+
+describe("togglePerson and selectionTitle", () => {
+  it("adds and removes an id", () => {
+    expect(togglePerson([], "a")).toEqual(["a"]);
+    expect(togglePerson(["a"], "b")).toEqual(["a", "b"]);
+    expect(togglePerson(["a", "b"], "a")).toEqual(["b"]);
+  });
+  it("words the title for any number of people", () => {
+    expect(selectionTitle([])).toBe("everyone");
+    expect(selectionTitle(["Anna"])).toBe("Anna");
+    expect(selectionTitle(["Anna", "Ben"])).toBe("Anna and Ben");
+    expect(selectionTitle(["Anna", "Ben", "Cleo"])).toBe("Anna, Ben and Cleo");
   });
 });

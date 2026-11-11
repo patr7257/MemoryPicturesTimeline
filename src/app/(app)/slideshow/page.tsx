@@ -4,17 +4,18 @@ import Link from "next/link";
 import { SlideshowLauncher } from "@/components/slideshow/SlideshowLauncher";
 import { getViewer } from "@/lib/access";
 import { getAllPeople } from "@/lib/queries";
+import { parsePersonParam, selectionTitle, togglePerson } from "@/lib/slideshow";
 import { getSlideshowPhotos } from "@/lib/slideshow-queries";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Slideshow" };
 export const dynamic = "force-dynamic";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const chip =
   "inline-flex min-h-11 items-center rounded-full border px-4 text-sm transition-colors";
 
+// /slideshow?person=<id>&person=<id>: photos of the vacations ANY of these people
+// is on. One param still works (links from the People page); none means all.
 export default async function SlideshowPage({
   searchParams,
 }: {
@@ -22,27 +23,31 @@ export default async function SlideshowPage({
 }) {
   const viewer = await getViewer();
   const { person } = await searchParams;
-  const raw = Array.isArray(person) ? person[0] : person;
 
   const everyone = await getAllPeople();
-  // Unknown or malformed ids behave like no filter.
-  const selected = raw && UUID.test(raw) ? everyone.find((p) => p.id === raw) : undefined;
+  // Unknown or malformed ids are ignored: no valid selection behaves like no filter.
+  const wanted = new Set(parsePersonParam(person));
+  const selected = everyone.filter((p) => wanted.has(p.id));
+  const selectedIds = selected.map((p) => p.id);
 
-  const photos = (await getSlideshowPhotos(viewer, { personId: selected?.id })) ?? [];
+  const photos =
+    (await getSlideshowPhotos(viewer, {
+      personIds: selectedIds.length > 0 ? selectedIds : undefined,
+    })) ?? [];
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-hand text-4xl">
-        Slideshow: {selected ? selected.name : "everyone"}
+        Slideshow: {selectionTitle(selected.map((p) => p.name))}
       </h1>
 
-      <nav aria-label="Whose vacations" className="flex flex-wrap gap-2">
+      <nav aria-label="Whose vacations (pick one or more)" className="flex flex-wrap gap-2">
         <Link
           href="/slideshow"
-          aria-current={selected ? undefined : "page"}
+          aria-current={selected.length > 0 ? undefined : "page"}
           className={cn(
             chip,
-            selected
+            selected.length > 0
               ? "border-border bg-background hover:bg-muted"
               : "border-primary bg-primary text-primary-foreground",
           )}
@@ -50,12 +55,17 @@ export default async function SlideshowPage({
           All my vacations
         </Link>
         {everyone.map((p) => {
-          const active = p.id === selected?.id;
+          const active = wanted.has(p.id);
+          const next = togglePerson(selectedIds, p.id);
           return (
             <Link
               key={p.id}
-              href={{ pathname: "/slideshow", query: { person: p.id } }}
-              aria-current={active ? "page" : undefined}
+              href={
+                next.length > 0
+                  ? { pathname: "/slideshow", query: { person: next } }
+                  : "/slideshow"
+              }
+              aria-current={active ? "true" : undefined}
               className={cn(
                 chip,
                 active
@@ -69,7 +79,7 @@ export default async function SlideshowPage({
         })}
       </nav>
 
-      <SlideshowLauncher key={selected?.id ?? "all"} photos={photos} />
+      <SlideshowLauncher key={selectedIds.join(",") || "all"} photos={photos} />
     </main>
   );
 }

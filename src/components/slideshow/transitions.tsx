@@ -6,16 +6,20 @@ import { AnimatePresence, motion } from "motion/react";
 import { imgUrl } from "@/lib/img-url";
 import { driftFor, type SlideshowPhoto } from "@/lib/slideshow";
 
-// The seam for slide transitions. The player renders exactly one
-// SlideTransition and hands it the current photo; the component owns how the
-// previous photo leaves and the new one arrives. A later wave (for example a 3D
-// slide projector) adds a component with this same props shape and registers it
-// in TRANSITIONS, without touching the player.
+// The seam between the player and what is on screen. The player renders exactly
+// ONE stage component for the whole show and keeps it mounted across slides,
+// handing it the current photo; the stage owns how the previous photo leaves and
+// the new one arrives and what it keeps in memory. Two stages exist: the fade
+// below (always available) and the 3D projector (ProjectorStage, loaded on demand
+// through loadProjectorStage so three.js is never in the initial bundle).
 export type SlideTransitionProps = {
   photo: SlideshowPhoto;
+  // The next photo that will play (null at the end): a stage may prefetch it.
+  nextPhoto: SlideshowPhoto | null;
   // +1 when moving forward, -1 when moving back (for directional transitions).
   direction: 1 | -1;
-  // How long the photo is held, in ms: the Ken Burns drift spans this.
+  // The whole slot of a photo in ms (seconds per photo): a transition into the
+  // photo happens inside it, and the slow drift spans it.
   holdMs: number;
   // False while the show is paused: slow motion should freeze.
   playing: boolean;
@@ -24,9 +28,15 @@ export type SlideTransitionProps = {
   onLoaded: (photoId: string) => void;
   // The photo could not load: the player skips it.
   onFailed: (photoId: string) => void;
+  // The stage cannot work on this device or any more (no WebGL, lost context,
+  // shader error): the player switches to the fade and carries on.
+  onUnavailable: () => void;
 };
 
-export type SlideTransitionId = "fade";
+// The projector stage, fetched on demand. Rejects when the chunk cannot load.
+export function loadProjectorStage(): Promise<ComponentType<SlideTransitionProps>> {
+  return import("@/components/slideshow/ProjectorStage").then((m) => m.ProjectorStage);
+}
 
 const FADE_S = 0.9;
 const FADE_REDUCED_S = 0.3;
@@ -84,10 +94,6 @@ export function FadeTransition({
     </AnimatePresence>
   );
 }
-
-export const TRANSITIONS: Record<SlideTransitionId, ComponentType<SlideTransitionProps>> = {
-  fade: FadeTransition,
-};
 
 // Keyframes the drift uses. Rendered once by the player.
 export const DRIFT_KEYFRAMES = `@keyframes slideshow-drift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.08) translate(var(--dx), var(--dy)); } }`;
