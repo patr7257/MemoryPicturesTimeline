@@ -78,3 +78,67 @@ export async function sendMagicLinkEmail(to: string, url: string): Promise<boole
     return false;
   }
 }
+
+// Invitation mail. NOT a magic link (those expire after 10 minutes): it tells
+// the invitee to open the login page and enter this exact address. Same
+// provider call and error handling as sendMagicLinkEmail.
+export async function sendInviteEmail(
+  to: string,
+  inviterName: string,
+  loginUrl: string,
+): Promise<boolean> {
+  const token = process.env.ZEPTOMAIL_TOKEN;
+  const from = process.env.ZEPTOMAIL_FROM;
+  if (!token || !from) {
+    console.warn("email: ZEPTOMAIL_TOKEN or ZEPTOMAIL_FROM not set, skipping send");
+    return false;
+  }
+  const baseUrl = process.env.ZEPTOMAIL_BASE_URL || DEFAULT_BASE_URL;
+
+  const text = `${inviterName} invited you to Family Memories.\n\nOpen ${loginUrl} and enter this exact email address (${to}) to get a sign-in link. Once you are in, you can add a passkey on the Account page so signing in is one tap next time.\n\nThis invitation does not expire. If you were not expecting it, you can ignore this email.`;
+  const safeUrl = escapeHtml(loginUrl);
+  const safeTo = escapeHtml(to);
+  const safeName = escapeHtml(inviterName);
+  const html = `<!doctype html><html><body style="margin:0;background:#f5efe3;padding:32px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table role="presentation" width="440" cellpadding="0" cellspacing="0" style="max-width:440px;background:#fffdf8;border:1px solid #e7dcc8;border-radius:12px;overflow:hidden;">
+      <tr><td style="padding:28px 32px;">
+        <p style="margin:0 0 4px;color:#b3562e;font-size:12px;letter-spacing:1px;text-transform:uppercase;">Family Memories</p>
+        <h1 style="margin:0 0 16px;color:#4a3b2c;font-size:20px;font-weight:600;">You are invited</h1>
+        <p style="margin:0 0 16px;color:#6b5b46;font-size:14px;line-height:1.6;">${safeName} invited you to Family Memories, our private family photo timeline.</p>
+        <p style="margin:0 0 20px;color:#6b5b46;font-size:14px;line-height:1.6;">Open the login page and enter this exact email address to get a sign-in link: <strong>${safeTo}</strong></p>
+        <div style="margin:0 0 20px;text-align:center;">
+          <a href="${safeUrl}" style="display:inline-block;padding:12px 28px;background:#b3562e;color:#fffdf8;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">Open the login page</a>
+        </div>
+        <p style="margin:0;color:#8d7c63;font-size:13px;line-height:1.6;">Once you are in, add a passkey on the Account page so signing in is one tap next time. If you were not expecting this, you can ignore this email.</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+
+  try {
+    const res = await fetch(`${baseUrl}/email`, {
+      method: "POST",
+      headers: {
+        Authorization: `Zoho-enczapikey ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: { address: from, name: FROM_NAME },
+        to: [{ email_address: { address: to } }],
+        subject: `${inviterName} invited you to Family Memories`,
+        htmlbody: html,
+        textbody: text,
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error("email: ZeptoMail invite send failed:", res.status, detail);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("email: ZeptoMail invite send error:", err);
+    return false;
+  }
+}
