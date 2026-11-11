@@ -10,7 +10,8 @@ export default async function AppLayout({
   return (
     <>
       <AppNav viewer={{ name: viewer.name, email: viewer.email, role: viewer.role }} />
-      {children}
+      {/* Phones: clear the fixed 4rem tab bar plus the iPhone home indicator. */}
+      <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
     </>
   );
 }

@@ -33,6 +33,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   // Single warm light theme (no dark mode in v1), same cream as the icon tile.
   themeColor: "#f5efe3",
+  // Lets the nav pad for the iPhone notch and home indicator via env(safe-area-inset-*).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
