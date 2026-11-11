@@ -7,6 +7,9 @@ import { toast } from "sonner";
 
 import { createTrip } from "@/actions/trips";
 import { parseExif, type ClientExif } from "@/lib/exif-client";
+import type { PersonRef } from "@/lib/queries";
+import { draftError, emptyDraft } from "@/lib/vacations-view";
+import { VacationFields } from "@/components/vacations/VacationFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,12 +28,20 @@ type FileState = {
 
 const CONCURRENCY = 3;
 
-export function UploadForm({ trips }: { trips: TripOption[] }) {
+export function UploadForm({
+  trips,
+  people,
+  viewerPersonId,
+}: {
+  trips: TripOption[];
+  people: PersonRef[];
+  viewerPersonId: string | null;
+}) {
   const router = useRouter();
   const [tripId, setTripId] = useState<string>(trips[0]?.id ?? "new");
-  const [newTitle, setNewTitle] = useState("");
-  const [newDate, setNewDate] = useState("");
-  const [newLocation, setNewLocation] = useState("");
+  const [draft, setDraft] = useState(() => emptyDraft(viewerPersonId));
+  // The vacation created during this upload, so the select can show it.
+  const [created, setCreated] = useState<TripOption | null>(null);
   const [files, setFiles] = useState<FileState[]>([]);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,15 +62,20 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
 
   async function ensureTrip(): Promise<string | null> {
     if (tripId !== "new") return tripId;
-    if (!newTitle.trim() || !newDate) {
-      toast.error("Give the new trip a title and a start date.");
+    const problem = draftError(draft);
+    if (problem) {
+      toast.error(problem);
       return null;
     }
     const { id } = await createTrip({
-      title: newTitle,
-      startDate: newDate,
-      locationName: newLocation || null,
+      title: draft.title,
+      startDate: draft.startDate,
+      endDate: draft.endDate || null,
+      locationName: draft.locationName || null,
+      description: draft.description || null,
+      personIds: draft.personIds,
     });
+    setCreated({ id, title: draft.title.trim(), startDate: draft.startDate });
     setTripId(id);
     return id;
   }
@@ -173,39 +189,30 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
     }
   }
 
+  const tripOptions =
+    created && !trips.some((t) => t.id === created.id) ? [created, ...trips] : trips;
   const queuedCount = files.filter((f) => f.status === "queued" || f.status === "error").length;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Label htmlFor="trip">Trip</Label>
+        <Label htmlFor="trip">Vacation</Label>
         <select
           id="trip"
-          className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
+          className="border-input h-11 w-full rounded-md border bg-card px-3 text-base md:h-9 md:text-sm"
           value={tripId}
           onChange={(e) => setTripId(e.target.value)}
         >
-          {trips.map((t) => (
+          {tripOptions.map((t) => (
             <option key={t.id} value={t.id}>
               {t.title} ({t.startDate})
             </option>
           ))}
-          <option value="new">+ New trip...</option>
+          <option value="new">+ New vacation...</option>
         </select>
         {tripId === "new" && (
-          <div className="grid gap-3 rounded-lg border p-4 sm:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="new-title">Title</Label>
-              <Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Summer in Italy" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="new-date">Start date</Label>
-              <Input id="new-date" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="new-location">Place (optional)</Label>
-              <Input id="new-location" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="Lake Garda, Italy" />
-            </div>
+          <div className="rounded-lg border bg-card p-4">
+            <VacationFields value={draft} onChange={setDraft} people={people} disabled={busy} />
           </div>
         )}
       </div>
@@ -218,6 +225,7 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
           type="file"
           accept="image/*"
           multiple
+          className="h-11 py-2 text-base md:h-8 md:py-1 md:text-xs"
           onChange={(e) => onPick(e.target.files)}
         />
       </div>
@@ -243,6 +251,7 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
                   disabled={busy}
                   onClick={() => void startUpload()}
                   aria-label="Retry"
+                  className="size-11 md:size-7"
                 >
                   <RotateCw />
                 </Button>
@@ -252,7 +261,7 @@ export function UploadForm({ trips }: { trips: TripOption[] }) {
         </ul>
       )}
 
-      <Button onClick={() => void startUpload()} disabled={busy || queuedCount === 0} size="lg">
+      <Button onClick={() => void startUpload()} disabled={busy || queuedCount === 0} size="lg" className="h-11 md:h-9">
         {busy ? "Uploading..." : `Upload ${queuedCount || ""} photo${queuedCount === 1 ? "" : "s"}`}
       </Button>
     </div>
