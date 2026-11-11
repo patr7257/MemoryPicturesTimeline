@@ -4,6 +4,7 @@
 // tilt from the photo id (never Math.random: hydration must match).
 import { motion } from "motion/react";
 
+import { BlurhashImage } from "./BlurhashImage";
 import { imgUrl } from "@/lib/img-url";
 import { offsetFor, rotationFor } from "@/lib/scrapbook";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ export type PolaroidPhoto = {
   id: string;
   width: number;
   height: number;
+  blurhash?: string | null;
   caption?: string | null;
 };
 
@@ -35,7 +37,7 @@ export function PolaroidCard({
       transition={{ type: "spring", stiffness: 120, damping: 16, delay: index * 0.06 }}
       style={{ translateX: dx }}
       className={cn(
-        "relative w-36 shrink-0 bg-card p-2 pb-7 shadow-[0_2px_10px_var(--paper-shadow)] sm:w-44",
+        "relative w-28 shrink-0 bg-card p-1.5 pb-6 shadow-[0_2px_10px_var(--paper-shadow)] sm:w-44 sm:p-2 sm:pb-7",
         className,
       )}
     >
@@ -44,14 +46,13 @@ export function PolaroidCard({
         aria-hidden
         className="absolute -top-2 left-1/2 h-4 w-12 -translate-x-1/2 rotate-2 bg-tape shadow-sm"
       />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <BlurhashImage
         src={imgUrl(photo.id, 400)}
         alt={photo.caption ?? "Photo"}
+        blurhash={photo.blurhash}
         width={photo.width}
         height={photo.height}
-        loading="lazy"
-        className="aspect-square w-full bg-muted object-cover"
+        className="aspect-square w-full"
       />
       {photo.caption && (
         <figcaption className="font-hand absolute inset-x-2 bottom-1 truncate text-center text-sm text-muted-foreground">
