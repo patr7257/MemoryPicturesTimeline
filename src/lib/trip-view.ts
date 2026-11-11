@@ -31,6 +31,16 @@ export function formatPhotoDateTime(d: Date | null): string {
   return d ? `${dayText(d)}, ${formatPhotoTime(d)}` : "";
 }
 
+// Two short lines for the postmark ring on a postcard: "12 NOV" and "2026".
+// Same wall-clock rule as the other photo date helpers.
+export function formatPostmarkDate(d: Date | null): { top: string; bottom: string } | null {
+  if (!d) return null;
+  return {
+    top: `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()].toUpperCase()}`,
+    bottom: String(d.getUTCFullYear()),
+  };
+}
+
 // comments.createdAt is a real instant (server clock). It is shown in the
 // family's own zone, pinned explicitly so the output never depends on the
 // runtime. Decision for the owner: change this one constant for another zone.

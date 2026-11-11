@@ -30,11 +30,13 @@ function tileLabel(p: TripPhotoView, noteCount: number): string {
 
 export function TripOverview({
   tripId,
+  tripName,
   startDate,
   photos: serverPhotos,
   comments: serverComments,
 }: {
   tripId: string;
+  tripName?: string;
   startDate: string;
   photos: TripPhotoView[];
   comments: CommentView[];
@@ -160,6 +162,7 @@ export function TripOverview({
 
       <PhotoDetail
         tripId={tripId}
+        tripName={tripName}
         photos={ordered}
         index={openIndex >= 0 ? openIndex : null}
         onIndexChange={(i) => setOpenId(i === null ? null : (ordered[i]?.id ?? null))}
