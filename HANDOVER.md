@@ -27,15 +27,14 @@ in this repo. Latest deploy green, live at `https://memories.patrickrobel.dk`.
 
 ## Prioritized next steps
 
-1. Family onboarding: each member signs in (magic link), adds a passkey,
-   installs to the Home Screen and switches on Alerts. Extend
-   `FAMILY_EMAILS` and re-run `push-dokploy-env.ps1` if someone is missing.
-2. M4 leftovers: cover-photo selection on the trip page, blurhash
-   placeholders in PolaroidCard/TripAlbum.
-3. Optional: a read-only push health report script (the pwa-push-setup
+1. Family onboarding: invite each member on the Members page (pick or
+   create their Person first), tag them on the vacations they should see,
+   then they sign in (magic link), add a passkey on the Account page,
+   install to the Home Screen and switch on Alerts.
+2. Optional: a read-only push health report script (the pwa-push-setup
    skill ships one by default, it was skipped here; the in-app "Send test"
    covers the transport check).
-4. Parked ideas: HEIC via client-side conversion, comments/reactions,
+3. Parked ideas: HEIC via client-side conversion, comments/reactions,
    video support.
 
 ## Verbatim resume commands
