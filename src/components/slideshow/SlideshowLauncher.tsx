@@ -20,6 +20,7 @@ import {
   type SlideshowOrder,
   type SlideshowPhoto,
   type SlideshowSettings,
+  type SlideshowStyle,
 } from "@/lib/slideshow";
 import { cn } from "@/lib/utils";
 
@@ -107,6 +108,17 @@ export function SlideshowLauncher({ photos }: { photos: SlideshowPhoto[] }) {
     <>
       <section className="space-y-7 rounded-xl border border-border bg-card p-5 sm:p-7">
         <h2 className="font-hand text-3xl">Set up your slideshow</h2>
+
+        <Choice
+          legend="Style"
+          name="slideshow-style"
+          value={settings.style}
+          onChange={(style: SlideshowStyle) => update({ style })}
+          options={[
+            { value: "projector", label: "Projector", hint: "A dark room, a slide projector" },
+            { value: "simple", label: "Simple", hint: "Plain fade between photos" },
+          ]}
+        />
 
         <Choice
           legend="Order"

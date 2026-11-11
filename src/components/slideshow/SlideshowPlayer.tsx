@@ -5,6 +5,7 @@ import {
   useEffectEvent,
   useRef,
   useState,
+  type ComponentType,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -22,7 +23,12 @@ import {
 } from "lucide-react";
 
 import { InfoStrip } from "@/components/slideshow/InfoStrip";
-import { DRIFT_KEYFRAMES, TRANSITIONS } from "@/components/slideshow/transitions";
+import {
+  DRIFT_KEYFRAMES,
+  FadeTransition,
+  loadProjectorStage,
+  type SlideTransitionProps,
+} from "@/components/slideshow/transitions";
 import { Button } from "@/components/ui/button";
 import { imgUrl } from "@/lib/img-url";
 import {
@@ -42,8 +48,10 @@ type WakeLockSentinelLike = { release: () => Promise<void> };
 
 // Full-window dark stage. `photos` is already in the order to play (the
 // launcher shuffles in its click handler). Owns timing, controls, keyboard,
-// swipe, wake lock and fullscreen; the look of the change between two photos is
-// delegated to a SlideTransition (see transitions.tsx).
+// swipe, wake lock and fullscreen; what is on screen is delegated to one
+// persistent stage (see transitions.tsx): the 3D projector by default, the plain
+// fade when the style is Simple, reduced motion is on, WebGL is unavailable, or
+// the projector chunk fails to load.
 export function SlideshowPlayer({
   photos,
   settings,
@@ -53,7 +61,6 @@ export function SlideshowPlayer({
   settings: SlideshowSettings;
   onExit: () => void;
 }) {
-  const Transition = TRANSITIONS.fade;
   const reducedMotion = useReducedMotion() ?? false;
   const holdMs = settings.seconds * 1000;
   const showTripTitle = tripCountOf(photos) > 1;
@@ -70,6 +77,8 @@ export function SlideshowPlayer({
   const [infoOn, setInfoOn] = useState(settings.showInfo);
   const [canFullscreen, setCanFullscreen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [Projector, setProjector] = useState<ComponentType<SlideTransitionProps> | null>(null);
+  const [projectorFailed, setProjectorFailed] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<{ x: number; y: number } | null>(null);
@@ -77,6 +86,16 @@ export function SlideshowPlayer({
   const preloaded = useRef<HTMLImageElement | null>(null);
 
   const photo = photos[index];
+  const wantProjector = settings.style === "projector" && !reducedMotion && !projectorFailed;
+  // Blank (black) until the projector chunk arrives; the fade needs no wait.
+  const Stage = wantProjector ? Projector : FadeTransition;
+  let nextPhoto: SlideshowPhoto | null = null;
+  for (let i = index + 1; i < photos.length; i++) {
+    if (!failed.has(photos[i].id)) {
+      nextPhoto = photos[i];
+      break;
+    }
+  }
   const loaded = loadedId === photo?.id;
   const running = playing && !ended && loaded;
 
@@ -128,6 +147,23 @@ export function SlideshowPlayer({
     }
     onExit();
   }
+
+  // Fetch the projector (three.js) only when it will be used.
+  useEffect(() => {
+    if (!wantProjector || Projector) return;
+    let off = false;
+    loadProjectorStage().then(
+      (component) => {
+        if (!off) setProjector(() => component);
+      },
+      () => {
+        if (!off) setProjectorFailed(true);
+      },
+    );
+    return () => {
+      off = true;
+    };
+  }, [wantProjector, Projector]);
 
   // Hold timer: counts only while the photo is on screen, playing and the tab
   // is visible, so pause and a hidden tab freeze the countdown.
@@ -205,7 +241,11 @@ export function SlideshowPlayer({
   // Fullscreen availability and state.
   useEffect(() => {
     const sync = () => {
-      setCanFullscreen(!!document.fullscreenEnabled);
+      // iPhone Safari and the installed iPhone app have no element fullscreen:
+      // no button there, the full-window stage is the best that platform allows.
+      setCanFullscreen(
+        !!document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function",
+      );
       setIsFullscreen(!!document.fullscreenElement);
     };
     sync();
@@ -325,15 +365,19 @@ export function SlideshowPlayer({
 
       {!ended && photo && (
         <>
-          <Transition
-            photo={photo}
-            direction={direction}
-            holdMs={holdMs}
-            playing={running}
-            reducedMotion={reducedMotion}
-            onLoaded={setLoadedId}
-            onFailed={(id) => id === photo.id && go(1, id)}
-          />
+          {Stage && (
+            <Stage
+              photo={photo}
+              nextPhoto={nextPhoto}
+              direction={direction}
+              holdMs={holdMs}
+              playing={running}
+              reducedMotion={reducedMotion}
+              onLoaded={setLoadedId}
+              onFailed={(id) => id === photo.id && go(1, id)}
+              onUnavailable={() => setProjectorFailed(true)}
+            />
+          )}
           {infoOn && <InfoStrip photo={photo} showTripTitle={showTripTitle} lift={controlsVisible} />}
         </>
       )}

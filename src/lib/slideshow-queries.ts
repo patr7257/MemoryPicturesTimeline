@@ -2,7 +2,7 @@
 // helpers, so a viewer only ever gets photos of vacations they may see.
 import "server-only";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, inArray } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { photos, tripPeople, trips } from "@/db/schema";
@@ -11,7 +11,7 @@ import type { Viewer } from "@/lib/access-policy";
 import { getCommentsForTrips } from "@/lib/comment-queries";
 import { sortByTime, type SlideshowComment, type SlideshowPhoto } from "@/lib/slideshow";
 
-export type SlideshowScope = { tripId: string } | { personId?: string };
+export type SlideshowScope = { tripId: string } | { personIds?: string[] };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -70,8 +70,9 @@ async function loadPhotos(viewer: Viewer, tripRows: TripInfo[]): Promise<Slidesh
 
 // { tripId }: that vacation's photos, or null when it is missing or the
 // viewer may not see it (callers answer notFound()).
-// { personId }: photos of every vacation the viewer may see that the person is
-// tagged on. No personId: every vacation the viewer may see.
+// { personIds }: photos of every vacation the viewer may see on which ANY of the
+// people is tagged. Missing or empty personIds: every vacation the viewer may
+// see. A non-empty list with no well-formed id matches nothing (never everything).
 // Time order: vacations by start date, then photos by takenAt, undated last.
 export async function getSlideshowPhotos(
   viewer: Viewer,
@@ -89,13 +90,17 @@ export async function getSlideshowPhotos(
   if (visible !== "all" && visible.size === 0) return [];
 
   const conditions = [];
-  if (scope.personId) {
-    if (!UUID.test(scope.personId)) return [];
+  const requested = scope.personIds ?? [];
+  if (requested.length > 0) {
+    const personIds = requested.filter((id) => UUID.test(id));
+    if (personIds.length === 0) return [];
     const tagged = await db
       .select({ id: tripPeople.tripId })
       .from(tripPeople)
-      .where(eq(tripPeople.personId, scope.personId));
-    const ids = tagged.map((t) => t.id).filter((id) => visible === "all" || visible.has(id));
+      .where(inArray(tripPeople.personId, personIds));
+    const ids = Array.from(new Set(tagged.map((t) => t.id))).filter(
+      (id) => visible === "all" || visible.has(id),
+    );
     if (ids.length === 0) return [];
     conditions.push(inArray(trips.id, ids));
   } else if (visible !== "all") {
