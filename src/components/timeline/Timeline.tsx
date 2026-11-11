@@ -4,13 +4,13 @@
 // alternating around a center spine (single left column on phones), and a warm
 // "beam" that grows down the spine as you scroll.
 import { useRef } from "react";
-import Link from "next/link";
 import { MotionConfig, motion, useScroll, useSpring } from "motion/react";
 import { Camera, MapPin } from "lucide-react";
 
 import type { TimelineYear } from "@/lib/queries";
 import { formatTripDates } from "@/lib/dates";
 import { rotationFor } from "@/lib/scrapbook";
+import { FlightLink } from "@/components/globe/FlightProvider";
 import { PhotoCluster } from "./PhotoCluster";
 import { YearChips, YearRail, useYearSpy, yearAnchor } from "./YearNav";
 
@@ -70,7 +70,7 @@ export function Timeline({ years }: { years: TimelineYear[] }) {
                       left ? "md:-right-1.5 md:translate-x-1/2" : "md:-left-1.5 md:-translate-x-1/2"
                     }`}
                   />
-                  <Link href={`/trips/${trip.id}`} className="group block">
+                  <FlightLink trip={trip} className="group block">
                     <h3 className="font-hand text-3xl leading-tight break-words group-hover:text-primary">
                       {trip.title}
                     </h3>
@@ -113,7 +113,7 @@ export function Timeline({ years }: { years: TimelineYear[] }) {
                         caption: p.city,
                       }))}
                     />
-                  </Link>
+                  </FlightLink>
                 </article>
               );
             })}

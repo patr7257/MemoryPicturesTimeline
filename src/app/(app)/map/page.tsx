@@ -1,16 +1,17 @@
 import { getViewer } from "@/lib/access";
 import { getTimelineData } from "@/lib/queries";
+import { parsePersonParam, type PersonParam } from "@/lib/person-filter";
 import { PersonFilter } from "@/components/timeline/PersonFilter";
 import { TripsMap, type MapTrip } from "@/components/map/TripsMap";
 
 export default async function MapPage({
   searchParams,
 }: {
-  searchParams: Promise<{ person?: string }>;
+  searchParams: Promise<{ person?: PersonParam }>;
 }) {
   const viewer = await getViewer();
-  const { person } = await searchParams;
-  const { years, allPeople } = await getTimelineData(viewer, person);
+  const personIds = parsePersonParam((await searchParams).person);
+  const { years, allPeople } = await getTimelineData(viewer, personIds);
 
   const mapTrips: MapTrip[] = years
     .flatMap((y) => y.trips)
@@ -29,12 +30,14 @@ export default async function MapPage({
 
   return (
     <main className="pb-12">
-      <PersonFilter people={allPeople} activeId={person} basePath="/map" />
+      <PersonFilter people={allPeople} activeIds={personIds} basePath="/map" />
       <div className="px-6">
         <TripsMap trips={mapTrips} />
         {mapTrips.length === 0 && (
           <p className="font-hand pt-6 text-center text-2xl text-muted-foreground">
-            No pins yet: trips get one from their first GPS photo or the edit page.
+            {personIds.length > 0
+              ? "No pins for these people yet."
+              : "No pins yet: trips get one from their first GPS photo or the edit page."}
           </p>
         )}
       </div>
