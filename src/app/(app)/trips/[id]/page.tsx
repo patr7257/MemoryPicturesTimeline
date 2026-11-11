@@ -11,6 +11,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   return (
     <TripOverview
       tripId={data.trip.id}
+      tripName={data.trip.title}
       startDate={data.trip.startDate}
       photos={data.photos}
       comments={data.comments}

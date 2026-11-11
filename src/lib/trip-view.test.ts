@@ -8,6 +8,7 @@ import {
   formatPhotoDate,
   formatPhotoDateTime,
   formatPhotoTime,
+  formatPostmarkDate,
   groupPhotosByDay,
   validateCaption,
   validateCommentBody,
@@ -141,5 +142,17 @@ describe("countCommentsByPhoto", () => {
   });
   it("is empty for no comments", () => {
     expect(countCommentsByPhoto([])).toEqual({ byPhoto: {}, trip: 0 });
+  });
+});
+
+describe("formatPostmarkDate", () => {
+  it("gives day and month in capitals plus the year, from the UTC wall clock", () => {
+    expect(formatPostmarkDate(new Date(Date.UTC(2019, 6, 5, 23, 30)))).toEqual({
+      top: "5 JUL",
+      bottom: "2019",
+    });
+  });
+  it("is null without a date", () => {
+    expect(formatPostmarkDate(null)).toBeNull();
   });
 });
