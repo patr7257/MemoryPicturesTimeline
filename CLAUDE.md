@@ -55,7 +55,9 @@ family-only login, photos never publicly reachable.
 - **Pins**: a vacation's pin on the globe and map is its cover photo's GPS
   (chosen cover, else the first photo), derived on read in
   `src/lib/trip-pin.ts`. `trips.lat/lng` is only the fallback when the cover
-  has no location (set at upload from the first GPS-tagged photo).
+  has no location (set at upload from the first GPS-tagged photo). The
+  `/map` tab is per photo instead: every GPS photo at its own spot, stacked
+  when zoomed out (supercluster, `src/lib/photo-clusters.ts`).
 - **Scrapbook rule**: every rotation/offset derives from stable ids via
   `src/lib/scrapbook.ts`. Math.random() in render paths causes hydration
   mismatches; never introduce it.

@@ -4,13 +4,14 @@
 //
 // Every read takes the Viewer and returns only what that viewer may see
 // (src/lib/access-policy.ts). There is no unfiltered variant on purpose.
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { people, photos, tripPeople, trips } from "@/db/schema";
 import { findVisibleTrip, visibleTripIds } from "@/lib/access";
 import { canManageTrip, type Viewer } from "@/lib/access-policy";
 import { matchesPeople } from "@/lib/person-filter";
+import type { MapPhoto } from "@/lib/photo-clusters";
 import { tripPin } from "@/lib/trip-pin";
 
 export type PersonRef = { id: string; name: string };
@@ -175,6 +176,54 @@ export async function getVisibleTripOptions(viewer: Viewer): Promise<TripOption[
       .orderBy(desc(trips.startDate)),
   ]);
   return visible === "all" ? rows : rows.filter((t) => visible.has(t.id));
+}
+
+// Every photo with a GPS location in the vacations the viewer may see, for the
+// map tab. With people picked, only vacations with any of them (as on the
+// timeline). Oldest first.
+export async function getMapPhotos(
+  viewer: Viewer,
+  personIds: readonly string[] = [],
+): Promise<MapPhoto[]> {
+  const db = getDb();
+  const [visible, everyTrip, allTripPeople, located] = await Promise.all([
+    visibleTripIds(viewer),
+    db.select({ id: trips.id, title: trips.title }).from(trips),
+    db.select().from(tripPeople),
+    db
+      .select({
+        id: photos.id,
+        tripId: photos.tripId,
+        lat: photos.lat,
+        lng: photos.lng,
+        takenAt: photos.takenAt,
+        city: photos.city,
+      })
+      .from(photos)
+      .where(and(isNotNull(photos.lat), isNotNull(photos.lng)))
+      .orderBy(asc(photos.takenAt)),
+  ]);
+
+  const peopleByTrip = new Map<string, string[]>();
+  for (const tp of allTripPeople) {
+    const list = peopleByTrip.get(tp.tripId) ?? [];
+    list.push(tp.personId);
+    peopleByTrip.set(tp.tripId, list);
+  }
+  const titles = new Map(
+    everyTrip
+      .filter((t) => visible === "all" || visible.has(t.id))
+      .filter((t) => matchesPeople(personIds, peopleByTrip.get(t.id) ?? []))
+      .map((t) => [t.id, t.title]),
+  );
+
+  const out: MapPhoto[] = [];
+  for (const p of located) {
+    const tripTitle = titles.get(p.tripId);
+    if (tripTitle === undefined || p.lat === null || p.lng === null) continue;
+    out.push({ ...p, lat: p.lat, lng: p.lng, tripTitle });
+  }
+  return out;
 }
 
 export async function getAllPeople(): Promise<PersonRef[]> {
