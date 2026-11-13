@@ -52,6 +52,10 @@ family-only login, photos never publicly reachable.
   WebP + blurhash + BigDataCloud reverse geocode, idempotent via unique
   `r2_key_original`). Serving = authenticated `/api/img/[id]/[size]` proxy,
   `next/image` is intentionally unused (`images.unoptimized`).
+- **Pins**: a vacation's pin on the globe and map is its cover photo's GPS
+  (chosen cover, else the first photo), derived on read in
+  `src/lib/trip-pin.ts`. `trips.lat/lng` is only the fallback when the cover
+  has no location (set at upload from the first GPS-tagged photo).
 - **Scrapbook rule**: every rotation/offset derives from stable ids via
   `src/lib/scrapbook.ts`. Math.random() in render paths causes hydration
   mismatches; never introduce it.

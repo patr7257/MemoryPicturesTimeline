@@ -166,3 +166,20 @@ export function flightEligible(lat: unknown, lng: unknown, home: LatLng = HOME):
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false;
   return angularDistance(latLngToVec(lat, lng), latLngToVec(home.lat, home.lng)) >= 0.004;
 }
+
+// Closest the camera may get to the centre (globe radius 1): close enough to
+// tell neighbouring cities apart, far enough that the surface never clips.
+export const ZOOM_MIN_DIST = 1.35;
+
+// New camera distance after zooming by `factor` (below 1 is closer), kept
+// between ZOOM_MIN_DIST and `maxDist`.
+export function zoomDistance(current: number, factor: number, maxDist: number): number {
+  const f = Number.isFinite(factor) && factor > 0 ? factor : 1;
+  return clamp(current * f, ZOOM_MIN_DIST, Math.max(ZOOM_MIN_DIST, maxDist));
+}
+
+// Wheel delta to a zoom factor. Ctrl + wheel and trackpad pinches both arrive
+// as wheel events; one mouse notch (about 100) is a 1.35x step.
+export function wheelZoomFactor(deltaY: number): number {
+  return Math.exp(clamp(deltaY, -200, 200) * 0.003);
+}

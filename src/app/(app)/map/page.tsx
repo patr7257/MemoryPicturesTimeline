@@ -37,7 +37,7 @@ export default async function MapPage({
           <p className="font-hand pt-6 text-center text-2xl text-muted-foreground">
             {personIds.length > 0
               ? "No pins for these people yet."
-              : "No pins yet: trips get one from their first GPS photo or the edit page."}
+              : "No pins yet: a vacation gets one from its cover photo's location."}
           </p>
         )}
       </div>

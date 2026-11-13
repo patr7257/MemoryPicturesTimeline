@@ -5,12 +5,13 @@
 // the same height whatever its photo count, and photos are cropped to fill
 // (the full photo shows when opened). Touch and trackpads scroll natively;
 // mouse users get arrow buttons that appear only when there is more to see.
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 
 import { imgUrl } from "@/lib/img-url";
 import type { TripPhotoView } from "@/lib/photo-queries";
 import { formatPhotoTime } from "@/lib/trip-view";
+import { useScrollEdges } from "@/lib/use-scroll-edges";
 
 export type PhotoDayRowProps = {
   label: string;
@@ -27,31 +28,7 @@ function tileLabel(p: TripPhotoView, noteCount: number): string {
 
 export function PhotoDayRow({ label, photos, noteCounts, onOpen }: PhotoDayRowProps) {
   const scroller = useRef<HTMLUListElement>(null);
-  const [edges, setEdges] = useState({ start: false, end: false });
-
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
-    function measure() {
-      if (!el) return;
-      const start = el.scrollLeft > 1;
-      const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
-      setEdges((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
-    }
-    measure();
-    el.addEventListener("scroll", measure, { passive: true });
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", measure);
-      ro.disconnect();
-    };
-  }, [photos.length]);
-
-  const page = (dir: 1 | -1) => {
-    const el = scroller.current;
-    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
-  };
+  const { edges, page } = useScrollEdges(scroller, photos.length);
 
   const arrow =
     "absolute top-1/2 z-10 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md transition-opacity hover:bg-background [@media(hover:hover)]:flex";

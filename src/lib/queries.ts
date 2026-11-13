@@ -11,6 +11,7 @@ import { people, photos, tripPeople, trips } from "@/db/schema";
 import { findVisibleTrip, visibleTripIds } from "@/lib/access";
 import { canManageTrip, type Viewer } from "@/lib/access-policy";
 import { matchesPeople } from "@/lib/person-filter";
+import { tripPin } from "@/lib/trip-pin";
 
 export type PersonRef = { id: string; name: string };
 
@@ -71,6 +72,8 @@ export async function getTimelineData(
         takenAt: photos.takenAt,
         city: photos.city,
         caption: photos.caption,
+        lat: photos.lat,
+        lng: photos.lng,
       })
       .from(photos)
       .orderBy(asc(photos.takenAt)),
@@ -89,7 +92,7 @@ export async function getTimelineData(
     peopleByTrip.set(tp.tripId, list);
   }
 
-  const photosByTrip = new Map<string, PhotoPreview[]>();
+  const photosByTrip = new Map<string, (typeof allPhotos)[number][]>();
   for (const p of allPhotos) {
     const list = photosByTrip.get(p.tripId) ?? [];
     list.push(p);
@@ -108,6 +111,8 @@ export async function getTimelineData(
   for (const t of filtered) {
     const year = Number(t.startDate.slice(0, 4));
     const tripPhotos = photosByTrip.get(t.id) ?? [];
+    // The pin follows the cover photo (src/lib/trip-pin.ts).
+    const pin = tripPin(t, tripPhotos);
     const entry: TimelineTrip = {
       id: t.id,
       title: t.title,
@@ -115,11 +120,12 @@ export async function getTimelineData(
       startDate: t.startDate,
       endDate: t.endDate,
       locationName: t.locationName,
-      lat: t.lat,
-      lng: t.lng,
+      lat: pin.lat,
+      lng: pin.lng,
       people: peopleByTrip.get(t.id) ?? [],
       photoCount: tripPhotos.length,
-      previewPhotos: tripPhotos.slice(0, PREVIEW_COUNT),
+      // Photo coordinates stay on the server; previews carry no location.
+      previewPhotos: tripPhotos.slice(0, PREVIEW_COUNT).map(({ tripId: _t, lat: _a, lng: _o, ...p }) => p),
       coverPhotoId: t.coverPhotoId ?? tripPhotos[0]?.id ?? null,
       createdBy: t.createdBy,
       canManage: canManageTrip(viewer, t),

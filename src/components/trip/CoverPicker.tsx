@@ -1,9 +1,11 @@
 "use client";
 
-// Pick which photo represents the vacation on the timeline and map. Applies
-// immediately (it is its own action, not part of the form's Save).
+// Pick which photo represents the vacation on the timeline and map. The cover
+// also places the vacation's pin on the globe and map (src/lib/trip-pin.ts),
+// so photos with a location are marked. Applies immediately (it is its own
+// action, not part of the form's Save).
 import { useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 import { updateTrip } from "@/actions/trips";
@@ -18,7 +20,7 @@ export function CoverPicker({
 }: {
   tripId: string;
   // In display order; the first is the automatic cover.
-  photos: { id: string }[];
+  photos: { id: string; hasLocation: boolean }[];
   coverPhotoId: string | null;
 }) {
   // A stored id that no longer matches a photo counts as "automatic".
@@ -35,13 +37,14 @@ export function CoverPicker({
   }
 
   const effective = chosen ?? photos[0].id;
+  const coverHasLocation = photos.find((p) => p.id === effective)?.hasLocation ?? false;
 
   function choose(id: string | null) {
     startTransition(async () => {
       try {
         await updateTrip({ id: tripId, coverPhotoId: id });
         setChosen(id);
-        toast.success(id ? "Cover photo changed" : "Using the first photo as cover");
+        toast.success(id ? "Cover photo and pin changed" : "Using the first photo as cover");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Could not change the cover");
       }
@@ -50,6 +53,11 @@ export function CoverPicker({
 
   return (
     <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">
+        The cover also places the vacation&apos;s pin on the globe and map. Photos with a location
+        are marked <MapPin className="inline size-3.5 align-[-2px]" aria-label="with a pin icon" />.
+        {!coverHasLocation && " The current cover has no location, so the pin stays where it was."}
+      </p>
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
         {photos.map((p) => {
           const current = p.id === effective;
@@ -60,7 +68,10 @@ export function CoverPicker({
                 onClick={() => choose(p.id)}
                 disabled={pending}
                 aria-pressed={current}
-                aria-label={current ? "Current cover photo" : "Use as cover photo"}
+                aria-label={
+                  (current ? "Current cover photo" : "Use as cover photo") +
+                  (p.hasLocation ? ", has a location" : ", no location")
+                }
                 className={cn(
                   "relative block aspect-square w-full overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   current ? "ring-2 ring-primary" : "opacity-90 hover:opacity-100",
@@ -77,6 +88,14 @@ export function CoverPicker({
                   <span className="absolute top-1 left-1 inline-flex items-center gap-1 bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
                     <Check className="size-3" aria-hidden />
                     Cover
+                  </span>
+                )}
+                {p.hasLocation && (
+                  <span
+                    aria-hidden
+                    className="absolute right-1 bottom-1 inline-flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+                  >
+                    <MapPin className="size-3.5" />
                   </span>
                 )}
               </button>

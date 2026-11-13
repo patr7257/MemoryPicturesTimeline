@@ -19,7 +19,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
         </h2>
         <CoverPicker
           tripId={data.trip.id}
-          photos={data.photos.map((p) => ({ id: p.id }))}
+          photos={data.photos.map((p) => ({ id: p.id, hasLocation: p.lat !== null && p.lng !== null }))}
           coverPhotoId={data.trip.coverPhotoId}
         />
       </section>

@@ -10,6 +10,9 @@ import {
   initialView,
   latLngToVec,
   lngDelta,
+  wheelZoomFactor,
+  zoomDistance,
+  ZOOM_MIN_DIST,
   slerp,
   vecToLatLng,
   viewDistanceFor,
@@ -202,5 +205,32 @@ describe("flightEligible", () => {
   it("rejects the home point itself but accepts a nearby town", () => {
     expect(flightEligible(HOME.lat, HOME.lng)).toBe(false);
     expect(flightEligible(HOME.lat + 0.5, HOME.lng)).toBe(true);
+  });
+});
+
+describe("zoomDistance", () => {
+  it("scales the distance and stays inside the limits", () => {
+    expect(zoomDistance(3, 0.5, 4)).toBeCloseTo(1.5, 10);
+    expect(zoomDistance(1.5, 0.5, 4)).toBe(ZOOM_MIN_DIST);
+    expect(zoomDistance(3.5, 2, 4)).toBe(4);
+  });
+  it("ignores a broken factor", () => {
+    expect(zoomDistance(2, Number.NaN, 4)).toBe(2);
+    expect(zoomDistance(2, 0, 4)).toBe(2);
+    expect(zoomDistance(2, -1, 4)).toBe(2);
+  });
+  it("never lets the far limit fall below the near one", () => {
+    expect(zoomDistance(2, 1, 1)).toBe(ZOOM_MIN_DIST);
+  });
+});
+
+describe("wheelZoomFactor", () => {
+  it("zooms in on scroll up, out on scroll down, about 1.35x per notch", () => {
+    expect(wheelZoomFactor(-100)).toBeLessThan(1);
+    expect(wheelZoomFactor(100)).toBeCloseTo(1.3499, 3);
+    expect(wheelZoomFactor(0)).toBe(1);
+  });
+  it("caps a huge delta", () => {
+    expect(wheelZoomFactor(10_000)).toBe(wheelZoomFactor(200));
   });
 });
