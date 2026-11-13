@@ -38,6 +38,7 @@
     "react-map-gl": "^8.1.0",
     "sharp": "^0.35.3",
     "sonner": "^2.0.7",
+    "supercluster": "^9.1.0",
     "tailwind-merge": "^3.6.0",
     "three": "^0.187.0",
     "topojson-client": "^3.1.0",

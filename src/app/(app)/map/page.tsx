@@ -1,8 +1,8 @@
 import { getViewer } from "@/lib/access";
-import { getTimelineData } from "@/lib/queries";
+import { getAllPeople, getMapPhotos } from "@/lib/queries";
 import { parsePersonParam, type PersonParam } from "@/lib/person-filter";
 import { PersonFilter } from "@/components/timeline/PersonFilter";
-import { TripsMap, type MapTrip } from "@/components/map/TripsMap";
+import { PhotosMap } from "@/components/map/PhotosMap";
 
 export default async function MapPage({
   searchParams,
@@ -11,33 +11,18 @@ export default async function MapPage({
 }) {
   const viewer = await getViewer();
   const personIds = parsePersonParam((await searchParams).person);
-  const { years, allPeople } = await getTimelineData(viewer, personIds);
-
-  const mapTrips: MapTrip[] = years
-    .flatMap((y) => y.trips)
-    .filter((t) => t.lat !== null && t.lng !== null)
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      startDate: t.startDate,
-      endDate: t.endDate,
-      locationName: t.locationName,
-      lat: t.lat!,
-      lng: t.lng!,
-      coverPhotoId: t.coverPhotoId,
-      photoCount: t.photoCount,
-    }));
+  const [photos, allPeople] = await Promise.all([getMapPhotos(viewer, personIds), getAllPeople()]);
 
   return (
     <main className="pb-12">
       <PersonFilter people={allPeople} activeIds={personIds} basePath="/map" />
       <div className="px-6">
-        <TripsMap trips={mapTrips} />
-        {mapTrips.length === 0 && (
+        <PhotosMap photos={photos} />
+        {photos.length === 0 && (
           <p className="font-hand pt-6 text-center text-2xl text-muted-foreground">
             {personIds.length > 0
-              ? "No pins for these people yet."
-              : "No pins yet: a vacation gets one from its cover photo's location."}
+              ? "No photos with a location for these people yet."
+              : "No photos with a location yet."}
           </p>
         )}
       </div>
