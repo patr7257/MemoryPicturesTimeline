@@ -34,7 +34,7 @@ $prod.Add("PUSH_SEND=1")
 $prod.Add("BETTER_AUTH_SECRET=$prodSecret")
 $prod.Add("BETTER_AUTH_URL=https://memories.patrickrobel.dk")
 $prod.Add("NEXT_PUBLIC_BASE_URL=https://memories.patrickrobel.dk")
-$prod.Add("PASSKEY_RP_ID=patrickrobel.dk")
+$prod.Add("PASSKEY_RP_ID=memories.patrickrobel.dk")
 $prod.Add("PASSKEY_ORIGIN=https://memories.patrickrobel.dk")
 foreach ($k in $copyKeys) {
     $v = ""

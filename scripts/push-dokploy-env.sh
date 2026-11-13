@@ -17,7 +17,7 @@ prod_secret="$(head -c 32 /dev/urandom | base64)"
 env_block="BETTER_AUTH_SECRET=$prod_secret
 BETTER_AUTH_URL=https://memories.patrickrobel.dk
 NEXT_PUBLIC_BASE_URL=https://memories.patrickrobel.dk
-PASSKEY_RP_ID=patrickrobel.dk
+PASSKEY_RP_ID=memories.patrickrobel.dk
 PASSKEY_ORIGIN=https://memories.patrickrobel.dk
 PUSH_SEND=1"
 for k in DATABASE_URL SUPER_ADMIN_EMAILS FAMILY_EMAILS ZEPTOMAIL_TOKEN ZEPTOMAIL_FROM ZEPTOMAIL_BASE_URL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
