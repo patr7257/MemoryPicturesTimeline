@@ -8,7 +8,7 @@ import { photos, trips } from "@/db/schema";
 import { findVisiblePhoto, getViewer } from "@/lib/access";
 import { AccessError, canManagePhoto } from "@/lib/access-policy";
 import { deleteObjects, r2Configured } from "@/lib/r2";
-import { validateCaption } from "@/lib/trip-view";
+import { parseTakenAt, validateCaption } from "@/lib/trip-view";
 
 async function requireManagedPhoto(photoId: string) {
   const viewer = await getViewer();
@@ -59,6 +59,22 @@ export async function updatePhotoCaption(
   const checked = validateCaption(caption);
   if (!checked.ok) throw new Error(checked.error);
   await getDb().update(photos).set({ caption: checked.value }).where(eq(photos.id, photo.id));
+  revalidatePath("/", "layout");
+  return checked.value;
+}
+
+// Sets when the photo was taken: date "yyyy-mm-dd" and optional time "hh:mm"
+// as the wall clock (see parseTakenAt). An empty date clears it. Returns the
+// stored value so the page can move the photo to its new day at once.
+export async function updatePhotoTakenAt(
+  photoId: string,
+  date: string,
+  time: string,
+): Promise<Date | null> {
+  const { photo } = await requireManagedPhoto(photoId);
+  const checked = parseTakenAt(date, time);
+  if (!checked.ok) throw new Error(checked.error);
+  await getDb().update(photos).set({ takenAt: checked.value }).where(eq(photos.id, photo.id));
   revalidatePath("/", "layout");
   return checked.value;
 }

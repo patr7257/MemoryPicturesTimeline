@@ -45,6 +45,7 @@ export type PhotoDetailProps = {
   onCommentAdded: (comment: CommentView) => void;
   onCommentDeleted: (commentId: string) => void;
   onCaptionChanged: (photoId: string, caption: string | null) => void;
+  onTakenAtChanged: (photoId: string, takenAt: Date | null) => void;
   onPhotoDeleted: (photoId: string) => void;
 };
 
@@ -63,6 +64,7 @@ export function PhotoDetail({
   onCommentAdded,
   onCommentDeleted,
   onCaptionChanged,
+  onTakenAtChanged,
   onPhotoDeleted,
 }: PhotoDetailProps) {
   const open = index !== null && index >= 0 && index < photos.length;
@@ -299,6 +301,7 @@ export function PhotoDetail({
                       onCommentAdded={onCommentAdded}
                       onCommentDeleted={onCommentDeleted}
                       onCaptionChanged={onCaptionChanged}
+                      onTakenAtChanged={onTakenAtChanged}
                       onStateChange={setDraft}
                       onTurn={flip}
                     />

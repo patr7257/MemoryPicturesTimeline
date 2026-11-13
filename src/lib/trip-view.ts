@@ -132,6 +132,57 @@ export function validateCaption(raw: unknown): Validated<string | null> {
   return { ok: true, value: value.length === 0 ? null : value };
 }
 
+// Values for <input type="date"> and <input type="time"> from the stored wall
+// clock (UTC parts, same rule as the formatters). Empty when there is no date.
+export function toDateInputValue(d: Date | null): string {
+  return d ? isoDay(d) : "";
+}
+
+export function toTimeInputValue(d: Date | null): string {
+  return formatPhotoTime(d);
+}
+
+const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/;
+export const TAKEN_YEAR_MIN = 1900;
+export const TAKEN_YEAR_MAX = 2100;
+
+// The photo date form: "yyyy-mm-dd" plus an optional "hh:mm". An empty date
+// clears it (null, shown as "Date unknown"). No time means 12:00, so a photo
+// that only gets a day still sorts sensibly within it. The result is the wall
+// clock stored as UTC parts, never shifted by any zone.
+export function parseTakenAt(date: unknown, time: unknown): Validated<Date | null> {
+  if (typeof date !== "string" || typeof time !== "string") {
+    return { ok: false, error: "Pick a valid date" };
+  }
+  const dateText = date.trim();
+  const timeText = time.trim();
+  if (dateText === "") return { ok: true, value: null };
+
+  const dm = DATE_RE.exec(dateText);
+  if (!dm) return { ok: false, error: "Pick a valid date" };
+  const [y, m, d] = [Number(dm[1]), Number(dm[2]), Number(dm[3])];
+  if (y < TAKEN_YEAR_MIN || y > TAKEN_YEAR_MAX) {
+    return { ok: false, error: `Pick a year between ${TAKEN_YEAR_MIN} and ${TAKEN_YEAR_MAX}` };
+  }
+
+  let hh = 12;
+  let mm = 0;
+  if (timeText !== "") {
+    const tm = TIME_RE.exec(timeText);
+    if (!tm) return { ok: false, error: "Pick a valid time" };
+    hh = Number(tm[1]);
+    mm = Number(tm[2]);
+  }
+
+  const value = new Date(Date.UTC(y, m - 1, d, hh, mm));
+  // Date.UTC rolls 31 Feb over into March; refuse instead of guessing.
+  if (value.getUTCMonth() !== m - 1 || value.getUTCDate() !== d) {
+    return { ok: false, error: "Pick a valid date" };
+  }
+  return { ok: true, value };
+}
+
 export function countCommentsByPhoto(
   comments: readonly { photoId: string | null }[],
 ): { byPhoto: Record<string, number>; trip: number } {
