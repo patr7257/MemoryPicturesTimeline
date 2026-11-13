@@ -10,6 +10,11 @@ import {
   formatPhotoTime,
   formatPostmarkDate,
   groupPhotosByDay,
+  parseTakenAt,
+  TAKEN_YEAR_MAX,
+  TAKEN_YEAR_MIN,
+  toDateInputValue,
+  toTimeInputValue,
   validateCaption,
   validateCommentBody,
 } from "./trip-view";
@@ -126,6 +131,52 @@ describe("validateCaption", () => {
   });
   it("rejects non-strings", () => {
     expect(validateCaption(42 as unknown as string).ok).toBe(false);
+  });
+});
+
+describe("date form values", () => {
+  it("reads the stored wall clock as UTC parts", () => {
+    const d = at("2019-07-15T23:30:00");
+    expect(toDateInputValue(d)).toBe("2019-07-15");
+    expect(toTimeInputValue(d)).toBe("23:30");
+  });
+  it("is empty without a date", () => {
+    expect(toDateInputValue(null)).toBe("");
+    expect(toTimeInputValue(null)).toBe("");
+  });
+});
+
+describe("parseTakenAt", () => {
+  it("stores date and time as the wall clock in UTC parts", () => {
+    expect(parseTakenAt("2019-07-15", "23:30")).toEqual({ ok: true, value: at("2019-07-15T23:30:00") });
+  });
+  it("accepts seconds from browsers that send them, and drops them", () => {
+    expect(parseTakenAt("2019-07-15", "08:05:59")).toEqual({ ok: true, value: at("2019-07-15T08:05:00") });
+  });
+  it("uses 12:00 when only a date is given", () => {
+    expect(parseTakenAt("2019-07-15", "")).toEqual({ ok: true, value: at("2019-07-15T12:00:00") });
+  });
+  it("round-trips through the form values", () => {
+    const d = at("2024-02-29T06:45:00");
+    expect(parseTakenAt(toDateInputValue(d), toTimeInputValue(d))).toEqual({ ok: true, value: d });
+  });
+  it("clears the date when the date field is empty", () => {
+    expect(parseTakenAt("", "10:00")).toEqual({ ok: true, value: null });
+    expect(parseTakenAt("  ", "")).toEqual({ ok: true, value: null });
+  });
+  it("refuses impossible dates instead of rolling them over", () => {
+    expect(parseTakenAt("2019-02-29", "").ok).toBe(false);
+    expect(parseTakenAt("2019-04-31", "").ok).toBe(false);
+    expect(parseTakenAt("2019-13-01", "").ok).toBe(false);
+  });
+  it("refuses malformed input, bad times and years out of range", () => {
+    expect(parseTakenAt("15-07-2019", "").ok).toBe(false);
+    expect(parseTakenAt("2019-07-15", "24:00").ok).toBe(false);
+    expect(parseTakenAt("2019-07-15", "9:5").ok).toBe(false);
+    expect(parseTakenAt(`${TAKEN_YEAR_MIN - 1}-01-01`, "").ok).toBe(false);
+    expect(parseTakenAt(`${TAKEN_YEAR_MAX + 1}-01-01`, "").ok).toBe(false);
+    expect(parseTakenAt(`${TAKEN_YEAR_MIN}-01-01`, "").ok).toBe(true);
+    expect(parseTakenAt(undefined, "").ok).toBe(false);
   });
 });
 

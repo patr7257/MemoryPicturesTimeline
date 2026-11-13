@@ -12,7 +12,8 @@ import { CalendarDays, MapPin, MessageSquarePlus, Pencil, RotateCw, Trash2 } fro
 import { toast } from "sonner";
 
 import { addComment, deleteComment } from "@/actions/comments";
-import { updatePhotoCaption } from "@/actions/photos";
+import { updatePhotoCaption, updatePhotoTakenAt } from "@/actions/photos";
+import { PhotoDateEditor } from "@/components/trip/PhotoDateEditor";
 import { PostcardEditor } from "@/components/trip/PostcardEditor";
 import { Button } from "@/components/ui/button";
 import type { CommentView } from "@/lib/comment-queries";
@@ -25,6 +26,8 @@ import {
   formatCommentTime,
   formatPhotoDateTime,
   formatPostmarkDate,
+  toDateInputValue,
+  toTimeInputValue,
 } from "@/lib/trip-view";
 
 const PAPER_GRAIN =
@@ -42,6 +45,8 @@ export type PostcardBackProps = {
   onCommentDeleted: (commentId: string) => void;
   // Called with the stored caption (null when cleared).
   onCaptionChanged: (photoId: string, caption: string | null) => void;
+  // Called with the stored date (null when cleared).
+  onTakenAtChanged: (photoId: string, takenAt: Date | null) => void;
   onStateChange: (state: PostcardBackState) => void;
   onTurn: () => void;
 };
@@ -54,9 +59,16 @@ export function PostcardBack({
   onCommentAdded,
   onCommentDeleted,
   onCaptionChanged,
+  onTakenAtChanged,
   onStateChange,
   onTurn,
 }: PostcardBackProps) {
+  const [dateEditing, setDateEditing] = useState(false);
+  const [dateDraft, setDateDraft] = useState("");
+  const [timeDraft, setTimeDraft] = useState("");
+  const [dateError, setDateError] = useState<string | null>(null);
+  const [datePending, startDate] = useTransition();
+
   const [captionEditing, setCaptionEditing] = useState(false);
   const [captionDraft, setCaptionDraft] = useState(photo.caption ?? "");
   const [captionError, setCaptionError] = useState<string | null>(null);
@@ -76,8 +88,10 @@ export function PostcardBack({
     captionDraft,
     noteOpen,
     noteDraft,
-  });
-  const editing = captionEditing || noteOpen;
+  }) ||
+    (dateEditing &&
+      (dateDraft !== toDateInputValue(photo.takenAt) || timeDraft !== toTimeInputValue(photo.takenAt)));
+  const editing = captionEditing || noteOpen || dateEditing;
   useEffect(() => {
     onStateChange({ dirty, editing });
   }, [dirty, editing, onStateChange]);
@@ -112,6 +126,27 @@ export function PostcardBack({
         setCaptionEditing(false);
       } catch (err) {
         setCaptionError(err instanceof Error ? err.message : "Could not save the caption");
+      }
+    });
+  }
+
+  function startDateEdit() {
+    if (!photo.canManage || dateEditing) return;
+    setDateDraft(toDateInputValue(photo.takenAt));
+    setTimeDraft(toTimeInputValue(photo.takenAt));
+    setDateError(null);
+    setDateEditing(true);
+  }
+
+  function saveDate() {
+    setDateError(null);
+    startDate(async () => {
+      try {
+        const stored = await updatePhotoTakenAt(photo.id, dateDraft, timeDraft);
+        onTakenAtChanged(photo.id, stored);
+        setDateEditing(false);
+      } catch (err) {
+        setDateError(err instanceof Error ? err.message : "Could not save the date");
       }
     });
   }
@@ -157,10 +192,43 @@ export function PostcardBack({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 md:flex-[1.25]">
         <div className="flex flex-col gap-4">
           <dl className="flex flex-col gap-0.5 font-hand text-xl leading-tight text-neutral-700 sm:text-2xl">
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               <dt className="sr-only">Taken</dt>
-              <CalendarDays className="size-4 shrink-0 text-neutral-500" aria-hidden />
-              <dd>{when || "Date unknown"}</dd>
+              <CalendarDays className="mt-[0.4em] size-4 shrink-0 text-neutral-500" aria-hidden />
+              <dd className="flex min-w-0 flex-1 flex-col">
+                <span className="flex items-center gap-1">
+                  <span className={when ? undefined : "text-neutral-500"}>{when || "Date unknown"}</span>
+                  {photo.canManage && !dateEditing && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="size-11 shrink-0 text-neutral-600 hover:bg-black/5 sm:size-9"
+                      onClick={startDateEdit}
+                      aria-label={when ? "Change date" : "Add a date"}
+                    >
+                      <Pencil />
+                    </Button>
+                  )}
+                </span>
+                {dateEditing && (
+                  <div className="pt-1 pb-2">
+                    <PhotoDateEditor
+                      id={`date-${photo.id}`}
+                      date={dateDraft}
+                      time={timeDraft}
+                      onDateChange={setDateDraft}
+                      onTimeChange={setTimeDraft}
+                      pending={datePending}
+                      error={dateError}
+                      onSave={saveDate}
+                      onCancel={() => {
+                        setDateEditing(false);
+                        setDateError(null);
+                      }}
+                    />
+                  </div>
+                )}
+              </dd>
             </div>
             {place && (
               <div className="flex items-center gap-2">

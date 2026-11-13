@@ -68,9 +68,6 @@ importers:
       react-map-gl:
         specifier: ^8.1.0
         version: 8.1.1(maplibre-gl@5.24.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      react-photo-album:
-        specifier: ^3.6.0
-        version: 3.6.0(@types/react@19.2.17)(react@19.2.8)
       sharp:
         specifier: ^0.35.3
         version: 0.35.3(@types/node@22.20.1)
@@ -3705,16 +3702,6 @@ packages:
       mapbox-gl:
         optional: true
       maplibre-gl:
-        optional: true
-
-  react-photo-album@3.6.0:
-    resolution: {integrity: sha512-W9NgI+0XxOYF/FLQJ/ZiKsizNQtGtgDdiFgojmTmpBKDGeGiWKfSzmbw3v9WAqzimPeiFJ2sEb9DO0nHRHP/OA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@types/react': ^18 || ^19
-      react: ^18 || ^19
-    peerDependenciesMeta:
-      '@types/react':
         optional: true
 
   react@19.2.8:
@@ -7453,12 +7440,6 @@ snapshots:
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
       maplibre-gl: 5.24.0
-
-  react-photo-album@3.6.0(@types/react@19.2.17)(react@19.2.8):
-    dependencies:
-      react: 19.2.8
-    optionalDependencies:
-      '@types/react': 19.2.17
 
   react@19.2.8: {}
 
