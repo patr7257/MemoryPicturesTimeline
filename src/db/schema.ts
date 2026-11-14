@@ -68,6 +68,9 @@ export const photos = pgTable("photos", {
   lng: doublePrecision("lng"),
   city: text("city"),
   country: text("country"),
+  // True when lat/lng/city/country were copied from a photo taken the same
+  // day (src/lib/infer-location.mjs), not read from GPS or set by hand.
+  locationInferred: boolean("location_inferred").notNull().default(false),
   // Short description written by the uploader or a super admin.
   caption: text("caption"),
   uploaderId: text("uploader_id")

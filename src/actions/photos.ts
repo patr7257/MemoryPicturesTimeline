@@ -71,12 +71,13 @@ export async function updatePhotoLocation(
   photoId: string,
   lat: number,
   lng: number,
-): Promise<{ lat: number; lng: number; city: string | null; country: string | null }> {
+): Promise<{ lat: number; lng: number; city: string | null; country: string | null; locationInferred: false }> {
   const { photo } = await requireManagedPhoto(photoId);
   const checked = validateLatLng(lat, lng);
   if (!checked.ok) throw new Error(checked.error);
   const geo = await reverseGeocode(checked.value.lat, checked.value.lng);
-  const stored = { ...checked.value, city: geo.city, country: geo.country };
+  // A spot set by hand is exact: it is no longer an inferred one.
+  const stored = { ...checked.value, city: geo.city, country: geo.country, locationInferred: false as const };
   await getDb().update(photos).set(stored).where(eq(photos.id, photo.id));
   revalidatePath("/", "layout");
   return stored;

@@ -49,7 +49,7 @@ export type PhotoDetailProps = {
   onTakenAtChanged: (photoId: string, takenAt: Date | null) => void;
   onLocationChanged: (
     photoId: string,
-    loc: { lat: number; lng: number; city: string | null; country: string | null },
+    loc: { lat: number; lng: number; city: string | null; country: string | null; locationInferred: boolean },
   ) => void;
   // The vacation's pin: where the location picker opens when no photo nearby has one.
   tripPin?: { lat: number | null; lng: number | null } | null;

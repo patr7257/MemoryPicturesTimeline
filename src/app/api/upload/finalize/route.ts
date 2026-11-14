@@ -7,6 +7,7 @@ import { findVisibleTrip, getViewerOrNull } from "@/lib/access";
 import { processOriginal } from "@/lib/images";
 import { thumbKey } from "@/lib/keys";
 import { getObjectBuffer, putObject, r2Configured } from "@/lib/r2";
+import { fillTripLocations } from "@/lib/fill-locations";
 import { reverseGeocode } from "@/lib/geocode";
 
 // One photo per call; sharp on a large photo can take a while on a small box.
@@ -115,6 +116,14 @@ export async function POST(req: Request): Promise<Response> {
       .update(trips)
       .set({ lat, lng })
       .where(and(eq(trips.id, body.tripId), isNull(trips.lat)));
+  }
+
+  // Photos without GPS borrow the spot of a photo from the same day. Best
+  // effort: a failure here never fails the upload.
+  try {
+    await fillTripLocations(body.tripId);
+  } catch (err) {
+    console.error("[upload] location fill failed for trip", body.tripId, err instanceof Error ? err.name : "error");
   }
 
   revalidatePath("/", "layout");
