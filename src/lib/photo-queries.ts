@@ -12,6 +12,7 @@ import { getViewer } from "@/lib/access";
 import { canManagePhoto } from "@/lib/access-policy";
 import { getTripComments } from "@/lib/comment-queries";
 import { getTripWithPhotos } from "@/lib/queries";
+import { tripPin } from "@/lib/trip-pin";
 
 export async function getUploaderNames(userIds: string[]): Promise<Record<string, string>> {
   const ids = Array.from(new Set(userIds));
@@ -32,6 +33,9 @@ export type TripPhotoView = {
   takenAt: Date | null;
   city: string | null;
   country: string | null;
+  // Where it was taken; null when unknown (the viewer can see the photo anyway).
+  lat: number | null;
+  lng: number | null;
   caption: string | null;
   uploaderId: string;
   uploaderName: string;
@@ -63,10 +67,12 @@ export const getTripOverviewData = cache(async (tripId: string) => {
     takenAt: p.takenAt,
     city: p.city,
     country: p.country,
+    lat: p.lat,
+    lng: p.lng,
     caption: p.caption,
     uploaderId: p.uploaderId,
     uploaderName: names[p.uploaderId] ?? "Someone",
     canManage: canManagePhoto(viewer, p),
   }));
-  return { trip: data.trip, photos, comments };
+  return { trip: data.trip, photos, comments, pin: tripPin(data.trip, data.photos) };
 });

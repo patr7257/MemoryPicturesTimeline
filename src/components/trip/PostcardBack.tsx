@@ -12,13 +12,15 @@ import { CalendarDays, MapPin, MessageSquarePlus, Pencil, RotateCw, Trash2 } fro
 import { toast } from "sonner";
 
 import { addComment, deleteComment } from "@/actions/comments";
-import { updatePhotoCaption, updatePhotoTakenAt } from "@/actions/photos";
+import { updatePhotoCaption, updatePhotoLocation, updatePhotoTakenAt } from "@/actions/photos";
+import { LocationDialog } from "@/components/trip/LocationDialog";
 import { PhotoDateEditor } from "@/components/trip/PhotoDateEditor";
 import { PostcardEditor } from "@/components/trip/PostcardEditor";
 import { Button } from "@/components/ui/button";
 import type { CommentView } from "@/lib/comment-queries";
 import { imgUrl } from "@/lib/img-url";
 import type { TripPhotoView } from "@/lib/photo-queries";
+import type { LatLngPoint } from "@/lib/photo-location";
 import { addressLines, hasUnsavedChanges, stampTilt } from "@/lib/postcard";
 import {
   CAPTION_MAX,
@@ -47,6 +49,14 @@ export type PostcardBackProps = {
   onCaptionChanged: (photoId: string, caption: string | null) => void;
   // Called with the stored date (null when cleared).
   onTakenAtChanged: (photoId: string, takenAt: Date | null) => void;
+  // Called with the stored spot and the place names looked up for it.
+  onLocationChanged: (
+    photoId: string,
+    loc: { lat: number; lng: number; city: string | null; country: string | null },
+  ) => void;
+  // For the location picker: the located photo closest in time, and where the map opens.
+  nearbyLocation: (LatLngPoint & { label: string }) | null;
+  pickerStart: { lat: number; lng: number; zoom: number };
   onStateChange: (state: PostcardBackState) => void;
   onTurn: () => void;
 };
@@ -60,9 +70,16 @@ export function PostcardBack({
   onCommentDeleted,
   onCaptionChanged,
   onTakenAtChanged,
+  onLocationChanged,
+  nearbyLocation,
+  pickerStart,
   onStateChange,
   onTurn,
 }: PostcardBackProps) {
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationPending, startLocation] = useTransition();
+
   const [dateEditing, setDateEditing] = useState(false);
   const [dateDraft, setDateDraft] = useState("");
   const [timeDraft, setTimeDraft] = useState("");
@@ -91,7 +108,7 @@ export function PostcardBack({
   }) ||
     (dateEditing &&
       (dateDraft !== toDateInputValue(photo.takenAt) || timeDraft !== toTimeInputValue(photo.takenAt)));
-  const editing = captionEditing || noteOpen || dateEditing;
+  const editing = captionEditing || noteOpen || dateEditing || locationOpen;
   useEffect(() => {
     onStateChange({ dirty, editing });
   }, [dirty, editing, onStateChange]);
@@ -147,6 +164,19 @@ export function PostcardBack({
         setDateEditing(false);
       } catch (err) {
         setDateError(err instanceof Error ? err.message : "Could not save the date");
+      }
+    });
+  }
+
+  function saveLocation(point: LatLngPoint) {
+    setLocationError(null);
+    startLocation(async () => {
+      try {
+        const stored = await updatePhotoLocation(photo.id, point.lat, point.lng);
+        onLocationChanged(photo.id, stored);
+        setLocationOpen(false);
+      } catch (err) {
+        setLocationError(err instanceof Error ? err.message : "Could not save the location");
       }
     });
   }
@@ -230,14 +260,44 @@ export function PostcardBack({
                 )}
               </dd>
             </div>
-            {place && (
+            {(place || photo.canManage) && (
               <div className="flex items-center gap-2">
                 <dt className="sr-only">Place</dt>
                 <MapPin className="size-4 shrink-0 text-neutral-500" aria-hidden />
-                <dd>{place}</dd>
+                <dd className="flex min-w-0 items-center gap-1">
+                  <span className={place ? undefined : "text-neutral-500"}>
+                    {place || (photo.lat !== null ? "Pinned on the map" : "Location unknown")}
+                  </span>
+                  {photo.canManage && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="size-11 shrink-0 text-neutral-600 hover:bg-black/5 sm:size-9"
+                      onClick={() => {
+                        setLocationError(null);
+                        setLocationOpen(true);
+                      }}
+                      aria-label={photo.lat !== null ? "Change location" : "Set location on a map"}
+                    >
+                      <Pencil />
+                    </Button>
+                  )}
+                </dd>
               </div>
             )}
           </dl>
+          {photo.canManage && (
+            <LocationDialog
+              open={locationOpen}
+              onOpenChange={setLocationOpen}
+              start={pickerStart}
+              current={photo.lat !== null && photo.lng !== null ? { lat: photo.lat, lng: photo.lng } : null}
+              nearby={nearbyLocation}
+              pending={locationPending}
+              error={locationError}
+              onSave={saveLocation}
+            />
+          )}
 
           <section aria-labelledby={`msg-${photo.id}`} className="flex flex-col gap-1">
             <h3 id={`msg-${photo.id}`} className="sr-only">

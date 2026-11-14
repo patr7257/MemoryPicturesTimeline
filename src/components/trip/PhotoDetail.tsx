@@ -29,6 +29,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui
 import type { CommentView } from "@/lib/comment-queries";
 import { imgUrl } from "@/lib/img-url";
 import type { TripPhotoView } from "@/lib/photo-queries";
+import { nearestLocated, pickerStart } from "@/lib/photo-location";
 import { flipFace, shortcutFor, type Face } from "@/lib/postcard";
 
 export type PhotoDetailProps = {
@@ -46,6 +47,12 @@ export type PhotoDetailProps = {
   onCommentDeleted: (commentId: string) => void;
   onCaptionChanged: (photoId: string, caption: string | null) => void;
   onTakenAtChanged: (photoId: string, takenAt: Date | null) => void;
+  onLocationChanged: (
+    photoId: string,
+    loc: { lat: number; lng: number; city: string | null; country: string | null },
+  ) => void;
+  // The vacation's pin: where the location picker opens when no photo nearby has one.
+  tripPin?: { lat: number | null; lng: number | null } | null;
   onPhotoDeleted: (photoId: string) => void;
 };
 
@@ -65,6 +72,8 @@ export function PhotoDetail({
   onCommentDeleted,
   onCaptionChanged,
   onTakenAtChanged,
+  onLocationChanged,
+  tripPin = null,
   onPhotoDeleted,
 }: PhotoDetailProps) {
   const open = index !== null && index >= 0 && index < photos.length;
@@ -82,7 +91,14 @@ export function PhotoDetail({
   const [discard, setDiscard] = useState<Pending>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, startDelete] = useTransition();
-  const blocked = deleteOpen || discard !== null;
+  // Any open editor (the location map included) holds the arrow keys and F.
+  const blocked = deleteOpen || discard !== null || draft.editing;
+
+  const near = photo ? nearestLocated(photos, photo.id) : null;
+  const nearbyLocation =
+    near && near.lat !== null && near.lng !== null
+      ? { lat: near.lat, lng: near.lng, label: near.city || "a nearby photo" }
+      : null;
 
   const touch = useRef<{ x: number; y: number } | null>(null);
   const [popupEl, setPopupEl] = useState<HTMLDivElement | null>(null);
@@ -302,6 +318,9 @@ export function PhotoDetail({
                       onCommentDeleted={onCommentDeleted}
                       onCaptionChanged={onCaptionChanged}
                       onTakenAtChanged={onTakenAtChanged}
+                      onLocationChanged={onLocationChanged}
+                      nearbyLocation={nearbyLocation}
+                      pickerStart={pickerStart(photo, nearbyLocation, tripPin)}
                       onStateChange={setDraft}
                       onTurn={flip}
                     />

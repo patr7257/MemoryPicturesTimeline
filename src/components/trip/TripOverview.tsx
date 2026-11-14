@@ -22,12 +22,15 @@ export function TripOverview({
   tripId,
   tripName,
   startDate,
+  tripPin = null,
   photos: serverPhotos,
   comments: serverComments,
 }: {
   tripId: string;
   tripName?: string;
   startDate: string;
+  // The vacation's pin, where the location picker opens as a last resort.
+  tripPin?: { lat: number | null; lng: number | null } | null;
   photos: TripPhotoView[];
   comments: CommentView[];
 }) {
@@ -120,6 +123,10 @@ export function TripOverview({
         onCommentDeleted={dropComment}
         onCaptionChanged={(id, caption) =>
           setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, caption } : p)))
+        }
+        tripPin={tripPin}
+        onLocationChanged={(id, loc) =>
+          setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, ...loc } : p)))
         }
         onTakenAtChanged={(id, takenAt) =>
           setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, takenAt } : p)))
