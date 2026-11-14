@@ -17,9 +17,13 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
+  // Resolves the file-based og:image / twitter:image (src/app/opengraph-image.png,
+  // twitter-image.png) to absolute URLs. One generic image, never per photo.
+  metadataBase: new URL("https://memories.patrickrobel.dk"),
   title: "Family Memories",
   description: "Our family photo timeline: every trip, down memory lane.",
   robots: { index: false, follow: false },
+  twitter: { card: "summary_large_image" },
   // Installable home-screen app (iOS needs a linked manifest). The push-only
   // service worker is public/sw.js. Icons regenerate via node scripts/gen-app-icons.mjs.
   manifest: "/manifest.webmanifest",
