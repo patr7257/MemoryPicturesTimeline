@@ -7,6 +7,8 @@ import { getDb } from "@/db";
 import { photos, trips } from "@/db/schema";
 import { findVisiblePhoto, getViewer } from "@/lib/access";
 import { AccessError, canManagePhoto } from "@/lib/access-policy";
+import { reverseGeocode } from "@/lib/geocode";
+import { validateLatLng } from "@/lib/photo-location";
 import { deleteObjects, r2Configured } from "@/lib/r2";
 import { parseTakenAt, validateCaption } from "@/lib/trip-view";
 
@@ -61,6 +63,23 @@ export async function updatePhotoCaption(
   await getDb().update(photos).set({ caption: checked.value }).where(eq(photos.id, photo.id));
   revalidatePath("/", "layout");
   return checked.value;
+}
+
+// Sets where the photo was taken, picked on a map. City and country are looked
+// up again for the new spot (best effort: null when the lookup fails).
+export async function updatePhotoLocation(
+  photoId: string,
+  lat: number,
+  lng: number,
+): Promise<{ lat: number; lng: number; city: string | null; country: string | null }> {
+  const { photo } = await requireManagedPhoto(photoId);
+  const checked = validateLatLng(lat, lng);
+  if (!checked.ok) throw new Error(checked.error);
+  const geo = await reverseGeocode(checked.value.lat, checked.value.lng);
+  const stored = { ...checked.value, city: geo.city, country: geo.country };
+  await getDb().update(photos).set(stored).where(eq(photos.id, photo.id));
+  revalidatePath("/", "layout");
+  return stored;
 }
 
 // Sets when the photo was taken: date "yyyy-mm-dd" and optional time "hh:mm"

@@ -13,6 +13,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
       tripId={data.trip.id}
       tripName={data.trip.title}
       startDate={data.trip.startDate}
+      tripPin={data.pin}
       photos={data.photos}
       comments={data.comments}
     />
