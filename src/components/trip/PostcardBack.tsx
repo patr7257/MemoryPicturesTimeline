@@ -52,7 +52,7 @@ export type PostcardBackProps = {
   // Called with the stored spot and the place names looked up for it.
   onLocationChanged: (
     photoId: string,
-    loc: { lat: number; lng: number; city: string | null; country: string | null },
+    loc: { lat: number; lng: number; city: string | null; country: string | null; locationInferred: boolean },
   ) => void;
   // For the location picker: the located photo closest in time, and where the map opens.
   nearbyLocation: (LatLngPoint & { label: string }) | null;
@@ -267,6 +267,9 @@ export function PostcardBack({
                 <dd className="flex min-w-0 items-center gap-1">
                   <span className={place ? undefined : "text-neutral-500"}>
                     {place || (photo.lat !== null ? "Pinned on the map" : "Location unknown")}
+                    {photo.locationInferred && (
+                      <span className="ml-1 font-sans text-xs text-neutral-500">(approximate, from a photo the same day)</span>
+                    )}
                   </span>
                   {photo.canManage && (
                     <Button

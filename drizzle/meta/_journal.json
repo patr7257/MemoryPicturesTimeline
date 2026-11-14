@@ -22,6 +22,13 @@
       "when": 1794402516690,
       "tag": "0002_smart_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794678635953,
+      "tag": "0003_blushing_wind_dancer",
+      "breakpoints": true
     }
   ]
 }

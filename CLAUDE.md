@@ -58,6 +58,12 @@ family-only login, photos never publicly reachable.
   has no location (set at upload from the first GPS-tagged photo). The
   `/map` tab is per photo instead: every GPS photo at its own spot, stacked
   when zoomed out (supercluster, `src/lib/photo-clusters.ts`).
+- **Inferred locations**: a photo without GPS gets the spot of the photo
+  taken closest in time the same day in the same vacation
+  (`src/lib/infer-location.mjs`), flagged `photos.location_inferred` and shown
+  as approximate. Runs after every upload; `node scripts/fill-locations.mjs`
+  backfills (dry run first, `FILL_LOCATIONS_UNDO=1` reverts). Setting a
+  location by hand clears the flag.
 - **Scrapbook rule**: every rotation/offset derives from stable ids via
   `src/lib/scrapbook.ts`. Math.random() in render paths causes hydration
   mismatches; never introduce it.

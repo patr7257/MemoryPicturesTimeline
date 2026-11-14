@@ -36,6 +36,8 @@ export type TripPhotoView = {
   // Where it was taken; null when unknown (the viewer can see the photo anyway).
   lat: number | null;
   lng: number | null;
+  // The location was copied from a photo taken the same day (approximate).
+  locationInferred: boolean;
   caption: string | null;
   uploaderId: string;
   uploaderName: string;
@@ -68,6 +70,7 @@ export const getTripOverviewData = cache(async (tripId: string) => {
     city: p.city,
     country: p.country,
     lat: p.lat,
+    locationInferred: p.locationInferred,
     lng: p.lng,
     caption: p.caption,
     uploaderId: p.uploaderId,

@@ -1,0 +1,1 @@
+ALTER TABLE "photos" ADD COLUMN "location_inferred" boolean DEFAULT false NOT NULL;
