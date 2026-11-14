@@ -30,9 +30,12 @@ live at `https://memories.patrickrobel.dk` (`/version.json` shows the commit).
 
 ## Prioritized next steps
 
-1. Give the photos without GPS a location: open each one, turn it over, then
-   use the place pencil and "Same place as ...". Run the Neon SQL count again
-   afterwards; on 2026-11-13 only 55 of 129 photos had GPS.
+1. Missing locations were backfilled from same-day photos (58 written,
+   marked approximate; `node scripts/fill-locations.mjs` reports what is
+   left). Fix the 6 doubtful ones by hand with the place pencil: Sommerhus i
+   Lynæs 28 Oct 19:49 and 20:52 (got Stenløse) and 30 Oct 10:48, 10:53, 19:18
+   (got Helsinge), and Oslo v2 15 Jun 17:48 (got Strömstad). 16 photos still
+   have no location (no date, or no GPS photo that day).
 2. Find out whose uploads lose GPS: run the per-uploader query in the Neon
    SQL editor (photos joined to "user" on uploader_id, grouped by uploader).
    If it is the iPhone photo picker, tell that person to turn on Location
