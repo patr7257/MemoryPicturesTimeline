@@ -43,7 +43,10 @@ live at `https://memories.patrickrobel.dk` (`/version.json` shows the commit).
 3. Family onboarding: invite each member on the Members page (the invite
    mail is sent when the box is ticked), tag them on their vacations, and
    have them add a passkey on `/account`.
-4. Parked ideas: bulk "set location for selected photos", search a place by
+4. iOS app: the plan from family web app to paid App Store app is in
+   `docs/ios-roadmap.md` (decisions, phases A to D, open decisions,
+   accountant questions). Start with its open decisions, then Phase A.
+5. Parked ideas: bulk "set location for selected photos", search a place by
    name in the picker (Photon), HEIC via client-side conversion, video.
 
 ## Verbatim resume commands
