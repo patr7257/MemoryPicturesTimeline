@@ -31,7 +31,7 @@ check it live before relying on it).
 | Family testers in Phase A: internal or external TestFlight group? | Internal testers must be users of the App Store Connect team (each needs an Apple ID invited with a role). External group: public link or email invite, up to 10,000, but the first build of each version passes Beta App Review |
 | Reuse the EndoMonday match repo for signing? | An account has a small limit on distribution certificates. One match repo with one certificate for both apps avoids minting another. VERIFY WHEN RUN |
 | Push inside the Phase A app? | Web Push does not work inside a Capacitor WKWebView. Either the family keeps the home-screen PWA for push, or Phase A adds native APNs (copy EndoMonday:`apps/server/src/apns/`) |
-| Subscription tiers, prices, free trial | Storage cost is small (R2: 0.015 USD per GB-month, egress free; about 0.15 USD a month for 20 GB beyond the free tier), so price on value, not cost |
+| Subscription prices, cap sizes, free trial | Model decided (free tier with a photo cap, premium adds storage and depth features): see `docs/free-vs-premium.md`. Storage cost is small (R2: 0.015 USD per GB-month, egress free; about 0.15 USD a month for 20 GB beyond the free tier), so price on value, not cost |
 | What happens to the current family when sign-up opens | E.g. a free "founder" family, migrated as the first space |
 | Brand and domain for a product sold to strangers | Today `memories.patrickrobel.dk`. A new domain later means new AASA hosts, passkey rpID and magic-link host: decide before Phase C |
 | What a lapsed subscription does | Recommended: read-only, never delete photos without long notice |
