@@ -4,11 +4,16 @@ import {
   canAdminister,
   canDeleteComment,
   canManagePhoto,
+  canEditCountries,
   canManageTrip,
+  canReadCountryNotes,
   canSeeTrip,
+  countriesTier,
   loginAllowed,
   parseEmailList,
   resolveRole,
+  tierReadsNote,
+  tierStatuses,
   type Viewer,
 } from "./access-policy";
 
@@ -101,5 +106,41 @@ describe("manage rules", () => {
   it("administration is super admin only", () => {
     expect(canAdminister(admin)).toBe(true);
     expect(canAdminister(viewer())).toBe(false);
+  });
+});
+
+describe("countries", () => {
+  const P = "person-1";
+  const owner: Viewer = { userId: "u1", email: "a@x.dk", name: "A", role: "member", personId: P };
+  const other: Viewer = { userId: "u2", email: "b@x.dk", name: "B", role: "member", personId: "person-2" };
+  const admin: Viewer = { userId: "u3", email: "c@x.dk", name: "C", role: "super_admin", personId: "person-3" };
+  const noPerson: Viewer = { userId: "u4", email: "d@x.dk", name: "D", role: "member", personId: null };
+
+  it("who may edit", () => {
+    expect(canEditCountries(owner, P)).toBe(true);
+    expect(canEditCountries(admin, P)).toBe(true);
+    expect(canEditCountries(other, P)).toBe(false);
+    expect(canEditCountries(noPerson, P)).toBe(false);
+  });
+  it("who may read notes", () => {
+    expect(canReadCountryNotes(owner, { id: P, hasLogin: true })).toBe(true);
+    expect(canReadCountryNotes(admin, { id: P, hasLogin: true })).toBe(false);
+    expect(canReadCountryNotes(admin, { id: P, hasLogin: false })).toBe(true);
+    expect(canReadCountryNotes(other, { id: P, hasLogin: false })).toBe(false);
+    expect(canReadCountryNotes(admin, { id: "person-3", hasLogin: true })).toBe(true);
+  });
+  it("tiers", () => {
+    expect(countriesTier(other, { id: P, hasLogin: true })).toBe("view");
+    expect(countriesTier(admin, { id: P, hasLogin: true })).toBe("edit");
+    expect(countriesTier(admin, { id: P, hasLogin: false })).toBe("edit_notes");
+    expect(countriesTier(owner, { id: P, hasLogin: true })).toBe("edit_notes");
+  });
+  it("what a tier reads", () => {
+    expect(tierStatuses("view")).toEqual(["visited"]);
+    expect(tierStatuses("edit")).toEqual(["visited", "wishlist", "dismissed"]);
+    expect(tierStatuses("edit_notes")).toEqual(["visited", "wishlist", "dismissed"]);
+    expect(tierReadsNote("view")).toBe(false);
+    expect(tierReadsNote("edit")).toBe(false);
+    expect(tierReadsNote("edit_notes")).toBe(true);
   });
 });
