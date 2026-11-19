@@ -25,13 +25,18 @@ const CountriesMapInner = dynamic(() => import("./CountriesMapInner"), {
 
 export type MapLegendEntry = { fill: FillState; label: string };
 
+// Draws the map once with the given fills, copies that frame to a plain 2D
+// canvas, then puts the on-screen fills back (also when it fails). Used by
+// "Share map" so the image never shows fills it was not given.
+export type MapCapture = { capture(fills: Record<string, FillState>): Promise<HTMLCanvasElement> };
+
 export type CountriesMapProps = {
   fills: Record<string, FillState>;
   // Omitted means read-only: no pointer cursor and taps do nothing.
   onPick?: (countryKey: string) => void;
   projection: MapProjection;
   onProjectionChange: (p: MapProjection) => void;
-  mapRef?: React.Ref<{ getCanvas(): HTMLCanvasElement } | null>;
+  mapRef?: React.Ref<MapCapture | null>;
   // State is never shown by colour alone: each fill in use gets a named swatch.
   legend?: MapLegendEntry[];
 };

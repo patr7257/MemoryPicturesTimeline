@@ -34,10 +34,11 @@ import {
 } from "@/lib/countries";
 import { countryByKey } from "@/lib/country-catalog";
 
-import { CountriesMap, type MapLegendEntry } from "./CountriesMap";
+import { CountriesMap, type MapCapture, type MapLegendEntry } from "./CountriesMap";
 import { CountryCard } from "./CountryCard";
 import { CountryList, type RowState } from "./CountryList";
 import { CountryStatsPanel } from "./CountryStatsPanel";
+import { ShareMapButton } from "./ShareMapButton";
 import { SuggestionChips } from "./SuggestionChips";
 import { useMapProjection } from "./useMapProjection";
 
@@ -61,6 +62,7 @@ export type CountriesViewProps =
 // mode; compare and union maps are read-only, like their lists.
 export function CountriesView(props: CountriesViewProps) {
   const view = useMapProjection();
+  const mapRef = useRef<MapCapture | null>(null);
   if (props.mode === "single") return <SingleCountries {...props} view={view} />;
 
   if (props.mode === "compare") {
@@ -93,10 +95,17 @@ export function CountriesView(props: CountriesViewProps) {
 
   const rows: Record<string, RowState> = {};
   for (const k of props.visited) rows[k] = { kind: "visited" };
+  const fills = fillsForUnion(props.visited);
+  const stats = countryStats(props.visited);
+  // The union map is shared as the family map: its label is a list of names,
+  // so the image names the family instead.
   return (
     <div className="flex flex-col gap-8">
-      <CountriesMap fills={fillsForUnion(props.visited)} {...view} />
-      <CountryStatsPanel mode="single" label={props.label} stats={countryStats(props.visited)} />
+      <div className="flex flex-col gap-3">
+        <CountriesMap fills={fills} mapRef={mapRef} {...view} />
+        <ShareMapButton mapRef={mapRef} fills={fills} name="Family" stats={stats} />
+      </div>
+      <CountryStatsPanel mode="single" label={props.label} stats={stats} />
       <CountryList rows={rows} />
     </div>
   );
@@ -131,6 +140,7 @@ function SingleCountries({
   const [pending, startTransition] = useTransition();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const mapRef = useRef<MapCapture | null>(null);
 
   // Shows the change at once; the committed marks only move when the action
   // succeeds, so a refusal or a failure brings the previous state back by
@@ -246,6 +256,11 @@ function SingleCountries({
       ]
     : undefined;
 
+  // On screen an editor also sees the wishlist; the share button keeps only
+  // the visited fills for the image.
+  const fills = fillsForMarks(shown);
+  const stats = countryStats(visitedKeys);
+
   const openCountry = openKey ? countryByKey(openKey) : undefined;
   const hasMarks = byKey.size > 0;
   // Rendered inside the open card so it nests as a child dialog there.
@@ -253,8 +268,11 @@ function SingleCountries({
 
   return (
     <div className="flex flex-col gap-8" data-unsaved-work={pending ? "" : undefined}>
-      <CountriesMap fills={fillsForMarks(shown)} onPick={pick} legend={legend} {...view} />
-      <CountryStatsPanel mode="single" label={person.name} stats={countryStats(visitedKeys)} />
+      <div className="flex flex-col gap-3">
+        <CountriesMap fills={fills} onPick={pick} legend={legend} mapRef={mapRef} {...view} />
+        <ShareMapButton mapRef={mapRef} fills={fills} name={person.name} stats={stats} />
+      </div>
+      <CountryStatsPanel mode="single" label={person.name} stats={stats} />
 
       {openSuggestions.length > 0 && (
         <SuggestionChips

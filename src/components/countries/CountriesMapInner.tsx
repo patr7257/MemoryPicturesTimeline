@@ -23,7 +23,9 @@ import {
 } from "@/lib/country-map-style";
 import { cn } from "@/lib/utils";
 
-import type { CountriesMapProps } from "./CountriesMap";
+import type { FillState } from "@/lib/countries";
+
+import type { CountriesMapProps, MapCapture } from "./CountriesMap";
 import type { MapProjection } from "./useMapProjection";
 
 type Shapes = { data: GeoJSON.FeatureCollection; keys: string[] };
@@ -133,7 +135,8 @@ const flatMinZoom = (width: number) => Math.log2(Math.max(width, 1) / 512);
 // Zoom at which the whole globe fits the frame height, with a little air.
 const globeFitZoom = (height: number) => Math.log2((Math.PI * Math.max(height, 1) * 0.84) / 512);
 
-type CanvasHandle = { getCanvas(): HTMLCanvasElement };
+// A capture that never settles (the globe held mid-drag) gives up.
+const CAPTURE_TIMEOUT_MS = 4000;
 
 type Setup =
   | { status: "checking" }
@@ -173,11 +176,64 @@ export default function CountriesMapInner({
     });
   }, []);
 
-  // Null until the map has loaded, then the live canvas (used for sharing).
-  useImperativeHandle<CanvasHandle | null, CanvasHandle | null>(
+  // The latest on-screen fills, put back after a capture. While a capture
+  // runs the fills effect stands aside, so the captured frame holds only the
+  // fills the capture was given.
+  const fillsRef = useRef(fills);
+  const capturing = useRef(false);
+  useEffect(() => {
+    fillsRef.current = fills;
+  }, [fills]);
+
+  // Null until the map and its shapes are in, then the capture used by
+  // "Share map". The canvas keeps its drawing buffer (canvasContextAttributes
+  // below), and the frame is copied inside the idle event, after the given
+  // fills have been drawn and any fill fade has finished.
+  useImperativeHandle<MapCapture | null, MapCapture | null>(
     mapRef,
-    () => (loaded ? { getCanvas: () => ref.current!.getMap().getCanvas() } : null),
-    [loaded],
+    () => {
+      const map = ref.current?.getMap();
+      if (!loaded || !keys || !map) return null;
+      const apply = (f: Record<string, FillState>) => {
+        for (const { key, fill } of fillStateEntries(f, keys)) {
+          map.setFeatureState({ source: "countries", id: key }, { fill });
+        }
+      };
+      return {
+        async capture(only) {
+          capturing.current = true;
+          try {
+            apply(only);
+            return await new Promise<HTMLCanvasElement>((resolve, reject) => {
+              const done = () => {
+                window.clearTimeout(timer);
+                const src = map.getCanvas();
+                const copy = document.createElement("canvas");
+                copy.width = src.width;
+                copy.height = src.height;
+                const g = copy.getContext("2d");
+                if (!g) {
+                  reject(new Error("No 2D canvas"));
+                  return;
+                }
+                g.drawImage(src, 0, 0);
+                resolve(copy);
+              };
+              const timer = window.setTimeout(() => {
+                map.off("idle", done);
+                reject(new Error("The map did not settle"));
+              }, CAPTURE_TIMEOUT_MS);
+              map.once("idle", done);
+              map.triggerRepaint();
+            });
+          } finally {
+            capturing.current = false;
+            apply(fillsRef.current);
+          }
+        },
+      };
+    },
+    [loaded, keys],
   );
 
   const effective: MapProjection = effectiveProjection(projection, globeOk);
@@ -259,7 +315,7 @@ export default function CountriesMapInner({
   // key gets a value so a removed mark goes back to land colour.
   useEffect(() => {
     const map = ref.current?.getMap();
-    if (!loaded || !map || !keys) return;
+    if (!loaded || !map || !keys || capturing.current) return;
     for (const { key, fill } of fillStateEntries(fills, keys)) {
       map.setFeatureState({ source: "countries", id: key }, { fill });
     }
@@ -309,6 +365,8 @@ export default function CountriesMapInner({
           touchPitch={false}
           maxPitch={0}
           attributionControl={false}
+          // Keeps the frame readable after compositing, for "Share map".
+          canvasContextAttributes={{ preserveDrawingBuffer: true }}
           interactiveLayerIds={["country-fill"]}
           cursor={onPick && hovered ? "pointer" : undefined}
           onLoad={() => {
