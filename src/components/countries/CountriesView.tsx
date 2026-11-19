@@ -25,16 +25,21 @@ import type { CountrySuggestion } from "@/lib/country-suggestions";
 import {
   comparePartition,
   countryStats,
+  fillsForCompare,
+  fillsForMarks,
+  fillsForUnion,
   needsRemoveConfirm,
   type CountryActionResult,
   type CountryMark,
 } from "@/lib/countries";
 import { countryByKey } from "@/lib/country-catalog";
 
+import { CountriesMap, type MapLegendEntry } from "./CountriesMap";
 import { CountryCard } from "./CountryCard";
 import { CountryList, type RowState } from "./CountryList";
 import { CountryStatsPanel } from "./CountryStatsPanel";
 import { SuggestionChips } from "./SuggestionChips";
+import { useMapProjection } from "./useMapProjection";
 
 export type CountriesViewProps =
   | {
@@ -52,10 +57,11 @@ export type CountriesViewProps =
   | { mode: "union"; label: string; visited: string[] };
 
 // The page gives this a key that changes with the selection, so state never
-// carries from one person to the next. A map block goes above the stats in
-// each mode later.
+// carries from one person to the next. The map goes above the stats in each
+// mode; compare and union maps are read-only, like their lists.
 export function CountriesView(props: CountriesViewProps) {
-  if (props.mode === "single") return <SingleCountries {...props} />;
+  const view = useMapProjection();
+  if (props.mode === "single") return <SingleCountries {...props} view={view} />;
 
   if (props.mode === "compare") {
     const { a, b } = props;
@@ -64,8 +70,14 @@ export function CountriesView(props: CountriesViewProps) {
     for (const k of onlyA) rows[k] = { kind: "a", label: a.name };
     for (const k of onlyB) rows[k] = { kind: "b", label: b.name };
     for (const k of both) rows[k] = { kind: "both", label: "Both" };
+    const legend: MapLegendEntry[] = [
+      { fill: "onlyA", label: `${a.name} only` },
+      { fill: "onlyB", label: `${b.name} only` },
+      { fill: "both", label: "Both" },
+    ];
     return (
       <div className="flex flex-col gap-8">
+        <CountriesMap fills={fillsForCompare(a.visited, b.visited)} legend={legend} {...view} />
         <CountryStatsPanel
           mode="compare"
           a={{ name: a.name, total: countryStats(a.visited).total }}
@@ -83,6 +95,7 @@ export function CountriesView(props: CountriesViewProps) {
   for (const k of props.visited) rows[k] = { kind: "visited" };
   return (
     <div className="flex flex-col gap-8">
+      <CountriesMap fills={fillsForUnion(props.visited)} {...view} />
       <CountryStatsPanel mode="single" label={props.label} stats={countryStats(props.visited)} />
       <CountryList rows={rows} />
     </div>
@@ -110,7 +123,8 @@ function SingleCountries({
   tier,
   marks: initialMarks,
   suggestions,
-}: Extract<CountriesViewProps, { mode: "single" }>) {
+  view,
+}: Extract<CountriesViewProps, { mode: "single" }> & { view: ReturnType<typeof useMapProjection> }) {
   const editable = tier !== "view";
   const [marks, setMarks] = useState(initialMarks);
   const [shown, addOptimistic] = useOptimistic(marks, applyChange);
@@ -218,6 +232,20 @@ function SingleCountries({
     );
   }
 
+  // A tap marks an unmarked country visited at once and opens its card; a
+  // viewer only gets the read-only card.
+  function pick(key: string) {
+    if (editable && !byKey.has(key)) setStatus(key, "visited");
+    setOpenKey(key);
+  }
+  const hasWishlist = shown.some((m) => m.status === "wishlist");
+  const legend: MapLegendEntry[] | undefined = hasWishlist
+    ? [
+        { fill: "visited", label: "Visited" },
+        { fill: "wishlist", label: "Want to go" },
+      ]
+    : undefined;
+
   const openCountry = openKey ? countryByKey(openKey) : undefined;
   const hasMarks = byKey.size > 0;
   // Rendered inside the open card so it nests as a child dialog there.
@@ -225,6 +253,7 @@ function SingleCountries({
 
   return (
     <div className="flex flex-col gap-8" data-unsaved-work={pending ? "" : undefined}>
+      <CountriesMap fills={fillsForMarks(shown)} onPick={pick} legend={legend} {...view} />
       <CountryStatsPanel mode="single" label={person.name} stats={countryStats(visitedKeys)} />
 
       {openSuggestions.length > 0 && (
