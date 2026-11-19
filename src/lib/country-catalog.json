@@ -1,0 +1,1914 @@
+[
+  {
+    "key": "004",
+    "name": "Afghanistan",
+    "flag": "🇦🇫",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "248",
+    "name": "Åland Islands",
+    "flag": "🇦🇽",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "008",
+    "name": "Albania",
+    "flag": "🇦🇱",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "012",
+    "name": "Algeria",
+    "flag": "🇩🇿",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "016",
+    "name": "American Samoa",
+    "flag": "🇦🇸",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "020",
+    "name": "Andorra",
+    "flag": "🇦🇩",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "024",
+    "name": "Angola",
+    "flag": "🇦🇴",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "660",
+    "name": "Anguilla",
+    "flag": "🇦🇮",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "010",
+    "name": "Antarctica",
+    "flag": "🇦🇶",
+    "continent": "Antarctica",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "028",
+    "name": "Antigua and Barbuda",
+    "flag": "🇦🇬",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "032",
+    "name": "Argentina",
+    "flag": "🇦🇷",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "051",
+    "name": "Armenia",
+    "flag": "🇦🇲",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "533",
+    "name": "Aruba",
+    "flag": "🇦🇼",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "036",
+    "name": "Australia",
+    "flag": "🇦🇺",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "040",
+    "name": "Austria",
+    "flag": "🇦🇹",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "031",
+    "name": "Azerbaijan",
+    "flag": "🇦🇿",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "044",
+    "name": "Bahamas",
+    "flag": "🇧🇸",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "048",
+    "name": "Bahrain",
+    "flag": "🇧🇭",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "050",
+    "name": "Bangladesh",
+    "flag": "🇧🇩",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "052",
+    "name": "Barbados",
+    "flag": "🇧🇧",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "112",
+    "name": "Belarus",
+    "flag": "🇧🇾",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "056",
+    "name": "Belgium",
+    "flag": "🇧🇪",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "084",
+    "name": "Belize",
+    "flag": "🇧🇿",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "204",
+    "name": "Benin",
+    "flag": "🇧🇯",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "060",
+    "name": "Bermuda",
+    "flag": "🇧🇲",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "064",
+    "name": "Bhutan",
+    "flag": "🇧🇹",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "068",
+    "name": "Bolivia",
+    "flag": "🇧🇴",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "070",
+    "name": "Bosnia and Herzegovina",
+    "flag": "🇧🇦",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "072",
+    "name": "Botswana",
+    "flag": "🇧🇼",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "076",
+    "name": "Brazil",
+    "flag": "🇧🇷",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "086",
+    "name": "British Indian Ocean Territory",
+    "flag": "🇮🇴",
+    "continent": "Africa",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "092",
+    "name": "British Virgin Islands",
+    "flag": "🇻🇬",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "096",
+    "name": "Brunei",
+    "flag": "🇧🇳",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "100",
+    "name": "Bulgaria",
+    "flag": "🇧🇬",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "854",
+    "name": "Burkina Faso",
+    "flag": "🇧🇫",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "108",
+    "name": "Burundi",
+    "flag": "🇧🇮",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "116",
+    "name": "Cambodia",
+    "flag": "🇰🇭",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "120",
+    "name": "Cameroon",
+    "flag": "🇨🇲",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "124",
+    "name": "Canada",
+    "flag": "🇨🇦",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "132",
+    "name": "Cape Verde",
+    "flag": "🇨🇻",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "136",
+    "name": "Cayman Islands",
+    "flag": "🇰🇾",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "140",
+    "name": "Central African Republic",
+    "flag": "🇨🇫",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "148",
+    "name": "Chad",
+    "flag": "🇹🇩",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "152",
+    "name": "Chile",
+    "flag": "🇨🇱",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "156",
+    "name": "China",
+    "flag": "🇨🇳",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "170",
+    "name": "Colombia",
+    "flag": "🇨🇴",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "174",
+    "name": "Comoros",
+    "flag": "🇰🇲",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "184",
+    "name": "Cook Islands",
+    "flag": "🇨🇰",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "188",
+    "name": "Costa Rica",
+    "flag": "🇨🇷",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "191",
+    "name": "Croatia",
+    "flag": "🇭🇷",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "192",
+    "name": "Cuba",
+    "flag": "🇨🇺",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "531",
+    "name": "Curaçao",
+    "flag": "🇨🇼",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "196",
+    "name": "Cyprus",
+    "flag": "🇨🇾",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "203",
+    "name": "Czechia",
+    "flag": "🇨🇿",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "208",
+    "name": "Denmark",
+    "flag": "🇩🇰",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "262",
+    "name": "Djibouti",
+    "flag": "🇩🇯",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "212",
+    "name": "Dominica",
+    "flag": "🇩🇲",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "214",
+    "name": "Dominican Republic",
+    "flag": "🇩🇴",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "180",
+    "name": "DR Congo",
+    "flag": "🇨🇩",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "218",
+    "name": "Ecuador",
+    "flag": "🇪🇨",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "818",
+    "name": "Egypt",
+    "flag": "🇪🇬",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "222",
+    "name": "El Salvador",
+    "flag": "🇸🇻",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "226",
+    "name": "Equatorial Guinea",
+    "flag": "🇬🇶",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "232",
+    "name": "Eritrea",
+    "flag": "🇪🇷",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "233",
+    "name": "Estonia",
+    "flag": "🇪🇪",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "748",
+    "name": "Eswatini",
+    "flag": "🇸🇿",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "231",
+    "name": "Ethiopia",
+    "flag": "🇪🇹",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "238",
+    "name": "Falkland Islands",
+    "flag": "🇫🇰",
+    "continent": "South America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "234",
+    "name": "Faroe Islands",
+    "flag": "🇫🇴",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "242",
+    "name": "Fiji",
+    "flag": "🇫🇯",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "246",
+    "name": "Finland",
+    "flag": "🇫🇮",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "250",
+    "name": "France",
+    "flag": "🇫🇷",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "258",
+    "name": "French Polynesia",
+    "flag": "🇵🇫",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "260",
+    "name": "French Southern and Antarctic Lands",
+    "flag": "🇹🇫",
+    "continent": "Antarctica",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "266",
+    "name": "Gabon",
+    "flag": "🇬🇦",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "270",
+    "name": "Gambia",
+    "flag": "🇬🇲",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "268",
+    "name": "Georgia",
+    "flag": "🇬🇪",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "276",
+    "name": "Germany",
+    "flag": "🇩🇪",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "288",
+    "name": "Ghana",
+    "flag": "🇬🇭",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "300",
+    "name": "Greece",
+    "flag": "🇬🇷",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "304",
+    "name": "Greenland",
+    "flag": "🇬🇱",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "308",
+    "name": "Grenada",
+    "flag": "🇬🇩",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "316",
+    "name": "Guam",
+    "flag": "🇬🇺",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "320",
+    "name": "Guatemala",
+    "flag": "🇬🇹",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "831",
+    "name": "Guernsey",
+    "flag": "🇬🇬",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "324",
+    "name": "Guinea",
+    "flag": "🇬🇳",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "624",
+    "name": "Guinea-Bissau",
+    "flag": "🇬🇼",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "328",
+    "name": "Guyana",
+    "flag": "🇬🇾",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "332",
+    "name": "Haiti",
+    "flag": "🇭🇹",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "334",
+    "name": "Heard Island and McDonald Islands",
+    "flag": "🇭🇲",
+    "continent": "Antarctica",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "340",
+    "name": "Honduras",
+    "flag": "🇭🇳",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "344",
+    "name": "Hong Kong",
+    "flag": "🇭🇰",
+    "continent": "Asia",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "348",
+    "name": "Hungary",
+    "flag": "🇭🇺",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "352",
+    "name": "Iceland",
+    "flag": "🇮🇸",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "356",
+    "name": "India",
+    "flag": "🇮🇳",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "360",
+    "name": "Indonesia",
+    "flag": "🇮🇩",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "364",
+    "name": "Iran",
+    "flag": "🇮🇷",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "368",
+    "name": "Iraq",
+    "flag": "🇮🇶",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "372",
+    "name": "Ireland",
+    "flag": "🇮🇪",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "833",
+    "name": "Isle of Man",
+    "flag": "🇮🇲",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "376",
+    "name": "Israel",
+    "flag": "🇮🇱",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "380",
+    "name": "Italy",
+    "flag": "🇮🇹",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "384",
+    "name": "Ivory Coast",
+    "flag": "🇨🇮",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "388",
+    "name": "Jamaica",
+    "flag": "🇯🇲",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "392",
+    "name": "Japan",
+    "flag": "🇯🇵",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "832",
+    "name": "Jersey",
+    "flag": "🇯🇪",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "400",
+    "name": "Jordan",
+    "flag": "🇯🇴",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "398",
+    "name": "Kazakhstan",
+    "flag": "🇰🇿",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "404",
+    "name": "Kenya",
+    "flag": "🇰🇪",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "296",
+    "name": "Kiribati",
+    "flag": "🇰🇮",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "kosovo",
+    "name": "Kosovo",
+    "flag": "🇽🇰",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "414",
+    "name": "Kuwait",
+    "flag": "🇰🇼",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "417",
+    "name": "Kyrgyzstan",
+    "flag": "🇰🇬",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "418",
+    "name": "Laos",
+    "flag": "🇱🇦",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "428",
+    "name": "Latvia",
+    "flag": "🇱🇻",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "422",
+    "name": "Lebanon",
+    "flag": "🇱🇧",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "426",
+    "name": "Lesotho",
+    "flag": "🇱🇸",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "430",
+    "name": "Liberia",
+    "flag": "🇱🇷",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "434",
+    "name": "Libya",
+    "flag": "🇱🇾",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "438",
+    "name": "Liechtenstein",
+    "flag": "🇱🇮",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "440",
+    "name": "Lithuania",
+    "flag": "🇱🇹",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "442",
+    "name": "Luxembourg",
+    "flag": "🇱🇺",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "446",
+    "name": "Macau",
+    "flag": "🇲🇴",
+    "continent": "Asia",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "450",
+    "name": "Madagascar",
+    "flag": "🇲🇬",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "454",
+    "name": "Malawi",
+    "flag": "🇲🇼",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "458",
+    "name": "Malaysia",
+    "flag": "🇲🇾",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "462",
+    "name": "Maldives",
+    "flag": "🇲🇻",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "466",
+    "name": "Mali",
+    "flag": "🇲🇱",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "470",
+    "name": "Malta",
+    "flag": "🇲🇹",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "584",
+    "name": "Marshall Islands",
+    "flag": "🇲🇭",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "478",
+    "name": "Mauritania",
+    "flag": "🇲🇷",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "480",
+    "name": "Mauritius",
+    "flag": "🇲🇺",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "484",
+    "name": "Mexico",
+    "flag": "🇲🇽",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "583",
+    "name": "Micronesia",
+    "flag": "🇫🇲",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "498",
+    "name": "Moldova",
+    "flag": "🇲🇩",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "492",
+    "name": "Monaco",
+    "flag": "🇲🇨",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "496",
+    "name": "Mongolia",
+    "flag": "🇲🇳",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "499",
+    "name": "Montenegro",
+    "flag": "🇲🇪",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "500",
+    "name": "Montserrat",
+    "flag": "🇲🇸",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "504",
+    "name": "Morocco",
+    "flag": "🇲🇦",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "508",
+    "name": "Mozambique",
+    "flag": "🇲🇿",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "104",
+    "name": "Myanmar",
+    "flag": "🇲🇲",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "516",
+    "name": "Namibia",
+    "flag": "🇳🇦",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "520",
+    "name": "Nauru",
+    "flag": "🇳🇷",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "524",
+    "name": "Nepal",
+    "flag": "🇳🇵",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "528",
+    "name": "Netherlands",
+    "flag": "🇳🇱",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "540",
+    "name": "New Caledonia",
+    "flag": "🇳🇨",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "554",
+    "name": "New Zealand",
+    "flag": "🇳🇿",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "558",
+    "name": "Nicaragua",
+    "flag": "🇳🇮",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "562",
+    "name": "Niger",
+    "flag": "🇳🇪",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "566",
+    "name": "Nigeria",
+    "flag": "🇳🇬",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "570",
+    "name": "Niue",
+    "flag": "🇳🇺",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "574",
+    "name": "Norfolk Island",
+    "flag": "🇳🇫",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "408",
+    "name": "North Korea",
+    "flag": "🇰🇵",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "807",
+    "name": "North Macedonia",
+    "flag": "🇲🇰",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "n-cyprus",
+    "name": "Northern Cyprus",
+    "flag": "",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "580",
+    "name": "Northern Mariana Islands",
+    "flag": "🇲🇵",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "578",
+    "name": "Norway",
+    "flag": "🇳🇴",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "512",
+    "name": "Oman",
+    "flag": "🇴🇲",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "586",
+    "name": "Pakistan",
+    "flag": "🇵🇰",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "585",
+    "name": "Palau",
+    "flag": "🇵🇼",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "275",
+    "name": "Palestine",
+    "flag": "🇵🇸",
+    "continent": "Asia",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "591",
+    "name": "Panama",
+    "flag": "🇵🇦",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "598",
+    "name": "Papua New Guinea",
+    "flag": "🇵🇬",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "600",
+    "name": "Paraguay",
+    "flag": "🇵🇾",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "604",
+    "name": "Peru",
+    "flag": "🇵🇪",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "608",
+    "name": "Philippines",
+    "flag": "🇵🇭",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "612",
+    "name": "Pitcairn Islands",
+    "flag": "🇵🇳",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "616",
+    "name": "Poland",
+    "flag": "🇵🇱",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "620",
+    "name": "Portugal",
+    "flag": "🇵🇹",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "630",
+    "name": "Puerto Rico",
+    "flag": "🇵🇷",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "634",
+    "name": "Qatar",
+    "flag": "🇶🇦",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "178",
+    "name": "Republic of the Congo",
+    "flag": "🇨🇬",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "642",
+    "name": "Romania",
+    "flag": "🇷🇴",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "643",
+    "name": "Russia",
+    "flag": "🇷🇺",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "646",
+    "name": "Rwanda",
+    "flag": "🇷🇼",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "652",
+    "name": "Saint Barthélemy",
+    "flag": "🇧🇱",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "654",
+    "name": "Saint Helena, Ascension and Tristan da Cunha",
+    "flag": "🇸🇭",
+    "continent": "Africa",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "659",
+    "name": "Saint Kitts and Nevis",
+    "flag": "🇰🇳",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "662",
+    "name": "Saint Lucia",
+    "flag": "🇱🇨",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "663",
+    "name": "Saint Martin",
+    "flag": "🇲🇫",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "666",
+    "name": "Saint Pierre and Miquelon",
+    "flag": "🇵🇲",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "670",
+    "name": "Saint Vincent and the Grenadines",
+    "flag": "🇻🇨",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "882",
+    "name": "Samoa",
+    "flag": "🇼🇸",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "674",
+    "name": "San Marino",
+    "flag": "🇸🇲",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "678",
+    "name": "São Tomé and Príncipe",
+    "flag": "🇸🇹",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "682",
+    "name": "Saudi Arabia",
+    "flag": "🇸🇦",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "686",
+    "name": "Senegal",
+    "flag": "🇸🇳",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "688",
+    "name": "Serbia",
+    "flag": "🇷🇸",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "690",
+    "name": "Seychelles",
+    "flag": "🇸🇨",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "694",
+    "name": "Sierra Leone",
+    "flag": "🇸🇱",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "702",
+    "name": "Singapore",
+    "flag": "🇸🇬",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "534",
+    "name": "Sint Maarten",
+    "flag": "🇸🇽",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "703",
+    "name": "Slovakia",
+    "flag": "🇸🇰",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "705",
+    "name": "Slovenia",
+    "flag": "🇸🇮",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "090",
+    "name": "Solomon Islands",
+    "flag": "🇸🇧",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "706",
+    "name": "Somalia",
+    "flag": "🇸🇴",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "somaliland",
+    "name": "Somaliland",
+    "flag": "",
+    "continent": "Africa",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "710",
+    "name": "South Africa",
+    "flag": "🇿🇦",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "239",
+    "name": "South Georgia",
+    "flag": "🇬🇸",
+    "continent": "Antarctica",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "410",
+    "name": "South Korea",
+    "flag": "🇰🇷",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "728",
+    "name": "South Sudan",
+    "flag": "🇸🇸",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "724",
+    "name": "Spain",
+    "flag": "🇪🇸",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "144",
+    "name": "Sri Lanka",
+    "flag": "🇱🇰",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "729",
+    "name": "Sudan",
+    "flag": "🇸🇩",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "740",
+    "name": "Suriname",
+    "flag": "🇸🇷",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "752",
+    "name": "Sweden",
+    "flag": "🇸🇪",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "756",
+    "name": "Switzerland",
+    "flag": "🇨🇭",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "760",
+    "name": "Syria",
+    "flag": "🇸🇾",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "158",
+    "name": "Taiwan",
+    "flag": "🇹🇼",
+    "continent": "Asia",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "762",
+    "name": "Tajikistan",
+    "flag": "🇹🇯",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "834",
+    "name": "Tanzania",
+    "flag": "🇹🇿",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "764",
+    "name": "Thailand",
+    "flag": "🇹🇭",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "626",
+    "name": "Timor-Leste",
+    "flag": "🇹🇱",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "768",
+    "name": "Togo",
+    "flag": "🇹🇬",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "776",
+    "name": "Tonga",
+    "flag": "🇹🇴",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "780",
+    "name": "Trinidad and Tobago",
+    "flag": "🇹🇹",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "788",
+    "name": "Tunisia",
+    "flag": "🇹🇳",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "792",
+    "name": "Türkiye",
+    "flag": "🇹🇷",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "795",
+    "name": "Turkmenistan",
+    "flag": "🇹🇲",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "796",
+    "name": "Turks and Caicos Islands",
+    "flag": "🇹🇨",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "798",
+    "name": "Tuvalu",
+    "flag": "🇹🇻",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": false
+  },
+  {
+    "key": "800",
+    "name": "Uganda",
+    "flag": "🇺🇬",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "804",
+    "name": "Ukraine",
+    "flag": "🇺🇦",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "784",
+    "name": "United Arab Emirates",
+    "flag": "🇦🇪",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "826",
+    "name": "United Kingdom",
+    "flag": "🇬🇧",
+    "continent": "Europe",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "840",
+    "name": "United States",
+    "flag": "🇺🇸",
+    "continent": "North America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "850",
+    "name": "United States Virgin Islands",
+    "flag": "🇻🇮",
+    "continent": "North America",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "858",
+    "name": "Uruguay",
+    "flag": "🇺🇾",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "860",
+    "name": "Uzbekistan",
+    "flag": "🇺🇿",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "548",
+    "name": "Vanuatu",
+    "flag": "🇻🇺",
+    "continent": "Oceania",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "336",
+    "name": "Vatican City",
+    "flag": "🇻🇦",
+    "continent": "Europe",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "862",
+    "name": "Venezuela",
+    "flag": "🇻🇪",
+    "continent": "South America",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "704",
+    "name": "Vietnam",
+    "flag": "🇻🇳",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "876",
+    "name": "Wallis and Futuna",
+    "flag": "🇼🇫",
+    "continent": "Oceania",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "732",
+    "name": "Western Sahara",
+    "flag": "🇪🇭",
+    "continent": "Africa",
+    "unMember": false,
+    "hasShape": true
+  },
+  {
+    "key": "887",
+    "name": "Yemen",
+    "flag": "🇾🇪",
+    "continent": "Asia",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "894",
+    "name": "Zambia",
+    "flag": "🇿🇲",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  },
+  {
+    "key": "716",
+    "name": "Zimbabwe",
+    "flag": "🇿🇼",
+    "continent": "Africa",
+    "unMember": true,
+    "hasShape": true
+  }
+]

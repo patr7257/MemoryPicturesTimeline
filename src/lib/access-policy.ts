@@ -12,6 +12,12 @@
 // - A comment is deleted by its author or a super admin.
 // - People: every member sees the list and may add a person. Renaming,
 //   deleting, inviting, roles and removal are super admin only.
+// - Countries: every member sees every person's visited countries. A map is
+//   edited by the person it belongs to or a super admin.
+// - Country notes: a person with a login is the only one who reads and writes
+//   their notes. For a person without a login, super admins do.
+// - The wishlist and dismissed suggestions are private to whoever may edit
+//   the map.
 
 export type Role = "member" | "super_admin";
 
@@ -83,6 +89,38 @@ export function canDeleteComment(v: Viewer, comment: { authorId: string }): bool
 
 // Rename or delete people, invite members, set roles, remove members.
 export const canAdminister = isSuperAdmin;
+
+export type CountriesPerson = { id: string; hasLogin: boolean };
+
+// Every signed-in viewer sees every person's visited countries.
+export const canSeeCountries = (_v: Viewer): boolean => true;
+
+// A map is edited by the person it belongs to or a super admin.
+export function canEditCountries(v: Viewer, personId: string): boolean {
+  return isSuperAdmin(v) || (v.personId !== null && v.personId === personId);
+}
+
+// A person with a login keeps their notes to themselves, super admins
+// included. A person without a login has notes kept by the super admins.
+export function canReadCountryNotes(v: Viewer, person: CountriesPerson): boolean {
+  if (v.personId !== null && v.personId === person.id) return true;
+  return !person.hasLogin && isSuperAdmin(v);
+}
+
+export type CountriesTier = "view" | "edit" | "edit_notes";
+
+export function countriesTier(v: Viewer, person: CountriesPerson): CountriesTier {
+  if (!canEditCountries(v, person.id)) return "view";
+  return canReadCountryNotes(v, person) ? "edit_notes" : "edit";
+}
+
+// What a tier may read. The queries build from these, so a tier can never
+// select more than this.
+export function tierStatuses(tier: CountriesTier): readonly ("visited" | "wishlist" | "dismissed")[] {
+  return tier === "view" ? ["visited"] : ["visited", "wishlist", "dismissed"];
+}
+
+export const tierReadsNote = (tier: CountriesTier): boolean => tier === "edit_notes";
 
 export class AccessError extends Error {
   constructor(message = "Not allowed") {

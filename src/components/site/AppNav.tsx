@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { MotionConfig, motion } from "motion/react";
 import {
   Bell,
+  Globe,
   Images,
   LogOut,
   MapPin,
@@ -41,6 +42,7 @@ const ICONS: Record<Exclude<NavSection, "account">, LucideIcon> = {
   vacations: Plane,
   upload: Upload,
   map: MapPin,
+  countries: Globe,
   people: Users,
   notifications: Bell,
 };
@@ -52,7 +54,11 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const isAdmin = viewer.role === "super_admin";
-  const moreActive = section === "people" || section === "notifications" || section === "account";
+  const moreActive =
+    section === "countries" ||
+    section === "people" ||
+    section === "notifications" ||
+    section === "account";
 
   function askSignOut() {
     setMoreOpen(false);
@@ -65,7 +71,7 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] md:gap-3">
           <Link
             href="/timeline"
-            className="shrink-0 font-hand text-3xl leading-none whitespace-nowrap md:text-2xl lg:text-4xl"
+            className="shrink-0 font-hand text-3xl leading-none whitespace-nowrap md:text-xl lg:text-4xl"
           >
             Family Memories
           </Link>
@@ -82,7 +88,7 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
                   nativeButton={false}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "h-9 px-2.5 text-sm whitespace-nowrap lg:px-3",
+                    "h-9 px-2 text-[13px] whitespace-nowrap lg:px-3 lg:text-sm",
                     !primary && active && "bg-muted font-semibold text-foreground",
                     primary && "mx-0.5",
                   )}
@@ -176,6 +182,9 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
             <SheetTitle>More</SheetTitle>
           </SheetHeader>
           <ul className="px-2 pb-2">
+            <SheetLink href="/countries" Icon={Globe} active={section === "countries"} onNavigate={() => setMoreOpen(false)}>
+              Countries
+            </SheetLink>
             <SheetLink href="/people" Icon={Users} active={section === "people"} onNavigate={() => setMoreOpen(false)}>
               People
             </SheetLink>
@@ -250,7 +259,7 @@ function SheetLink({
   onNavigate,
   children,
 }: {
-  href: "/people" | "/notifications" | "/account" | "/members";
+  href: "/countries" | "/people" | "/notifications" | "/account" | "/members";
   Icon: LucideIcon;
   active: boolean;
   onNavigate: () => void;

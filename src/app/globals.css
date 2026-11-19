@@ -36,6 +36,14 @@
   /* Scrapbook extras */
   --paper-shadow: oklch(0.33 0.032 55 / 12%);
   --tape: oklch(0.884 0.062 82 / 75%);
+  /* Countries page fills: map shapes and list markers share these. */
+  --country-visited: var(--primary);
+  --country-wishlist: oklch(0.62 0.07 198);
+  --country-a: var(--chart-4);
+  --country-b: oklch(0.56 0.1 65);
+  --country-both: var(--primary);
+  --country-land: var(--secondary);
+  --country-sea: oklch(0.95 0.012 210);
 }
 
 @theme inline {
@@ -65,6 +73,13 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-tape: var(--tape);
+  --color-country-visited: var(--country-visited);
+  --color-country-wishlist: var(--country-wishlist);
+  --color-country-a: var(--country-a);
+  --color-country-b: var(--country-b);
+  --color-country-both: var(--country-both);
+  --color-country-land: var(--country-land);
+  --color-country-sea: var(--country-sea);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
