@@ -205,22 +205,32 @@ export default function CountriesMapInner({
           try {
             apply(only);
             return await new Promise<HTMLCanvasElement>((resolve, reject) => {
+              // Runs inside a map event: anything it throws would never reach
+              // the caller, so every path ends in resolve or reject.
               const done = () => {
                 window.clearTimeout(timer);
-                const src = map.getCanvas();
-                const copy = document.createElement("canvas");
-                copy.width = src.width;
-                copy.height = src.height;
-                const g = copy.getContext("2d");
-                if (!g) {
-                  reject(new Error("No 2D canvas"));
-                  return;
+                try {
+                  const src = map.getCanvas();
+                  // A hidden or collapsed frame has an empty canvas, which
+                  // drawImage refuses.
+                  if (src.width === 0 || src.height === 0) throw new Error("The map has no size");
+                  const copy = document.createElement("canvas");
+                  copy.width = src.width;
+                  copy.height = src.height;
+                  const g = copy.getContext("2d");
+                  if (!g) throw new Error("No 2D canvas");
+                  g.drawImage(src, 0, 0);
+                  resolve(copy);
+                } catch (err) {
+                  reject(err);
                 }
-                g.drawImage(src, 0, 0);
-                resolve(copy);
               };
               const timer = window.setTimeout(() => {
-                map.off("idle", done);
+                try {
+                  map.off("idle", done);
+                } catch {
+                  // The map is gone; nothing left to unhook.
+                }
                 reject(new Error("The map did not settle"));
               }, CAPTURE_TIMEOUT_MS);
               map.once("idle", done);
@@ -228,7 +238,13 @@ export default function CountriesMapInner({
             });
           } finally {
             capturing.current = false;
-            apply(fillsRef.current);
+            // A map removed mid-capture can throw here; that must never
+            // replace the capture's own result or error.
+            try {
+              apply(fillsRef.current);
+            } catch {
+              // Nothing to restore on a map that is gone.
+            }
           }
         },
       };

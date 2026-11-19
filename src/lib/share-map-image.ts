@@ -13,9 +13,16 @@ const MAP_TOP = MARGIN;
 const MAP_HEIGHT = 900;
 const TITLE_Y = 1090;
 const TITLE_SIZE = 96;
-const LINE_Y = 1110;
+const TITLE_MIN_SIZE = 56;
+// Top of the block of count lines; line i sits at LINES_TOP + (i + 1) * LINE_STEP.
+const LINES_TOP = 1110;
 const LINE_STEP = 72;
 const LINE_SIZE = 52;
+const LINE_MIN_SIZE = 36;
+// Text never runs past the margins on either side.
+const TEXT_MAX_WIDTH = SHARE_WIDTH - 2 * MARGIN;
+const FONT_STEP = 4;
+const ELLIPSIS = "...";
 const BRAND = "Memories";
 const BRAND_SIZE = 30;
 // Samples per side of the grid that checks the map area is not blank.
@@ -29,6 +36,32 @@ const HEADING_FALLBACK = "cursive";
 const BODY_FALLBACK = "sans-serif";
 
 const firstName = (name: string): string => name.trim().split(/\s+/)[0] ?? "";
+
+// The largest size, from startPx down in FONT_STEP steps, at which the text
+// is at most maxWidth wide; minPx when even that is too wide. measure gives
+// the text width at a font size, so this needs no canvas.
+export function fitFontSize(
+  measure: (px: number) => number,
+  maxWidth: number,
+  startPx: number,
+  minPx: number,
+): number {
+  for (let px = startPx; px > minPx; px -= FONT_STEP) {
+    if (measure(px) <= maxWidth) return px;
+  }
+  return minPx;
+}
+
+// The text, cut from the end and closed with three plain dots, so that it is
+// at most maxWidth wide. measure gives the width of a string.
+export function truncateToFit(measure: (text: string) => number, text: string, maxWidth: number): string {
+  if (measure(text) <= maxWidth) return text;
+  for (let n = text.length - 1; n > 0; n--) {
+    const cut = text.slice(0, n).trimEnd() + ELLIPSIS;
+    if (measure(cut) <= maxWidth) return cut;
+  }
+  return ELLIPSIS;
+}
 
 // Whose map the image shows. "family" is the union of every person; "group"
 // is a union of some of them, which must never be titled as the family.
@@ -136,10 +169,24 @@ export async function composeShareImage(map: HTMLCanvasElement, subject: ShareSu
   g.textAlign = "center";
   g.textBaseline = "alphabetic";
   g.fillStyle = ink;
-  g.font = `${TITLE_SIZE}px ${heading}`;
-  g.fillText(title, SHARE_WIDTH / 2, TITLE_Y);
-  g.font = `600 ${LINE_SIZE}px ${body}`;
-  lines.forEach((line, i) => g.fillText(line, SHARE_WIDTH / 2, LINE_Y + (i + 1) * LINE_STEP));
+  // Shrinks to fit between the margins, then cuts with dots at the minimum.
+  const drawFitted = (text: string, y: number, font: (px: number) => string, startPx: number, minPx: number) => {
+    const px = fitFontSize(
+      (size) => {
+        g.font = font(size);
+        return g.measureText(text).width;
+      },
+      TEXT_MAX_WIDTH,
+      startPx,
+      minPx,
+    );
+    g.font = font(px);
+    g.fillText(truncateToFit((t) => g.measureText(t).width, text, TEXT_MAX_WIDTH), SHARE_WIDTH / 2, y);
+  };
+  drawFitted(title, TITLE_Y, (px) => `${px}px ${heading}`, TITLE_SIZE, TITLE_MIN_SIZE);
+  lines.forEach((line, i) =>
+    drawFitted(line, LINES_TOP + (i + 1) * LINE_STEP, (px) => `600 ${px}px ${body}`, LINE_SIZE, LINE_MIN_SIZE),
+  );
 
   g.fillStyle = muted;
   g.textAlign = "right";
