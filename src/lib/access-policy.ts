@@ -120,7 +120,15 @@ export function tierStatuses(tier: CountriesTier): readonly ("visited" | "wishli
   return tier === "view" ? ["visited"] : ["visited", "wishlist", "dismissed"];
 }
 
-export const tierReadsNote = (tier: CountriesTier): boolean => tier === "edit_notes";
+export type CountryColumn = "countryKey" | "status" | "year" | "note";
+
+// The columns a tier may select. The query builds its select from this list,
+// so nothing else decides whether `note` is read.
+export function tierColumns(tier: CountriesTier): readonly CountryColumn[] {
+  return tier === "edit_notes" ? ["countryKey", "status", "year", "note"] : ["countryKey", "status", "year"];
+}
+
+export const tierReadsNote = (tier: CountriesTier): boolean => tierColumns(tier).includes("note");
 
 export class AccessError extends Error {
   constructor(message = "Not allowed") {

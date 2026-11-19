@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COUNTRIES, UN_MEMBER_TOTAL } from "./country-catalog";
 import {
-  cleanNote, comparePartition, countrySearchKey, countryStats, needsRemoveConfirm, fillsForCompare, fillsForMarks,
+  applyMarkChange, markAfterStatus, legendFills, cleanNote, comparePartition, countrySearchKey, countryStats, needsRemoveConfirm, fillsForCompare, fillsForMarks,
   fillsForUnion, NOTE_MAX, parseYear, resolveSelection,
 } from "./countries";
 
@@ -132,5 +132,54 @@ describe("needsRemoveConfirm", () => {
   });
   it("treats an empty note as no note", () => {
     expect(needsRemoveConfirm({ countryKey: "208", status: "visited", year: null, note: "" })).toBe(false);
+  });
+});
+
+describe("applyMarkChange", () => {
+  const dk = { countryKey: "208", status: "visited" as const, year: 2019 };
+  const no = { countryKey: "578", status: "wishlist" as const, year: null };
+  it("adds, replaces and removes one mark", () => {
+    expect(applyMarkChange([dk], { key: "578", mark: no })).toEqual([dk, no]);
+    expect(applyMarkChange([dk, no], { key: "208", mark: { ...dk, year: 2021 } })).toEqual([no, { ...dk, year: 2021 }]);
+    expect(applyMarkChange([dk, no], { key: "208", mark: null })).toEqual([no]);
+  });
+  it("never changes the array it is given", () => {
+    const marks = [dk];
+    applyMarkChange(marks, { key: "208", mark: null });
+    expect(marks).toEqual([dk]);
+  });
+});
+
+describe("markAfterStatus", () => {
+  const visited = { countryKey: "208", status: "visited" as const, year: 2019, note: "Fjords" };
+  it("keeps a visited year when visited is set without one, like the server", () => {
+    expect(markAfterStatus(visited, "208", "visited")).toEqual(visited);
+  });
+  it("has no year for a new or wishlist country set visited without one", () => {
+    expect(markAfterStatus(undefined, "208", "visited")).toEqual({ countryKey: "208", status: "visited", year: null });
+    expect(markAfterStatus({ countryKey: "208", status: "wishlist", year: null }, "208", "visited")).toEqual({
+      countryKey: "208",
+      status: "visited",
+      year: null,
+    });
+  });
+  it("writes a given year, and an explicit null clears it", () => {
+    expect(markAfterStatus(visited, "208", "visited", 2021).year).toBe(2021);
+    expect(markAfterStatus(visited, "208", "visited", null).year).toBeNull();
+  });
+  it("drops the year for any other status and keeps a note the viewer has", () => {
+    expect(markAfterStatus(visited, "208", "wishlist", 2021)).toEqual({ countryKey: "208", status: "wishlist", year: null, note: "Fjords" });
+  });
+});
+
+describe("legendFills", () => {
+  it("names each fill in use once, in a fixed order", () => {
+    expect(legendFills({ "208": "wishlist", "578": "visited", "752": "visited" })).toEqual(["visited", "wishlist"]);
+  });
+  it("still has an entry when every fill is visited", () => {
+    expect(legendFills({ "208": "visited" })).toEqual(["visited"]);
+  });
+  it("is empty without fills", () => {
+    expect(legendFills({})).toEqual([]);
   });
 });

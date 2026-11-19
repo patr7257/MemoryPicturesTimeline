@@ -3,7 +3,7 @@
 // access-policy.ts, never from the tier name.
 import "server-only";
 
-import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { members, people, personCountries, photos, tripPeople, trips } from "@/db/schema";
@@ -11,7 +11,7 @@ import { visibleTripIds } from "@/lib/access";
 import {
   canEditCountries,
   countriesTier,
-  tierReadsNote,
+  tierColumns,
   tierStatuses,
   type CountriesTier,
   type Viewer,
@@ -20,10 +20,14 @@ import { countryKeyAt } from "@/lib/country-lookup";
 import {
   pickSuggestions,
   samplePoints,
+  visibleTaggedTripIds,
   type CountrySuggestion,
   type SuggestionPoint,
 } from "@/lib/country-suggestions";
 import type { CountryMark } from "@/lib/countries";
+
+// Photos read per (trip, country name) for suggestions.
+const SAMPLE_PER_GROUP = 3;
 
 export type PersonTarget = { id: string; name: string; hasLogin: boolean };
 
@@ -47,13 +51,15 @@ export async function getPersonCountries(
   person: PersonTarget,
 ): Promise<{ tier: CountriesTier; marks: CountryMark[] }> {
   const tier = countriesTier(viewer, person);
-  // note is part of the selected columns only when the tier may read it.
-  const columns = {
+  // note is part of the selected columns only when the tier may read it:
+  // tierColumns alone decides which columns go into the select.
+  const all = {
     countryKey: personCountries.countryKey,
     status: personCountries.status,
     year: personCountries.year,
-    ...(tierReadsNote(tier) ? { note: personCountries.note } : {}),
+    note: personCountries.note,
   };
+  const columns = Object.fromEntries(tierColumns(tier).map((c) => [c, all[c]]));
   const rows = await getDb()
     .select(columns)
     .from(personCountries)
@@ -100,24 +106,44 @@ export async function getCountrySuggestions(
     .from(tripPeople)
     .where(eq(tripPeople.personId, person.id));
   const visible = await visibleTripIds(viewer);
-  const tripIds = tagged
-    .map((r) => r.tripId)
-    .filter((id) => visible === "all" || visible.has(id));
+  const tripIds = visibleTaggedTripIds(
+    tagged.map((r) => r.tripId),
+    visible,
+  );
   if (tripIds.length === 0) return [];
 
+  // The SQL mirrors samplePoints (the tested definition of the rule): at most
+  // SAMPLE_PER_GROUP photos per (trip, country name), earliest first, so the
+  // rows read do not grow with the number of photos. samplePoints still runs
+  // below and changes nothing when the SQL did its job.
+  const ranked = db
+    .select({
+      tripId: photos.tripId,
+      countryName: photos.country,
+      lat: photos.lat,
+      lng: photos.lng,
+      takenAt: photos.takenAt,
+      photoId: photos.id,
+      rn: sql<number>`row_number() over (partition by ${photos.tripId}, ${photos.country} order by ${photos.takenAt}, ${photos.id})`.as(
+        "rn",
+      ),
+    })
+    .from(photos)
+    .where(and(inArray(photos.tripId, tripIds), isNotNull(photos.lat), isNotNull(photos.lng)))
+    .as("ranked");
   const rows = await db
     .select({
       tripId: trips.id,
       tripTitle: trips.title,
       startDate: trips.startDate,
-      countryName: photos.country,
-      lat: photos.lat,
-      lng: photos.lng,
+      countryName: ranked.countryName,
+      lat: ranked.lat,
+      lng: ranked.lng,
     })
-    .from(photos)
-    .innerJoin(trips, eq(photos.tripId, trips.id))
-    .where(and(inArray(photos.tripId, tripIds), isNotNull(photos.lat), isNotNull(photos.lng)))
-    .orderBy(asc(trips.startDate), asc(photos.takenAt), asc(photos.id));
+    .from(ranked)
+    .innerJoin(trips, eq(ranked.tripId, trips.id))
+    .where(lte(ranked.rn, SAMPLE_PER_GROUP))
+    .orderBy(asc(trips.startDate), asc(ranked.takenAt), asc(ranked.photoId));
 
   const points: SuggestionPoint[] = rows.flatMap((r) =>
     r.lat === null || r.lng === null
@@ -133,7 +159,7 @@ export async function getCountrySuggestions(
           },
         ],
   );
-  const sampled = samplePoints(points);
+  const sampled = samplePoints(points, SAMPLE_PER_GROUP);
   const located = await Promise.all(
     sampled.map(async (point) => ({ point, countryKey: await countryKeyAt(point.lat, point.lng) })),
   );

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { personCountries } from "@/db/schema";
@@ -30,14 +30,15 @@ function dbStore(): CountryStore {
       const person = await getPersonTarget(personId);
       return person ? { id: person.id, hasLogin: person.hasLogin } : null;
     },
-    async upsertStatus({ personId, countryKey, status, year, updatedBy }) {
+    async upsertStatus({ personId, countryKey, status, year, keepYear, updatedBy }) {
       const now = new Date();
       await db
         .insert(personCountries)
         .values({ personId, countryKey, status, year, updatedBy, updatedAt: now })
         .onConflictDoUpdate({
           target: [personCountries.personId, personCountries.countryKey],
-          set: { status, year, updatedBy, updatedAt: now },
+          // keepYear leaves year out of the update, so a stored year stays.
+          set: keepYear ? { status, updatedBy, updatedAt: now } : { status, year, updatedBy, updatedAt: now },
         });
     },
     async updateYear(personId, countryKey, year, updatedBy) {
@@ -75,6 +76,15 @@ function dbStore(): CountryStore {
         .select({ countryKey: personCountries.countryKey })
         .from(personCountries)
         .where(match(personId, countryKey))
+        .limit(1);
+      return row !== undefined;
+    },
+    async noteExists(personId, countryKey) {
+      // Only the existence is read, never the note itself.
+      const [row] = await db
+        .select({ countryKey: personCountries.countryKey })
+        .from(personCountries)
+        .where(and(match(personId, countryKey), isNotNull(personCountries.note)))
         .limit(1);
       return row !== undefined;
     },

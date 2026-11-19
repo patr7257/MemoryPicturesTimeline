@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { feature } from "topojson-client";
 import atlas from "world-atlas/countries-50m.json";
-import { keyAtPoint, nearestKeyWithin, resolveKey, toCountryShapes } from "./point-in-country";
+import { keyAtPoint, nearestKeyWithin, resolveKey, toCountryShapes, type CountryShape } from "./point-in-country";
 
 const topo = atlas as unknown as Parameters<typeof feature>[0];
 const collection = feature(topo, (topo as any).objects.countries) as unknown as { features: any[] };
@@ -55,5 +55,34 @@ describe("nearestKeyWithin", () => {
     expect(nearestKeyWithin(shapes, 55.68, 12.57, 25)).toBe("208");
     expect(nearestKeyWithin(shapes, 55.68, 12.57, 0)).toBeNull();
     expect(nearestKeyWithin(shapes, 56.0, 6.0, 25)).toBeNull();
+  });
+});
+
+describe("stored bounding boxes", () => {
+  // A 10 by 10 square with a 2 by 2 hole in the middle.
+  const square = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]];
+  const hole = [[4, 4], [6, 4], [6, 6], [4, 6], [4, 4]];
+  const shape = (box: [number, number, number, number]): CountryShape[] => [
+    { key: "X", polygons: [[square, hole]], boxes: [box] },
+  ];
+
+  it("gives every real polygon its box once, outer ring extent", () => {
+    expect(shapes.every((s) => s.boxes.length === s.polygons.length)).toBe(true);
+    const dk = shapes.find((s) => s.key === "208");
+    expect(dk?.boxes.some(([minX, minY, maxX, maxY]) => minX < 12.5 && maxX > 12.5 && minY < 55.7 && maxY > 55.7)).toBe(true);
+  });
+
+  it("uses the stored box: a point outside it is never ray cast", () => {
+    // The box is deliberately wrong, so only a box check explains a null.
+    expect(keyAtPoint(shape([20, 20, 30, 30]), 2, 2)).toBeNull();
+    expect(nearestKeyWithin(shape([20, 20, 30, 30]), 0.1, 2, 25)).toBeNull();
+  });
+
+  it("still ray casts inside the box, holes included", () => {
+    const ok = shape([0, 0, 10, 10]);
+    expect(keyAtPoint(ok, 2, 2)).toBe("X");
+    expect(keyAtPoint(ok, 5, 5)).toBeNull();
+    expect(keyAtPoint(ok, 50, 50)).toBeNull();
+    expect(nearestKeyWithin(ok, 0.1, 2, 25)).toBe("X");
   });
 });

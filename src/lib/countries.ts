@@ -18,6 +18,35 @@ export function needsRemoveConfirm(mark: CountryMark): boolean {
   return typeof mark.year === "number" || (typeof mark.note === "string" && mark.note !== "");
 }
 
+// One optimistic change to a person's marks: the new mark for a key, or null
+// when the mark goes. Pure, so it can be the useOptimistic reducer.
+export type MarkChange = { key: string; mark: CountryMark | null };
+
+export function applyMarkChange(marks: readonly CountryMark[], change: MarkChange): CountryMark[] {
+  const rest = marks.filter((m) => m.countryKey !== change.key);
+  return change.mark ? [...rest, change.mark] : rest;
+}
+
+// The mark a status change shows before the server answers, by the server's
+// year rule: visited without a year (undefined) keeps a stored visited year,
+// an explicit null clears it, any other status has none. A note the viewer
+// already has stays on the mark.
+export function markAfterStatus(
+  prev: CountryMark | undefined,
+  key: string,
+  status: CountryStatus,
+  year?: number | null,
+): CountryMark {
+  const kept = prev?.status === "visited" ? prev.year : null;
+  const mark: CountryMark = {
+    countryKey: key,
+    status,
+    year: status !== "visited" ? null : year === undefined ? kept : year,
+  };
+  if (prev && "note" in prev) mark.note = prev.note;
+  return mark;
+}
+
 export type CountryStats = {
   total: number;
   unMembers: number;
@@ -112,6 +141,15 @@ export function fillsForUnion(keys: readonly string[]): Record<string, FillState
   const out: Record<string, FillState> = {};
   for (const k of keys) out[k] = "visited";
   return out;
+}
+
+const LEGEND_ORDER: readonly FillState[] = ["visited", "wishlist", "onlyA", "onlyB", "both"];
+
+// The fill states in use, once each: the map legend names every one of them,
+// so a colour on the map is never left unexplained.
+export function legendFills(fills: Record<string, FillState>): FillState[] {
+  const used = new Set(Object.values(fills));
+  return LEGEND_ORDER.filter((f) => used.has(f));
 }
 
 // Search form of a country name or query: lower case, no diacritics, and the

@@ -32,14 +32,14 @@ Status: **built** (in the app today), **planned** (designed, not built),
 | Slideshow | 3D projector slideshow | built | no | yes |
 | Push | New photos, new vacation | built | yes | yes |
 | Push | On this day | built | no | yes |
-| Countries | Mark countries and territories | planned | yes | yes |
-| Countries | Stats: count, UN members, percent of world, per continent | planned | yes | yes |
-| Countries | Suggestions from your vacations | planned | yes | yes |
-| Countries | Share map as image | planned | yes | yes |
-| Countries | 3D globe view | planned | no | yes |
-| Countries | Family map and compare two people | planned | no | yes |
-| Countries | Wishlist ("want to go") | planned | 5 spots | unlimited |
-| Countries | Year and private note per country | planned | no | yes |
+| Countries | Mark countries and territories | built | yes | yes |
+| Countries | Stats: count, UN members, percent of world, per continent | built | yes | yes |
+| Countries | Suggestions from your vacations | built | yes | yes |
+| Countries | Share map as image | built | yes | yes |
+| Countries | 3D globe view | built | no | yes |
+| Countries | Family map and compare two people | built | no | yes |
+| Countries | Wishlist ("want to go") | built | 5 spots | unlimited |
+| Countries | Year and private note per country | built | no | yes |
 | Countries | Regions, states, cities | parked | no | yes |
 | Photos | Bulk location for selected photos | parked | yes | yes |
 | Photos | Place search in the location picker | parked | yes | yes |

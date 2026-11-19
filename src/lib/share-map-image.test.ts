@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countryStats, fillsForMarks } from "./countries";
-import { looksBlank, shareFileName, shareFills, shareLines } from "./share-map-image";
+import { fitFontSize, looksBlank, shareFileName, shareFills, shareLines, truncateToFit } from "./share-map-image";
 
 describe("share image text", () => {
   it("uses the first name and the numbers only", () => {
@@ -67,5 +67,41 @@ describe("blank capture guard", () => {
   });
   it("calls no samples blank", () => {
     expect(looksBlank([], paper)).toBe(true);
+  });
+});
+
+describe("text fit", () => {
+  // Width grows with the font size: 10 units of width per pixel of size.
+  const measure = (px: number) => px * 10;
+  it("keeps the start size when the text fits", () => {
+    expect(fitFontSize(measure, 1000, 96, 48)).toBe(96);
+  });
+  it("shrinks until the text fits", () => {
+    expect(fitFontSize(measure, 800, 96, 48)).toBe(80);
+  });
+  it("stops at the minimum when nothing fits", () => {
+    expect(fitFontSize(measure, 100, 96, 48)).toBe(48);
+  });
+  it("counts a width exactly at the limit as fitting", () => {
+    expect(fitFontSize(measure, 960, 96, 48)).toBe(96);
+  });
+  it("never goes under the minimum when the step overshoots it", () => {
+    expect(fitFontSize(measure, 470, 96, 47)).toBe(47);
+  });
+
+  // One unit of width per character.
+  const chars = (t: string) => t.length;
+  it("leaves text that fits alone", () => {
+    expect(truncateToFit(chars, "Christopher", 11)).toBe("Christopher");
+  });
+  it("cuts long text and ends it with three plain dots", () => {
+    expect(truncateToFit(chars, "Christopher has been to", 10)).toBe("Christo...");
+  });
+  it("trims a space before the dots", () => {
+    expect(truncateToFit(chars, "Ab cd", 6)).toBe("Ab cd");
+    expect(truncateToFit(chars, "Ab cdef", 6)).toBe("Ab...");
+  });
+  it("gives only dots when nothing else fits", () => {
+    expect(truncateToFit(chars, "Christopher", 2)).toBe("...");
   });
 });

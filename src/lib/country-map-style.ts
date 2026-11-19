@@ -3,7 +3,8 @@
 // component) and a fill plus a line layer. No sprite, no glyphs, no tile or
 // style URL, so the map makes no network requests of its own. Fill colour
 // comes from per-feature state keyed by catalog key (promoteId), so marking a
-// country repaints one feature and the colour can fade.
+// country repaints one feature. MapLibre does not animate feature-state
+// changes, so the new colour appears at once.
 import type { StyleSpecification } from "maplibre-gl";
 
 import type { FillState } from "./countries";
@@ -12,16 +13,7 @@ export type MapColors = { sea: string; land: string; border: string } & Record<F
 
 const FILL_STATES: readonly FillState[] = ["visited", "wishlist", "onlyA", "onlyB", "both"];
 
-// A state change is an entrance of the new colour: 250ms sits inside the
-// entrance window and under the interactive cap (frontend-ui-patterns MOT-01,
-// MOT-07). Reduced motion passes 0.
-export const FILL_TRANSITION_MS = 250;
-
-export function countryMapStyle(
-  colors: MapColors,
-  options: { transitionMs?: number } = {},
-): StyleSpecification {
-  const duration = options.transitionMs ?? FILL_TRANSITION_MS;
+export function countryMapStyle(colors: MapColors): StyleSpecification {
   const cases: unknown[] = [];
   for (const s of FILL_STATES) cases.push(["==", ["feature-state", "fill"], s], colors[s]);
   return {
@@ -41,7 +33,6 @@ export function countryMapStyle(
         source: "countries",
         paint: {
           "fill-color": ["case", ...cases, colors.land] as never,
-          "fill-color-transition": { duration, delay: 0 },
         },
       },
       {

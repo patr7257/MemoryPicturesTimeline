@@ -28,9 +28,14 @@ import {
   fillsForCompare,
   fillsForMarks,
   fillsForUnion,
+  legendFills,
+  applyMarkChange,
+  markAfterStatus,
   needsRemoveConfirm,
   type CountryActionResult,
   type CountryMark,
+  type FillState,
+  type MarkChange,
 } from "@/lib/countries";
 import { countryByKey } from "@/lib/country-catalog";
 
@@ -102,7 +107,7 @@ export function CountriesView(props: CountriesViewProps) {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <CountriesMap fills={fills} mapRef={mapRef} {...view} />
+        <CountriesMap fills={fills} legend={legendFor(fills)} mapRef={mapRef} {...view} />
         <ShareMapButton
           mapRef={mapRef}
           fills={fills}
@@ -116,12 +121,12 @@ export function CountriesView(props: CountriesViewProps) {
   );
 }
 
-type Change = { key: string; mark: CountryMark | null };
+const LEGEND_LABEL: Partial<Record<FillState, string>> = { visited: "Visited", wishlist: "Want to go" };
 
-function applyChange(marks: CountryMark[], change: Change): CountryMark[] {
-  const rest = marks.filter((m) => m.countryKey !== change.key);
-  return change.mark ? [...rest, change.mark] : rest;
-}
+// Single and union maps: a legend entry for every fill in use, also when
+// every fill is visited.
+const legendFor = (fills: Record<string, FillState>): MapLegendEntry[] =>
+  legendFills(fills).map((fill) => ({ fill, label: LEGEND_LABEL[fill] ?? fill }));
 
 // Expected refusals arrive as results; a thrown error is unexpected and
 // production hides its message, so it gets the fallback text.
@@ -135,23 +140,24 @@ const toastError = (message: string) => toast.error(message, { duration: Infinit
 function SingleCountries({
   person,
   tier,
-  marks: initialMarks,
+  marks,
   suggestions,
   view,
 }: Extract<CountriesViewProps, { mode: "single" }> & { view: ReturnType<typeof useMapProjection> }) {
   const editable = tier !== "view";
-  const [marks, setMarks] = useState(initialMarks);
-  const [shown, addOptimistic] = useOptimistic(marks, applyChange);
+  // Always what the server last sent, with any pending changes on top.
+  const [shown, addOptimistic] = useOptimistic(marks, applyMarkChange);
   const [pending, startTransition] = useTransition();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const mapRef = useRef<MapCapture | null>(null);
 
-  // Shows the change at once; the committed marks only move when the action
-  // succeeds, so a refusal or a failure brings the previous state back by
-  // itself. Resolves with the error text, or null on success.
+  // Shows the change at once. Each action revalidates the page, so when its
+  // transition ends the fresh marks prop is the base; a refusal or a failure
+  // leaves the prop as it was and the change falls away by itself. Resolves
+  // with the error text, or null on success.
   function run(
-    change: Change | null,
+    change: MarkChange | null,
     action: () => Promise<CountryActionResult>,
   ): Promise<string | null> {
     return new Promise((resolve) => {
@@ -163,7 +169,6 @@ function SingleCountries({
             resolve(result.error);
             return;
           }
-          if (change) startTransition(() => setMarks((m) => applyChange(m, change)));
           resolve(null);
         } catch {
           resolve(FALLBACK);
@@ -202,11 +207,10 @@ function SingleCountries({
     rows[k] = m.status === "visited" ? { kind: "visited", year: m.year } : { kind: "wishlist" };
   }
 
-  function setStatus(key: string, status: "visited" | "wishlist" | "dismissed", year: number | null = null) {
-    const prev = byKey.get(key);
-    const mark: CountryMark = { countryKey: key, status, year: status === "visited" ? year : null };
-    if (prev && "note" in prev) mark.note = prev.note;
-    void run({ key, mark }, () => setCountryStatus(person.id, key, status, year ?? undefined)).then(
+  // Without a year a visited mark keeps the year the server has stored.
+  function setStatus(key: string, status: "visited" | "wishlist" | "dismissed", year?: number) {
+    const mark = markAfterStatus(shown.find((m) => m.countryKey === key), key, status, year);
+    void run({ key, mark }, () => setCountryStatus(person.id, key, status, year)).then(
       (err) => err && toastError(err),
     );
   }
@@ -227,7 +231,6 @@ function SingleCountries({
       toastError(err);
       return;
     }
-    setMarks((m) => applyChange(m, { key, mark: null }));
     setOpenKey(null);
   }
 
@@ -253,14 +256,6 @@ function SingleCountries({
     if (editable && !byKey.has(key)) setStatus(key, "visited");
     setOpenKey(key);
   }
-  const hasWishlist = shown.some((m) => m.status === "wishlist");
-  const legend: MapLegendEntry[] | undefined = hasWishlist
-    ? [
-        { fill: "visited", label: "Visited" },
-        { fill: "wishlist", label: "Want to go" },
-      ]
-    : undefined;
-
   // On screen an editor also sees the wishlist; the share button keeps only
   // the visited fills for the image.
   const fills = fillsForMarks(shown);
@@ -274,7 +269,7 @@ function SingleCountries({
   return (
     <div className="flex flex-col gap-8" data-unsaved-work={pending ? "" : undefined}>
       <div className="flex flex-col gap-3">
-        <CountriesMap fills={fills} onPick={pick} legend={legend} mapRef={mapRef} {...view} />
+        <CountriesMap fills={fills} onPick={pick} legend={legendFor(fills)} mapRef={mapRef} {...view} />
         <ShareMapButton
           mapRef={mapRef}
           fills={fills}
@@ -314,7 +309,7 @@ function SingleCountries({
           mark={byKey.get(openCountry.key) ?? null}
           tier={tier}
           onClose={() => setOpenKey(null)}
-          onStatus={(status) => setStatus(openCountry.key, status, byKey.get(openCountry.key)?.year ?? null)}
+          onStatus={(status) => setStatus(openCountry.key, status)}
           onRemove={() => removeFromCard(openCountry.key)}
           onSaveYear={(raw) => saveYear(openCountry.key, raw)}
           onSaveNote={(note) => saveNote(openCountry.key, note)}

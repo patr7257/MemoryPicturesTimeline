@@ -6,7 +6,8 @@
 // the browser; the style is built in code (src/lib/country-map-style.ts), so
 // the map requests no tiles, sprites or fonts. Each shape carries its catalog
 // key as `properties.key`, promoted to the feature id, and its fill is
-// feature state, so marking a country repaints one shape with a short fade.
+// feature state, so marking a country repaints one shape (at once: MapLibre
+// does not fade feature-state changes).
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Map, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import type { GeoJSONSource } from "maplibre-gl";
@@ -166,7 +167,7 @@ export default function CountriesMapInner({
     }
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const colors = readColors();
-    setStyle(countryMapStyle(colors, reducedMotion ? { transitionMs: 0 } : {}));
+    setStyle(countryMapStyle(colors));
     setSetup({
       status: "ready",
       colors,
@@ -188,7 +189,7 @@ export default function CountriesMapInner({
   // Null until the map and its shapes are in, then the capture used by
   // "Share map". The canvas keeps its drawing buffer (canvasContextAttributes
   // below), and the frame is copied inside the idle event, after the given
-  // fills have been drawn and any fill fade has finished.
+  // fills have been drawn.
   useImperativeHandle<MapCapture | null, MapCapture | null>(
     mapRef,
     () => {
@@ -205,22 +206,32 @@ export default function CountriesMapInner({
           try {
             apply(only);
             return await new Promise<HTMLCanvasElement>((resolve, reject) => {
+              // Runs inside a map event: anything it throws would never reach
+              // the caller, so every path ends in resolve or reject.
               const done = () => {
                 window.clearTimeout(timer);
-                const src = map.getCanvas();
-                const copy = document.createElement("canvas");
-                copy.width = src.width;
-                copy.height = src.height;
-                const g = copy.getContext("2d");
-                if (!g) {
-                  reject(new Error("No 2D canvas"));
-                  return;
+                try {
+                  const src = map.getCanvas();
+                  // A hidden or collapsed frame has an empty canvas, which
+                  // drawImage refuses.
+                  if (src.width === 0 || src.height === 0) throw new Error("The map has no size");
+                  const copy = document.createElement("canvas");
+                  copy.width = src.width;
+                  copy.height = src.height;
+                  const g = copy.getContext("2d");
+                  if (!g) throw new Error("No 2D canvas");
+                  g.drawImage(src, 0, 0);
+                  resolve(copy);
+                } catch (err) {
+                  reject(err);
                 }
-                g.drawImage(src, 0, 0);
-                resolve(copy);
               };
               const timer = window.setTimeout(() => {
-                map.off("idle", done);
+                try {
+                  map.off("idle", done);
+                } catch {
+                  // The map is gone; nothing left to unhook.
+                }
                 reject(new Error("The map did not settle"));
               }, CAPTURE_TIMEOUT_MS);
               map.once("idle", done);
@@ -228,7 +239,13 @@ export default function CountriesMapInner({
             });
           } finally {
             capturing.current = false;
-            apply(fillsRef.current);
+            // A map removed mid-capture can throw here; that must never
+            // replace the capture's own result or error.
+            try {
+              apply(fillsRef.current);
+            } catch {
+              // Nothing to restore on a map that is gone.
+            }
           }
         },
       };
