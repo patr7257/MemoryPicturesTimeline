@@ -73,6 +73,10 @@ function fakeStore(rows: Record<string, Row> = {}) {
       calls.push(["markExists", personId, countryKey]);
       return data.has(id(personId, countryKey));
     },
+    async noteExists(personId, countryKey) {
+      calls.push(["noteExists", personId, countryKey]);
+      return (data.get(id(personId, countryKey))?.note ?? null) !== null;
+    },
   };
   const names = () => calls.map((c) => c[0]);
   const writes = () =>
@@ -81,6 +85,7 @@ function fakeStore(rows: Record<string, Row> = {}) {
 }
 
 const NOT_ALLOWED = { ok: false, error: "You cannot change this map" };
+const PRIVATE_NOTE = { ok: false, error: "This country has a private note, so only its owner can change or remove it." };
 
 describe("check order and refusals", () => {
   it.each(["36", 36, "nowhere"])("refuses the unknown country key %j before any store call", async (key) => {
@@ -211,7 +216,7 @@ describe("removal", () => {
   it("keeps a row with a private note when the remover may not read it", async () => {
     const f = fakeStore(withNote(OWNER_PERSON));
     const r = await removeCountryCore(f.store, admin, { personId: OWNER_PERSON, countryKey: DK });
-    expect(r).toEqual({ ok: false, error: "This country has a private note, so only its owner can remove it." });
+    expect(r).toEqual(PRIVATE_NOTE);
     expect(f.calls).toContainEqual(["deleteMark", OWNER_PERSON, DK, { onlyWithoutNote: true }]);
     expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: 2019, note: "Private" });
   });
@@ -315,5 +320,67 @@ describe("the stored year on a status change", () => {
     const f = fakeStore(visited2019);
     expect(await set(f, "wishlist")).toEqual({ ok: true });
     expect(f.row(OWNER_PERSON)).toEqual({ status: "wishlist", year: null, note: null });
+  });
+});
+
+describe("a row with a note the editor may not read", () => {
+  const noted = { [`${OWNER_PERSON}/${DK}`]: { status: "visited" as const, year: 2019, note: "Private" } };
+  const bare = { [`${OWNER_PERSON}/${DK}`]: { status: "visited" as const, year: 2019, note: null } };
+  const status = (f: ReturnType<typeof fakeStore>, v: Viewer, s: string, year?: unknown) =>
+    setCountryStatusCore(
+      f.store,
+      v,
+      year === undefined
+        ? { personId: OWNER_PERSON, countryKey: DK, status: s }
+        : { personId: OWNER_PERSON, countryKey: DK, status: s, year },
+      NOW,
+    );
+  const year = (f: ReturnType<typeof fakeStore>, v: Viewer, y: unknown) =>
+    setCountryYearCore(f.store, v, { personId: OWNER_PERSON, countryKey: DK, year: y }, NOW);
+
+  it("refuses dismissing it and leaves the row alone", async () => {
+    const f = fakeStore(noted);
+    expect(await status(f, admin, "dismissed")).toEqual(PRIVATE_NOTE);
+    expect(f.writes()).toEqual([]);
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: 2019, note: "Private" });
+  });
+
+  it("refuses moving it to the wishlist", async () => {
+    const f = fakeStore(noted);
+    expect(await status(f, admin, "wishlist")).toEqual(PRIVATE_NOTE);
+    expect(f.writes()).toEqual([]);
+  });
+
+  it("refuses changing its year, by status or by year", async () => {
+    const f = fakeStore(noted);
+    expect(await status(f, admin, "visited", "2021")).toEqual(PRIVATE_NOTE);
+    expect(await status(f, admin, "visited", null)).toEqual(PRIVATE_NOTE);
+    expect(await year(f, admin, "2021")).toEqual(PRIVATE_NOTE);
+    expect(f.writes()).toEqual([]);
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: 2019, note: "Private" });
+  });
+
+  it("allows marking it visited again without a year", async () => {
+    const f = fakeStore(noted);
+    expect(await status(f, admin, "visited")).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: 2019, note: "Private" });
+  });
+
+  it("allows every change on a row without a note", async () => {
+    const f = fakeStore(bare);
+    expect(await year(f, admin, "2021")).toEqual({ ok: true });
+    expect(await status(f, admin, "visited", "2020")).toEqual({ ok: true });
+    expect(await status(f, admin, "wishlist")).toEqual({ ok: true });
+    expect(await status(f, admin, "dismissed")).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "dismissed", year: null, note: null });
+  });
+
+  it("lets the owner change everything without asking about the note", async () => {
+    const f = fakeStore(noted);
+    expect(await year(f, owner, "2021")).toEqual({ ok: true });
+    expect(await status(f, owner, "wishlist")).toEqual({ ok: true });
+    expect(await status(f, owner, "dismissed")).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "dismissed", year: null, note: "Private" });
+    expect(f.names()).not.toContain("noteExists");
   });
 });

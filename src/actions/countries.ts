@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { personCountries } from "@/db/schema";
@@ -76,6 +76,15 @@ function dbStore(): CountryStore {
         .select({ countryKey: personCountries.countryKey })
         .from(personCountries)
         .where(match(personId, countryKey))
+        .limit(1);
+      return row !== undefined;
+    },
+    async noteExists(personId, countryKey) {
+      // Only the existence is read, never the note itself.
+      const [row] = await db
+        .select({ countryKey: personCountries.countryKey })
+        .from(personCountries)
+        .where(and(match(personId, countryKey), isNotNull(personCountries.note)))
         .limit(1);
       return row !== undefined;
     },
