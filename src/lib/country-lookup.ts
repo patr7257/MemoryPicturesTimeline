@@ -1,5 +1,5 @@
 import "server-only";
-import { keyAtPoint, toCountryShapes, type CountryShape } from "./point-in-country";
+import { resolveKey, toCountryShapes, type CountryShape } from "./point-in-country";
 
 let cached: Promise<CountryShape[]> | null = null;
 
@@ -30,5 +30,5 @@ function loadShapes(): Promise<CountryShape[]> {
 }
 
 export async function countryKeyAt(lat: number, lng: number): Promise<string | null> {
-  return keyAtPoint(await loadShapes(), lat, lng);
+  return resolveKey(await loadShapes(), lat, lng);
 }
