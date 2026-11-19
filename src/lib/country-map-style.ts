@@ -57,6 +57,21 @@ export function countryMapStyle(
   };
 }
 
+type Projection = "mercator" | "globe";
+
+// The flat map never rotates or tilts (a rotated flat world map only
+// confuses); the globe may be turned by drag, two fingers or keys.
+export function rotationFor(p: Projection): { drag: boolean; touch: boolean; keyboard: boolean } {
+  const on = p === "globe";
+  return { drag: on, touch: on, keyboard: on };
+}
+
+// What the map shows. A globe that failed falls back to flat for this page
+// load only: the saved choice is left alone, so it is tried again next time.
+export function effectiveProjection(chosen: Projection, globeWorks: boolean): Projection {
+  return globeWorks ? chosen : "mercator";
+}
+
 // Every key gets a value, so a country whose mark was removed is set back to
 // "none" (the land colour) instead of keeping its old fill.
 export function fillStateEntries(

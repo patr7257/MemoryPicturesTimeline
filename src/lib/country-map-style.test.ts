@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { countryMapStyle, fillStateEntries } from "./country-map-style";
+import { countryMapStyle, effectiveProjection, fillStateEntries, rotationFor } from "./country-map-style";
+
+describe("rotationFor", () => {
+  it("allows no rotation of any kind on the flat map", () => {
+    expect(rotationFor("mercator")).toEqual({ drag: false, touch: false, keyboard: false });
+  });
+  it("lets the globe be turned", () => {
+    expect(rotationFor("globe")).toEqual({ drag: true, touch: true, keyboard: true });
+  });
+});
+
+describe("effectiveProjection", () => {
+  it("shows the chosen projection while the globe works", () => {
+    expect(effectiveProjection("globe", true)).toBe("globe");
+    expect(effectiveProjection("mercator", true)).toBe("mercator");
+  });
+  it("shows the flat map after the globe failed, whatever was chosen", () => {
+    expect(effectiveProjection("globe", false)).toBe("mercator");
+  });
+});
 
 const colors = { sea: "#eee", land: "#ddd", border: "#ccc", visited: "#1", wishlist: "#2", onlyA: "#3", onlyB: "#4", both: "#5" };
 

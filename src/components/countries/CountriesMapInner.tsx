@@ -14,7 +14,13 @@ import type { GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { countryByKey, shapeKey } from "@/lib/country-catalog";
-import { countryMapStyle, fillStateEntries, type MapColors } from "@/lib/country-map-style";
+import {
+  countryMapStyle,
+  effectiveProjection,
+  fillStateEntries,
+  rotationFor,
+  type MapColors,
+} from "@/lib/country-map-style";
 import { cn } from "@/lib/utils";
 
 import type { CountriesMapProps } from "./CountriesMap";
@@ -174,7 +180,7 @@ export default function CountriesMapInner({
     [loaded],
   );
 
-  const effective: MapProjection = globeOk ? projection : "mercator";
+  const effective: MapProjection = effectiveProjection(projection, globeOk);
   const reducedMotion = setup.status === "ready" && setup.reducedMotion;
 
   const fitCamera = useCallback(
@@ -192,11 +198,12 @@ export default function CountriesMapInner({
     [reducedMotion],
   );
 
+  // Flat for the rest of this page load. The saved choice is not touched, so
+  // the globe is tried again on the next visit.
   const fallBackToFlat = useCallback(() => {
     globeBroken = true;
     setGlobeOk(false);
-    onProjectionChange("mercator");
-  }, [onProjectionChange]);
+  }, []);
 
   // Projection is applied here rather than through the Map prop so a globe
   // the installed renderer cannot draw falls back to flat instead of
@@ -213,6 +220,21 @@ export default function CountriesMapInner({
       fallBackToFlat();
     }
   }, [loaded, effective, fitCamera, fallBackToFlat]);
+
+  // Rotation: none on the flat map (two-finger twist and shift+arrow keys
+  // included; pinch zoom stays), allowed on the globe. Drag rotation is the
+  // dragRotate prop below; the touch and keyboard halves have no prop, so
+  // they are switched on the handlers. Bearing and pitch go back to 0 in
+  // fitCamera whenever the projection changes.
+  useEffect(() => {
+    const map = ref.current?.getMap();
+    if (!loaded || !map) return;
+    const r = rotationFor(effective);
+    if (r.touch) map.touchZoomRotate.enableRotation();
+    else map.touchZoomRotate.disableRotation();
+    if (r.keyboard) map.keyboard.enableRotation();
+    else map.keyboard.disableRotation();
+  }, [loaded, effective]);
 
   // Shapes: fetched after the map has its style, then written into the source.
   useEffect(() => {
@@ -272,7 +294,6 @@ export default function CountriesMapInner({
     return typeof key === "string" ? key : null;
   };
   const hoverName = hovered ? countryByKey(hovered)?.name : undefined;
-  const globe = effective === "globe";
 
   return (
     <>
@@ -283,7 +304,7 @@ export default function CountriesMapInner({
           style={{ width: "100%", height: "100%" }}
           initialViewState={{ longitude: 10, latitude: 25, zoom: 0 }}
           renderWorldCopies={false}
-          dragRotate={globe}
+          dragRotate={rotationFor(effective).drag}
           pitchWithRotate={false}
           touchPitch={false}
           maxPitch={0}
@@ -373,7 +394,7 @@ function ProjectionSwitch({ value, onChange }: { value: MapProjection; onChange:
             onClick={() => onChange(o.value)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
-              "h-8 rounded-full px-3 font-medium transition-colors duration-75pointer-coarse:h-11 pointer-coarse:px-4",
+              "h-8 rounded-full px-3 font-medium transition-colors duration-75 pointer-coarse:h-11 pointer-coarse:px-4",
               "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
               checked ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
             )}
