@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COUNTRIES, UN_MEMBER_TOTAL } from "./country-catalog";
 import {
-  applyMarkChange, markAfterStatus, cleanNote, comparePartition, countrySearchKey, countryStats, needsRemoveConfirm, fillsForCompare, fillsForMarks,
+  applyMarkChange, markAfterStatus, legendFills, cleanNote, comparePartition, countrySearchKey, countryStats, needsRemoveConfirm, fillsForCompare, fillsForMarks,
   fillsForUnion, NOTE_MAX, parseYear, resolveSelection,
 } from "./countries";
 
@@ -169,5 +169,17 @@ describe("markAfterStatus", () => {
   });
   it("drops the year for any other status and keeps a note the viewer has", () => {
     expect(markAfterStatus(visited, "208", "wishlist", 2021)).toEqual({ countryKey: "208", status: "wishlist", year: null, note: "Fjords" });
+  });
+});
+
+describe("legendFills", () => {
+  it("names each fill in use once, in a fixed order", () => {
+    expect(legendFills({ "208": "wishlist", "578": "visited", "752": "visited" })).toEqual(["visited", "wishlist"]);
+  });
+  it("still has an entry when every fill is visited", () => {
+    expect(legendFills({ "208": "visited" })).toEqual(["visited"]);
+  });
+  it("is empty without fills", () => {
+    expect(legendFills({})).toEqual([]);
   });
 });

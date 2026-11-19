@@ -31,7 +31,7 @@ export function SuggestionChips({
             >
               <button
                 type="button"
-                aria-label={`Add ${name}`}
+                aria-label={`Add ${name}, from ${s.tripTitle}, ${s.year}`}
                 onClick={() => onAdd(s)}
                 className="flex min-h-11 min-w-0 items-center gap-1.5 pr-1 pl-3 text-left text-sm outline-none hover:bg-country-visited/10 focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9"
               >

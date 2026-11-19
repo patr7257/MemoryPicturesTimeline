@@ -17,6 +17,10 @@ export type RowState =
   | { kind: "wishlist" }
   | { kind: "a" | "b" | "both"; label: string };
 
+// An id without spaces ("North America" gives "continent-north-america"),
+// so aria-labelledby points at one existing id.
+const continentId = (continent: string) => `continent-${continent.toLowerCase().replace(/\s+/g, "-")}`;
+
 const SEARCHABLE = COUNTRIES.map((c) => ({ country: c, search: countrySearchKey(c.name) }));
 
 // About 250 short rows, filtered in memory: no debounce and no virtualizing
@@ -62,9 +66,9 @@ export function CountryList({
         </div>
       ) : (
         groups.map((g) => (
-          <section key={g.continent} aria-labelledby={`continent-${g.continent}`}>
+          <section key={g.continent} aria-labelledby={continentId(g.continent)}>
             <h3
-              id={`continent-${g.continent}`}
+              id={continentId(g.continent)}
               className="font-hand sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 bg-background/95 py-1 text-2xl"
             >
               {g.continent}

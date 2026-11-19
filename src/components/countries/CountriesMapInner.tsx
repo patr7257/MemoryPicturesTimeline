@@ -6,7 +6,8 @@
 // the browser; the style is built in code (src/lib/country-map-style.ts), so
 // the map requests no tiles, sprites or fonts. Each shape carries its catalog
 // key as `properties.key`, promoted to the feature id, and its fill is
-// feature state, so marking a country repaints one shape with a short fade.
+// feature state, so marking a country repaints one shape (at once: MapLibre
+// does not fade feature-state changes).
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Map, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import type { GeoJSONSource } from "maplibre-gl";
@@ -166,7 +167,7 @@ export default function CountriesMapInner({
     }
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const colors = readColors();
-    setStyle(countryMapStyle(colors, reducedMotion ? { transitionMs: 0 } : {}));
+    setStyle(countryMapStyle(colors));
     setSetup({
       status: "ready",
       colors,
@@ -188,7 +189,7 @@ export default function CountriesMapInner({
   // Null until the map and its shapes are in, then the capture used by
   // "Share map". The canvas keeps its drawing buffer (canvasContextAttributes
   // below), and the frame is copied inside the idle event, after the given
-  // fills have been drawn and any fill fade has finished.
+  // fills have been drawn.
   useImperativeHandle<MapCapture | null, MapCapture | null>(
     mapRef,
     () => {

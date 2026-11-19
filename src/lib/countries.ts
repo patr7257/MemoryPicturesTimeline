@@ -143,6 +143,15 @@ export function fillsForUnion(keys: readonly string[]): Record<string, FillState
   return out;
 }
 
+const LEGEND_ORDER: readonly FillState[] = ["visited", "wishlist", "onlyA", "onlyB", "both"];
+
+// The fill states in use, once each: the map legend names every one of them,
+// so a colour on the map is never left unexplained.
+export function legendFills(fills: Record<string, FillState>): FillState[] {
+  const used = new Set(Object.values(fills));
+  return LEGEND_ORDER.filter((f) => used.has(f));
+}
+
 // Search form of a country name or query: lower case, no diacritics, and the
 // Nordic letters NFD does not decompose (æ, ø) folded to plain Latin.
 export function countrySearchKey(text: string): string {

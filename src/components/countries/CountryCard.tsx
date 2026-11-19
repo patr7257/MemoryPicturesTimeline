@@ -20,7 +20,7 @@ import { NOTE_MAX, type CountryMark } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 
 // One country: a bottom sheet on phones, a centred dialog from sm up. Opened
-// from a list row now and from a map tap later. `mark` never holds a
+// from a list row or a map tap. `mark` never holds a
 // dismissed row (the view filters those out).
 export function CountryCard({
   country,

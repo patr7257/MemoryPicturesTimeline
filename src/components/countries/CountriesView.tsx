@@ -28,11 +28,13 @@ import {
   fillsForCompare,
   fillsForMarks,
   fillsForUnion,
+  legendFills,
   applyMarkChange,
   markAfterStatus,
   needsRemoveConfirm,
   type CountryActionResult,
   type CountryMark,
+  type FillState,
   type MarkChange,
 } from "@/lib/countries";
 import { countryByKey } from "@/lib/country-catalog";
@@ -105,7 +107,7 @@ export function CountriesView(props: CountriesViewProps) {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <CountriesMap fills={fills} mapRef={mapRef} {...view} />
+        <CountriesMap fills={fills} legend={legendFor(fills)} mapRef={mapRef} {...view} />
         <ShareMapButton
           mapRef={mapRef}
           fills={fills}
@@ -118,6 +120,13 @@ export function CountriesView(props: CountriesViewProps) {
     </div>
   );
 }
+
+const LEGEND_LABEL: Partial<Record<FillState, string>> = { visited: "Visited", wishlist: "Want to go" };
+
+// Single and union maps: a legend entry for every fill in use, also when
+// every fill is visited.
+const legendFor = (fills: Record<string, FillState>): MapLegendEntry[] =>
+  legendFills(fills).map((fill) => ({ fill, label: LEGEND_LABEL[fill] ?? fill }));
 
 // Expected refusals arrive as results; a thrown error is unexpected and
 // production hides its message, so it gets the fallback text.
@@ -200,12 +209,7 @@ function SingleCountries({
 
   // Without a year a visited mark keeps the year the server has stored.
   function setStatus(key: string, status: "visited" | "wishlist" | "dismissed", year?: number) {
-    const mark = markAfterStatus(
-      shown.find((m) => m.countryKey === key),
-      key,
-      status,
-      year,
-    );
+    const mark = markAfterStatus(shown.find((m) => m.countryKey === key), key, status, year);
     void run({ key, mark }, () => setCountryStatus(person.id, key, status, year)).then(
       (err) => err && toastError(err),
     );
@@ -252,14 +256,6 @@ function SingleCountries({
     if (editable && !byKey.has(key)) setStatus(key, "visited");
     setOpenKey(key);
   }
-  const hasWishlist = shown.some((m) => m.status === "wishlist");
-  const legend: MapLegendEntry[] | undefined = hasWishlist
-    ? [
-        { fill: "visited", label: "Visited" },
-        { fill: "wishlist", label: "Want to go" },
-      ]
-    : undefined;
-
   // On screen an editor also sees the wishlist; the share button keeps only
   // the visited fills for the image.
   const fills = fillsForMarks(shown);
@@ -273,7 +269,7 @@ function SingleCountries({
   return (
     <div className="flex flex-col gap-8" data-unsaved-work={pending ? "" : undefined}>
       <div className="flex flex-col gap-3">
-        <CountriesMap fills={fills} onPick={pick} legend={legend} mapRef={mapRef} {...view} />
+        <CountriesMap fills={fills} onPick={pick} legend={legendFor(fills)} mapRef={mapRef} {...view} />
         <ShareMapButton
           mapRef={mapRef}
           fills={fills}

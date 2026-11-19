@@ -33,7 +33,7 @@ describe("countryMapStyle", () => {
     expect(Object.keys(style.sources)).toEqual(["countries"]);
   });
 
-  it("fills by feature state, land colour by default, fading unless motion is reduced", () => {
+  it("fills by feature state, land colour by default, with no fade MapLibre would not run", () => {
     const fill = countryMapStyle(colors).layers[1];
     expect(fill.type).toBe("fill");
     const paint = (fill as { paint: Record<string, unknown> }).paint;
@@ -41,10 +41,7 @@ describe("countryMapStyle", () => {
     expect(expr[0]).toBe("case");
     expect(expr.at(-1)).toBe("#ddd");
     expect(expr).toContainEqual(["==", ["feature-state", "fill"], "both"]);
-    expect(paint["fill-color-transition"]).toEqual({ duration: 250, delay: 0 });
-
-    const still = countryMapStyle(colors, { transitionMs: 0 }).layers[1] as { paint: Record<string, unknown> };
-    expect(still.paint["fill-color-transition"]).toEqual({ duration: 0, delay: 0 });
+    expect(paint).not.toHaveProperty("fill-color-transition");
   });
 
   it("addresses features by catalog key", () => {
