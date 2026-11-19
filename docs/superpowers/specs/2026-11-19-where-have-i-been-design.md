@@ -109,6 +109,9 @@ Patrick picked 1.
   My call: it gets a catalog entry with no shape and key `798`, markable from
   the list only, so the denominator stays 193. The generator adds any UN
   member missing from the shapes the same way.
+- **Vatican City** is flagged as a UN member in the dataset but is an
+  observer. The generator forces it to non-member (`NOT_UN_MEMBERS`); it
+  stays markable.
 - **Catalog test**: every entry that has a shape exists in the shapes file,
   keys are unique, and exactly 193 entries are UN members.
 - **Known limit**: the shapes follow Natural Earth, where overseas departments
@@ -187,8 +190,11 @@ For the person whose map is being edited:
 4. Show the rest as "From your vacations" chips with the vacation title, and
    prefill the year from that vacation's start date when added.
 
-A point that falls in no shape (coast, simplified outline) yields no
-suggestion. That is acceptable; the country can still be marked by hand.
+The simplified coastline leaves real places in the sea (the centres of
+Copenhagen, Nuuk and Lisbon among them), so a point inside no shape resolves
+to the nearest shape outline within `NEAR_COAST_KM` (`resolveKey` in
+`src/lib/point-in-country.ts`). Further out than that it yields no
+suggestion; the country can still be marked by hand.
 
 ## The page
 
@@ -234,6 +240,12 @@ Who is shown follows the existing convention of repeated `person` params
 - The first tap on an unmarked country by an editor marks it visited right
   away (optimistic), and the card offers the rest. Speed of marking is the
   point of the feature.
+- Removing a mark that has a year, or a note the viewer can see, asks first.
+  A super admin who may not read a person's notes cannot remove a country
+  that carries a note: only its owner can. Switching a visited country to
+  "Want to go" drops its year without asking.
+- In the compare and family views a tap on the map does nothing; those views
+  have no country card.
 - The list is grouped by continent, searchable, and every row is a checkbox
   with the country name as its accessible name.
 - Stats count `visited` only. Wishlist and dismissed never count.
@@ -250,12 +262,15 @@ Who is shown follows the existing convention of repeated `person` params
   of the country shapes, a fill layer and a line layer. No external style URL
   and no tile requests.
 - Fill colour comes from per-feature state (visited, wishlist, compare side),
-  so marking a country repaints one feature and the colour can transition.
-- Flat and globe use MapLibre's `projection` setting. Verify in the first
-  task that `react-map-gl` 8 passes it through and that the installed
-  `maplibre-gl` supports the globe; if not, the switch is dropped from this
-  version and noted in `docs/free-vs-premium.md`.
-- Reduced motion: no fly-to animation, fills change without a transition.
+  so marking a country repaints one feature. MapLibre does not animate
+  feature-state changes, so the colour changes at once.
+- Flat and globe use MapLibre's projection, applied through a guarded
+  `setProjection` call. If the globe fails, the map shows flat for that page
+  load, hides the switch and leaves the saved preference alone. In the flat
+  view rotation and pitch are off (drag, touch and keyboard).
+- A legend with swatch and text sits under the map, so state is never shown
+  by colour alone.
+- Reduced motion: no camera animation.
 
 ## Share as image
 
@@ -264,9 +279,13 @@ browser: the current map canvas plus the person's name and their counts,
 drawn on a 2D canvas, then handed to `navigator.share` with a `File`, with a
 download fallback. Nothing is uploaded and nothing is stored on the server.
 The image holds the map, a first name and numbers only: no photos, no notes,
-no vacation titles. Reading the map canvas needs the drawing buffer kept or
-a render-then-capture step; the builder picks whichever the installed
-MapLibre supports.
+no vacation titles, and never the wishlist: the map is captured with
+visited fills only (`shareFills`), also when the sharer is an editor who
+sees the wishlist on screen. The title is "{FirstName} has been to" for a
+person, "Our family has been to" when the view covers everyone, and "We have
+been to" for a picked group. The map canvas keeps its drawing buffer so the
+frame can be copied; a blank capture is reported, not shared. The button is
+absent in the compare view.
 
 ## Server side
 
@@ -274,10 +293,16 @@ MapLibre supports.
   several people, compute suggestions.
 - `src/lib/countries.ts`: pure helpers (stats per continent, compare
   partition, percent), unit tested with vitest.
-- `src/actions/countries.ts`: set status, set year, set note, remove, dismiss
-  a suggestion. Each starts from `getViewer()` and checks
-  `canEditCountries`. Validates `country_key` against the catalog, year as a
-  four-digit year not in the future, note length capped.
+- `src/lib/country-actions-core.ts`: the decisions behind every write
+  (validation, check order, permissions, refusal texts, the removal rule),
+  written against a small store interface and unit tested with a fake store.
+- `src/actions/countries.ts`: set status (dismissing a suggestion is a
+  status), set year, set note, remove. Each starts from `getViewer()`, runs
+  the core against the Drizzle store and returns `{ ok }` or
+  `{ ok: false, error }`. Expected refusals are returned, not thrown,
+  because production hides thrown server action messages. Validates
+  `country_key` against the catalog, year as a four-digit year from 1900 to
+  the current UTC year, note length capped.
 - Drizzle migration via `pnpm db:generate` and `pnpm db:migrate`. Local dev
   and production share one database, so the migration is additive only.
 
@@ -297,20 +322,12 @@ MapLibre supports.
   only and no note field; a super admin on a person with a login gets all
   statuses and no note field.
 
-## Left to the builder
+## Decided during the build
 
-- Keys and treatment of the shapes without an id. My call: Kosovo, N. Cyprus
-  and Somaliland are markable territories with slug keys; Siachen Glacier and
-  Indian Ocean Ter. are drawn but not markable.
-- Whether Antarctica is markable (my call: yes, as a territory with its own
-  continent line).
-- Caching of the suggestion computation.
-- The exact card and list components, within the UI skills named above.
-- Route type regeneration: run `pnpm build` once after adding the route.
-
-## Docs to update in the same change
-
-- `CLAUDE.md`: a "Countries" fact (table, access rule, lazy shapes, catalog
-  generator).
-- `docs/free-vs-premium.md`: status of the countries rows from planned to
-  built.
+- Shapes without an id: Kosovo, N. Cyprus and Somaliland are markable
+  territories with the slug keys `kosovo`, `n-cyprus` and `somaliland`;
+  Siachen Glacier and Indian Ocean Ter. are drawn but not markable.
+- Antarctica is markable, as a territory with its own continent line.
+- The suggestion computation is not cached; it samples a few points per
+  vacation and country name.
+- The country card is a bottom sheet on phones and a dialog from `sm` up.
