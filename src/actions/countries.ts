@@ -6,41 +6,85 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { personCountries } from "@/db/schema";
 import { getViewer } from "@/lib/access";
-import { canEditCountries, canReadCountryNotes, type Viewer } from "@/lib/access-policy";
-import { isCountryKey } from "@/lib/country-catalog";
-import { getPersonTarget, type PersonTarget } from "@/lib/country-queries";
-import { cleanNote, parseYear, type CountryActionResult } from "@/lib/countries";
-import { parsePersonParam } from "@/lib/person-filter";
+import {
+  removeCountryCore,
+  setCountryNoteCore,
+  setCountryStatusCore,
+  setCountryYearCore,
+  type CountryStore,
+} from "@/lib/country-actions-core";
+import { getPersonTarget } from "@/lib/country-queries";
+import type { CountryActionResult } from "@/lib/countries";
 
-const STATUSES: readonly unknown[] = ["visited", "wishlist", "dismissed"];
+// Thin wrappers: every decision (validation, check order, permission, refusal
+// texts, the removal rule) lives in country-actions-core.ts. Expected refusals
+// come back as results; anything unexpected (a database error) still throws.
 
-const UNKNOWN_COUNTRY = "Unknown country";
-const UNKNOWN_STATUS = "Unknown status";
-const PERSON_NOT_FOUND = "Person not found";
-const NOT_ALLOWED = "You cannot change this map";
-const BAD_YEAR = "Enter a year like 2019";
-const NOTE_TOO_LONG = "Note is too long";
-const PRIVATE_NOTE = "This country has a private note, so only its owner can remove it.";
-
-const refuse = (error: string): CountryActionResult => ({ ok: false, error });
-
-type Edit = { viewer: Viewer; person: PersonTarget; key: string };
-
-// Order: viewer, country key, person id shape, person exists, permission.
-// Input parsing and the write follow in each action. Expected refusals come
-// back as results; anything unexpected (a database error) still throws.
-async function requireEdit(personId: unknown, countryKey: unknown): Promise<Edit | CountryActionResult> {
-  const viewer = await getViewer();
-  if (!isCountryKey(countryKey)) return refuse(UNKNOWN_COUNTRY);
-  const id = typeof personId === "string" ? parsePersonParam(personId)[0] : undefined;
-  if (id === undefined) return refuse(PERSON_NOT_FOUND);
-  const person = await getPersonTarget(id);
-  if (!person) return refuse(PERSON_NOT_FOUND);
-  if (!canEditCountries(viewer, person.id)) return refuse(NOT_ALLOWED);
-  return { viewer, person, key: countryKey };
+// The Drizzle-backed store the core decides against.
+function dbStore(): CountryStore {
+  const db = getDb();
+  const match = (personId: string, countryKey: string) =>
+    and(eq(personCountries.personId, personId), eq(personCountries.countryKey, countryKey));
+  return {
+    async findPerson(personId) {
+      const person = await getPersonTarget(personId);
+      return person ? { id: person.id, hasLogin: person.hasLogin } : null;
+    },
+    async upsertStatus({ personId, countryKey, status, year, updatedBy }) {
+      const now = new Date();
+      await db
+        .insert(personCountries)
+        .values({ personId, countryKey, status, year, updatedBy, updatedAt: now })
+        .onConflictDoUpdate({
+          target: [personCountries.personId, personCountries.countryKey],
+          set: { status, year, updatedBy, updatedAt: now },
+        });
+    },
+    async updateYear(personId, countryKey, year, updatedBy) {
+      const rows = await db
+        .update(personCountries)
+        .set({ year, updatedBy, updatedAt: new Date() })
+        .where(and(match(personId, countryKey), eq(personCountries.status, "visited")))
+        .returning({ countryKey: personCountries.countryKey });
+      return rows.length;
+    },
+    async updateNote(personId, countryKey, note, updatedBy) {
+      const rows = await db
+        .update(personCountries)
+        .set({ note, updatedBy, updatedAt: new Date() })
+        .where(
+          and(match(personId, countryKey), inArray(personCountries.status, ["visited", "wishlist"])),
+        )
+        .returning({ countryKey: personCountries.countryKey });
+      return rows.length;
+    },
+    async deleteMark(personId, countryKey, { onlyWithoutNote }) {
+      // One statement: with onlyWithoutNote a row carrying a note is never deleted.
+      const rows = await db
+        .delete(personCountries)
+        .where(
+          onlyWithoutNote
+            ? and(match(personId, countryKey), isNull(personCountries.note))
+            : match(personId, countryKey),
+        )
+        .returning({ countryKey: personCountries.countryKey });
+      return rows.length;
+    },
+    async markExists(personId, countryKey) {
+      const [row] = await db
+        .select({ countryKey: personCountries.countryKey })
+        .from(personCountries)
+        .where(match(personId, countryKey))
+        .limit(1);
+      return row !== undefined;
+    },
+  };
 }
 
-const isRefusal = (r: Edit | CountryActionResult): r is CountryActionResult => "ok" in r;
+function afterWrite(result: CountryActionResult): CountryActionResult {
+  if (result.ok) revalidatePath("/countries");
+  return result;
+}
 
 export async function setCountryStatus(
   personId: string,
@@ -48,34 +92,15 @@ export async function setCountryStatus(
   status: "visited" | "wishlist" | "dismissed",
   year?: unknown,
 ): Promise<CountryActionResult> {
-  const edit = await requireEdit(personId, countryKey);
-  if (isRefusal(edit)) return edit;
-  const { viewer, person, key } = edit;
-  if (!STATUSES.includes(status)) return refuse(UNKNOWN_STATUS);
-  // Only a visited mark has a year; any year passed with another status is ignored.
-  let stored: number | null = null;
-  if (status === "visited") {
-    const parsed = parseYear(year, new Date().getUTCFullYear());
-    if (!parsed.ok) return refuse(BAD_YEAR);
-    stored = parsed.year;
-  }
-  const now = new Date();
-  await getDb()
-    .insert(personCountries)
-    .values({
-      personId: person.id,
-      countryKey: key,
-      status,
-      year: stored,
-      updatedBy: viewer.userId,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [personCountries.personId, personCountries.countryKey],
-      set: { status, year: stored, updatedBy: viewer.userId, updatedAt: now },
-    });
-  revalidatePath("/countries");
-  return { ok: true };
+  const viewer = await getViewer();
+  return afterWrite(
+    await setCountryStatusCore(
+      dbStore(),
+      viewer,
+      { personId, countryKey, status, year },
+      new Date().getUTCFullYear(),
+    ),
+  );
 }
 
 export async function setCountryYear(
@@ -83,23 +108,10 @@ export async function setCountryYear(
   countryKey: string,
   year: unknown,
 ): Promise<CountryActionResult> {
-  const edit = await requireEdit(personId, countryKey);
-  if (isRefusal(edit)) return edit;
-  const { viewer, person, key } = edit;
-  const parsed = parseYear(year, new Date().getUTCFullYear());
-  if (!parsed.ok) return refuse(BAD_YEAR);
-  await getDb()
-    .update(personCountries)
-    .set({ year: parsed.year, updatedBy: viewer.userId, updatedAt: new Date() })
-    .where(
-      and(
-        eq(personCountries.personId, person.id),
-        eq(personCountries.countryKey, key),
-        eq(personCountries.status, "visited"),
-      ),
-    );
-  revalidatePath("/countries");
-  return { ok: true };
+  const viewer = await getViewer();
+  return afterWrite(
+    await setCountryYearCore(dbStore(), viewer, { personId, countryKey, year }, new Date().getUTCFullYear()),
+  );
 }
 
 export async function setCountryNote(
@@ -107,56 +119,11 @@ export async function setCountryNote(
   countryKey: string,
   note: unknown,
 ): Promise<CountryActionResult> {
-  const edit = await requireEdit(personId, countryKey);
-  if (isRefusal(edit)) return edit;
-  const { viewer, person, key } = edit;
-  if (!canReadCountryNotes(viewer, person)) return refuse(NOT_ALLOWED);
-  const cleaned = cleanNote(note);
-  if (!cleaned.ok) return refuse(NOTE_TOO_LONG);
-  await getDb()
-    .update(personCountries)
-    .set({ note: cleaned.note, updatedBy: viewer.userId, updatedAt: new Date() })
-    .where(
-      and(
-        eq(personCountries.personId, person.id),
-        eq(personCountries.countryKey, key),
-        inArray(personCountries.status, ["visited", "wishlist"]),
-      ),
-    );
-  revalidatePath("/countries");
-  return { ok: true };
+  const viewer = await getViewer();
+  return afterWrite(await setCountryNoteCore(dbStore(), viewer, { personId, countryKey, note }));
 }
 
-export async function removeCountry(
-  personId: string,
-  countryKey: string,
-): Promise<CountryActionResult> {
-  const edit = await requireEdit(personId, countryKey);
-  if (isRefusal(edit)) return edit;
-  const { viewer, person, key } = edit;
-  const db = getDb();
-  const match = and(eq(personCountries.personId, person.id), eq(personCountries.countryKey, key));
-
-  if (canReadCountryNotes(viewer, person)) {
-    await db.delete(personCountries).where(match);
-    revalidatePath("/countries");
-    return { ok: true };
-  }
-
-  // A viewer who may not read the notes must never delete one unseen: one
-  // statement deletes only a row without a note.
-  const deleted = await db
-    .delete(personCountries)
-    .where(and(match, isNull(personCountries.note)))
-    .returning({ countryKey: personCountries.countryKey });
-  if (deleted.length > 0) {
-    revalidatePath("/countries");
-    return { ok: true };
-  }
-  const [still] = await db
-    .select({ countryKey: personCountries.countryKey })
-    .from(personCountries)
-    .where(match)
-    .limit(1);
-  return still ? refuse(PRIVATE_NOTE) : { ok: true };
+export async function removeCountry(personId: string, countryKey: string): Promise<CountryActionResult> {
+  const viewer = await getViewer();
+  return afterWrite(await removeCountryCore(dbStore(), viewer, { personId, countryKey }));
 }
