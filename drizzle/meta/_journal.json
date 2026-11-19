@@ -29,6 +29,13 @@
       "when": 1794678635953,
       "tag": "0003_blushing_wind_dancer",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795077730536,
+      "tag": "0004_elite_blindfold",
+      "breakpoints": true
     }
   ]
 }

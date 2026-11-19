@@ -165,3 +165,23 @@ export const pushDispatchLog = pgTable("push_dispatch_log", {
   key: text("key").primaryKey(),
   sentAt: timestamp("sent_at").defaultNow().notNull(),
 });
+
+// One row is one country for one person. status is "visited", "wishlist" or
+// "dismissed" (validated in the server actions). note and non-visited rows are
+// private to the person (src/lib/access-policy.ts).
+export const personCountries = pgTable(
+  "person_countries",
+  {
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    countryKey: text("country_key").notNull(),
+    status: text("status").notNull(),
+    year: integer("year"),
+    note: text("note"),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.personId, t.countryKey] })],
+);
