@@ -30,14 +30,15 @@ function dbStore(): CountryStore {
       const person = await getPersonTarget(personId);
       return person ? { id: person.id, hasLogin: person.hasLogin } : null;
     },
-    async upsertStatus({ personId, countryKey, status, year, updatedBy }) {
+    async upsertStatus({ personId, countryKey, status, year, keepYear, updatedBy }) {
       const now = new Date();
       await db
         .insert(personCountries)
         .values({ personId, countryKey, status, year, updatedBy, updatedAt: now })
         .onConflictDoUpdate({
           target: [personCountries.personId, personCountries.countryKey],
-          set: { status, year, updatedBy, updatedAt: now },
+          // keepYear leaves year out of the update, so a stored year stays.
+          set: keepYear ? { status, updatedBy, updatedAt: now } : { status, year, updatedBy, updatedAt: now },
         });
     },
     async updateYear(personId, countryKey, year, updatedBy) {

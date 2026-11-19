@@ -43,7 +43,9 @@ function fakeStore(rows: Record<string, Row> = {}) {
     async upsertStatus(row) {
       calls.push(["upsertStatus", row]);
       const prev = data.get(id(row.personId, row.countryKey));
-      data.set(id(row.personId, row.countryKey), { status: row.status, year: row.year, note: prev?.note ?? null });
+      // keepYear: insert with the given year, but leave a stored year alone.
+      const year = row.keepYear && prev ? prev.year : row.year;
+      data.set(id(row.personId, row.countryKey), { status: row.status, year, note: prev?.note ?? null });
     },
     async updateYear(personId, countryKey, year, updatedBy) {
       calls.push(["updateYear", personId, countryKey, year, updatedBy]);
@@ -129,7 +131,7 @@ describe("check order and refusals", () => {
     expect(r).toEqual({ ok: true });
     expect(f.calls.at(-1)).toEqual([
       "upsertStatus",
-      { personId: OWNER_PERSON, countryKey: DK, status: "wishlist", year: null, updatedBy: "u-owner" },
+      { personId: OWNER_PERSON, countryKey: DK, status: "wishlist", year: null, keepYear: false, updatedBy: "u-owner" },
     ]);
   });
 
@@ -139,7 +141,7 @@ describe("check order and refusals", () => {
     expect(r).toEqual({ ok: true });
     expect(f.calls).toEqual([
       ["findPerson", OWNER_PERSON],
-      ["upsertStatus", { personId: OWNER_PERSON, countryKey: DK, status: "visited", year: 2019, updatedBy: "u-owner" }],
+      ["upsertStatus", { personId: OWNER_PERSON, countryKey: DK, status: "visited", year: 2019, keepYear: false, updatedBy: "u-owner" }],
     ]);
   });
 
@@ -235,5 +237,83 @@ describe("removal", () => {
     expect(r).toEqual(NOT_ALLOWED);
     expect(f.writes()).toEqual([]);
     expect(f.row(OWNER_PERSON)).toBeDefined();
+  });
+});
+
+describe("a stale view", () => {
+  const STALE = { ok: false, error: "This country is no longer marked. Reload the page." };
+  const row = (status: Row["status"], year: number | null = null, note: string | null = null) => ({
+    [`${OWNER_PERSON}/${DK}`]: { status, year, note },
+  });
+
+  it("refuses a year on a row that is gone", async () => {
+    const f = fakeStore();
+    expect(await setCountryYearCore(f.store, owner, { personId: OWNER_PERSON, countryKey: DK, year: "2019" }, NOW)).toEqual(STALE);
+    expect(f.row(OWNER_PERSON)).toBeUndefined();
+  });
+
+  it("refuses a year on a wishlist row", async () => {
+    const f = fakeStore(row("wishlist"));
+    expect(await setCountryYearCore(f.store, owner, { personId: OWNER_PERSON, countryKey: DK, year: "2019" }, NOW)).toEqual(STALE);
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "wishlist", year: null, note: null });
+  });
+
+  it("refuses a note on a row that is gone", async () => {
+    const f = fakeStore();
+    expect(await setCountryNoteCore(f.store, owner, { personId: OWNER_PERSON, countryKey: DK, note: "Fjords" })).toEqual(STALE);
+    expect(f.row(OWNER_PERSON)).toBeUndefined();
+  });
+
+  it("refuses a note on a dismissed row", async () => {
+    const f = fakeStore(row("dismissed"));
+    expect(await setCountryNoteCore(f.store, owner, { personId: OWNER_PERSON, countryKey: DK, note: "Fjords" })).toEqual(STALE);
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "dismissed", year: null, note: null });
+  });
+});
+
+describe("the stored year on a status change", () => {
+  const visited2019 = { [`${OWNER_PERSON}/${DK}`]: { status: "visited" as const, year: 2019, note: null } };
+  const set = (f: ReturnType<typeof fakeStore>, status: string, year?: unknown) =>
+    setCountryStatusCore(
+      f.store,
+      owner,
+      year === undefined
+        ? { personId: OWNER_PERSON, countryKey: DK, status }
+        : { personId: OWNER_PERSON, countryKey: DK, status, year },
+      NOW,
+    );
+
+  it("keeps a stored year when visited is set without one", async () => {
+    const f = fakeStore(visited2019);
+    expect(await set(f, "visited")).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)?.year).toBe(2019);
+    expect(f.calls.at(-1)).toEqual([
+      "upsertStatus",
+      { personId: OWNER_PERSON, countryKey: DK, status: "visited", year: null, keepYear: true, updatedBy: "u-owner" },
+    ]);
+  });
+
+  it("inserts a new visited row without a year", async () => {
+    const f = fakeStore();
+    expect(await set(f, "visited")).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: null, note: null });
+  });
+
+  it("overwrites the year when visited comes with one", async () => {
+    const f = fakeStore(visited2019);
+    expect(await set(f, "visited", "2021")).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)?.year).toBe(2021);
+  });
+
+  it("clears the year when visited comes with an explicit null", async () => {
+    const f = fakeStore(visited2019);
+    expect(await set(f, "visited", null)).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)?.year).toBeNull();
+  });
+
+  it("clears the year for a wishlist entry", async () => {
+    const f = fakeStore(visited2019);
+    expect(await set(f, "wishlist")).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "wishlist", year: null, note: null });
   });
 });

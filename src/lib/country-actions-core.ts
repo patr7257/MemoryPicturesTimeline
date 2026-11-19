@@ -15,6 +15,8 @@ export type CountryStore = {
     countryKey: string;
     status: "visited" | "wishlist" | "dismissed";
     year: number | null;
+    // True: insert with `year`, but leave the year of an existing row as it is.
+    keepYear: boolean;
     updatedBy: string;
   }): Promise<void>;
   // Each returns the number of rows changed.
@@ -35,6 +37,7 @@ const NOT_ALLOWED = "You cannot change this map";
 const BAD_YEAR = "Enter a year like 2019";
 const NOTE_TOO_LONG = "Note is too long";
 const PRIVATE_NOTE = "This country has a private note, so only its owner can remove it.";
+const NO_LONGER_MARKED = "This country is no longer marked. Reload the page.";
 
 const refuse = (error: string): CountryActionResult => ({ ok: false, error });
 const OK: CountryActionResult = { ok: true };
@@ -70,9 +73,12 @@ export async function setCountryStatusCore(
   const edit = await requireEdit(store, viewer, input.personId, input.countryKey);
   if (isRefusal(edit)) return edit;
   if (!isStatus(input.status)) return refuse(UNKNOWN_STATUS);
-  // Only a visited mark has a year; any year passed with another status is ignored.
+  // Only a visited mark has a year; any year passed with another status is
+  // ignored. Visited without a year (undefined) keeps a stored year, so a
+  // tap from a stale view never wipes one; an explicit null clears it.
   let year: number | null = null;
-  if (input.status === "visited") {
+  const keepYear = input.status === "visited" && input.year === undefined;
+  if (input.status === "visited" && !keepYear) {
     const parsed = parseYear(input.year, currentYear);
     if (!parsed.ok) return refuse(BAD_YEAR);
     year = parsed.year;
@@ -82,6 +88,7 @@ export async function setCountryStatusCore(
     countryKey: edit.key,
     status: input.status,
     year,
+    keepYear,
     updatedBy: viewer.userId,
   });
   return OK;
@@ -97,8 +104,9 @@ export async function setCountryYearCore(
   if (isRefusal(edit)) return edit;
   const parsed = parseYear(input.year, currentYear);
   if (!parsed.ok) return refuse(BAD_YEAR);
-  await store.updateYear(edit.person.id, edit.key, parsed.year, viewer.userId);
-  return OK;
+  // No row changed: the mark was removed or changed elsewhere since the view loaded.
+  const changed = await store.updateYear(edit.person.id, edit.key, parsed.year, viewer.userId);
+  return changed > 0 ? OK : refuse(NO_LONGER_MARKED);
 }
 
 export async function setCountryNoteCore(
@@ -111,8 +119,8 @@ export async function setCountryNoteCore(
   if (!canReadCountryNotes(viewer, edit.person)) return refuse(NOT_ALLOWED);
   const cleaned = cleanNote(input.note);
   if (!cleaned.ok) return refuse(NOTE_TOO_LONG);
-  await store.updateNote(edit.person.id, edit.key, cleaned.note, viewer.userId);
-  return OK;
+  const changed = await store.updateNote(edit.person.id, edit.key, cleaned.note, viewer.userId);
+  return changed > 0 ? OK : refuse(NO_LONGER_MARKED);
 }
 
 export async function removeCountryCore(
