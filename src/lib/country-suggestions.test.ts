@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickSuggestions, samplePoints, type SuggestionPoint } from "./country-suggestions";
+import { pickSuggestions, samplePoints, visibleTaggedTripIds, type SuggestionPoint } from "./country-suggestions";
 
 const p = (tripId: string, tripYear: number, countryName: string | null, lat = 1, lng = 1): SuggestionPoint =>
   ({ tripId, tripTitle: `Trip ${tripId}`, tripYear, countryName, lat, lng });
@@ -33,5 +33,22 @@ describe("pickSuggestions", () => {
   });
   it("is empty for no input", () => {
     expect(pickSuggestions([], new Set())).toEqual([]);
+  });
+});
+
+describe("visibleTaggedTripIds", () => {
+  it("passes every tagged trip when the viewer sees all", () => {
+    expect(visibleTaggedTripIds(["t1", "t2"], "all")).toEqual(["t1", "t2"]);
+  });
+  it("keeps only the trips in the visible set", () => {
+    expect(visibleTaggedTripIds(["t1", "t2", "t3"], new Set(["t3", "t1"]))).toEqual(["t1", "t3"]);
+  });
+  it("is empty without tagged trips", () => {
+    expect(visibleTaggedTripIds([], "all")).toEqual([]);
+    expect(visibleTaggedTripIds([], new Set(["t1"]))).toEqual([]);
+  });
+  it("keeps the tagged order and collapses duplicates", () => {
+    expect(visibleTaggedTripIds(["t2", "t1", "t2"], "all")).toEqual(["t2", "t1"]);
+    expect(visibleTaggedTripIds(["t2", "t1", "t2"], new Set(["t1", "t2"]))).toEqual(["t2", "t1"]);
   });
 });

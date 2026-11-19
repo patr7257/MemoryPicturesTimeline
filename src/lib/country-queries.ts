@@ -11,7 +11,7 @@ import { visibleTripIds } from "@/lib/access";
 import {
   canEditCountries,
   countriesTier,
-  tierReadsNote,
+  tierColumns,
   tierStatuses,
   type CountriesTier,
   type Viewer,
@@ -20,6 +20,7 @@ import { countryKeyAt } from "@/lib/country-lookup";
 import {
   pickSuggestions,
   samplePoints,
+  visibleTaggedTripIds,
   type CountrySuggestion,
   type SuggestionPoint,
 } from "@/lib/country-suggestions";
@@ -47,13 +48,15 @@ export async function getPersonCountries(
   person: PersonTarget,
 ): Promise<{ tier: CountriesTier; marks: CountryMark[] }> {
   const tier = countriesTier(viewer, person);
-  // note is part of the selected columns only when the tier may read it.
-  const columns = {
+  // note is part of the selected columns only when the tier may read it:
+  // tierColumns alone decides which columns go into the select.
+  const all = {
     countryKey: personCountries.countryKey,
     status: personCountries.status,
     year: personCountries.year,
-    ...(tierReadsNote(tier) ? { note: personCountries.note } : {}),
+    note: personCountries.note,
   };
+  const columns = Object.fromEntries(tierColumns(tier).map((c) => [c, all[c]]));
   const rows = await getDb()
     .select(columns)
     .from(personCountries)
@@ -100,9 +103,10 @@ export async function getCountrySuggestions(
     .from(tripPeople)
     .where(eq(tripPeople.personId, person.id));
   const visible = await visibleTripIds(viewer);
-  const tripIds = tagged
-    .map((r) => r.tripId)
-    .filter((id) => visible === "all" || visible.has(id));
+  const tripIds = visibleTaggedTripIds(
+    tagged.map((r) => r.tripId),
+    visible,
+  );
   if (tripIds.length === 0) return [];
 
   const rows = await db

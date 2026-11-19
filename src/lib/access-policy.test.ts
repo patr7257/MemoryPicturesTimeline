@@ -12,6 +12,7 @@ import {
   loginAllowed,
   parseEmailList,
   resolveRole,
+  tierColumns,
   tierReadsNote,
   tierStatuses,
   type Viewer,
@@ -142,5 +143,18 @@ describe("countries", () => {
     expect(tierReadsNote("view")).toBe(false);
     expect(tierReadsNote("edit")).toBe(false);
     expect(tierReadsNote("edit_notes")).toBe(true);
+  });
+});
+
+describe("tierColumns", () => {
+  it("selects the note only for the tier that may read it", () => {
+    expect(tierColumns("view")).toEqual(["countryKey", "status", "year"]);
+    expect(tierColumns("edit")).toEqual(["countryKey", "status", "year"]);
+    expect(tierColumns("edit_notes")).toEqual(["countryKey", "status", "year", "note"]);
+  });
+  it("agrees with tierReadsNote for every tier", () => {
+    for (const tier of ["view", "edit", "edit_notes"] as const) {
+      expect(tierColumns(tier).includes("note")).toBe(tierReadsNote(tier));
+    }
   });
 });

@@ -16,6 +16,15 @@ export type CountrySuggestion = {
   year: number;
 };
 
+// The tagged trips the viewer may see, in tagged order without duplicates.
+// This is what keeps a hidden vacation (and its title) out of suggestions.
+export function visibleTaggedTripIds(
+  tagged: readonly string[],
+  visible: "all" | ReadonlySet<string>,
+): string[] {
+  return [...new Set(tagged)].filter((id) => visible === "all" || visible.has(id));
+}
+
 // At most `perGroup` points per (tripId, countryName) group, in input order.
 export function samplePoints(
   points: readonly SuggestionPoint[],
