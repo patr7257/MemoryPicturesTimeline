@@ -67,6 +67,7 @@ export default async function CountriesPage({
       mode: "union",
       label: everyone ? "The family" : joinNames(selection.personIds.map((id) => nameOf.get(id) ?? "")),
       visited: union,
+      everyone,
     };
     viewKey = everyone ? "union:family" : `union:${selection.personIds.join(",")}`;
   }

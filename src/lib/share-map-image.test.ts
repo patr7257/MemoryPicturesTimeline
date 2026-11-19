@@ -4,26 +4,40 @@ import { looksBlank, shareFileName, shareFills, shareLines } from "./share-map-i
 
 describe("share image text", () => {
   it("uses the first name and the numbers only", () => {
-    const out = shareLines("Anna Marie Jensen", countryStats(["208", "304", "578"]));
+    const out = shareLines({ kind: "person", name: "Anna Marie Jensen" }, countryStats(["208", "304", "578"]));
     expect(out.title).toBe("Anna has been to");
     expect(out.lines).toEqual(["3 countries and territories", "2 of 193 UN countries", "1% of the world"]);
   });
-  it("names the family map", () => {
-    expect(shareLines("Family", countryStats([])).title).toBe("Family has been to");
+  it("names the whole family", () => {
+    expect(shareLines({ kind: "family" }, countryStats([])).title).toBe("Our family has been to");
   });
-  it("has no name to show for a blank name", () => {
-    expect(shareLines("   ", countryStats([])).title).toBe("Has been to");
+  it("never calls a group of some people the family", () => {
+    expect(shareLines({ kind: "group" }, countryStats([])).title).toBe("We have been to");
+  });
+  it("has no name to show for a blank person name", () => {
+    expect(shareLines({ kind: "person", name: "   " }, countryStats([])).title).toBe("Has been to");
+  });
+  it("says one country in the singular", () => {
+    expect(shareLines({ kind: "person", name: "Anna" }, countryStats(["208"])).lines).toEqual([
+      "1 country or territory",
+      "1 of 193 UN countries",
+      "1% of the world",
+    ]);
   });
   it("takes the UN total from the stats", () => {
     const stats = { ...countryStats(["208"]), unTotal: 200 };
-    expect(shareLines("Anna", stats).lines[1]).toBe("1 of 200 UN countries");
+    expect(shareLines({ kind: "person", name: "Anna" }, stats).lines[1]).toBe("1 of 200 UN countries");
   });
-  it("builds a safe file name", () => {
-    expect(shareFileName("Søren Ø.")).toBe("countries-soren.png");
-    expect(shareFileName("Ærø Åse")).toBe("countries-aero.png");
-    expect(shareFileName("José")).toBe("countries-jose.png");
-    expect(shareFileName("  ")).toBe("countries-map.png");
-    expect(shareFileName("!!")).toBe("countries-map.png");
+  it("builds a safe file name for a person", () => {
+    expect(shareFileName({ kind: "person", name: "Søren Ø." })).toBe("countries-soren.png");
+    expect(shareFileName({ kind: "person", name: "Ærø Åse" })).toBe("countries-aero.png");
+    expect(shareFileName({ kind: "person", name: "José" })).toBe("countries-jose.png");
+    expect(shareFileName({ kind: "person", name: "  " })).toBe("countries-map.png");
+    expect(shareFileName({ kind: "person", name: "!!" })).toBe("countries-map.png");
+  });
+  it("names the family and group files", () => {
+    expect(shareFileName({ kind: "family" })).toBe("countries-family.png");
+    expect(shareFileName({ kind: "group" })).toBe("countries-group.png");
   });
 });
 

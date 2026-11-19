@@ -30,21 +30,36 @@ const BODY_FALLBACK = "sans-serif";
 
 const firstName = (name: string): string => name.trim().split(/\s+/)[0] ?? "";
 
-// Text for the image. First name only: the first word of the name.
-export function shareLines(name: string, stats: CountryStats): { title: string; lines: string[] } {
-  const first = firstName(name);
+// Whose map the image shows. "family" is the union of every person; "group"
+// is a union of some of them, which must never be titled as the family.
+export type ShareSubject =
+  | { kind: "person"; name: string }
+  | { kind: "family" }
+  | { kind: "group" };
+
+function title(subject: ShareSubject): string {
+  if (subject.kind === "family") return "Our family has been to";
+  if (subject.kind === "group") return "We have been to";
+  // First name only: the first word of the name.
+  const first = firstName(subject.name);
+  return first ? `${first} has been to` : "Has been to";
+}
+
+// Text for the image.
+export function shareLines(subject: ShareSubject, stats: CountryStats): { title: string; lines: string[] } {
   return {
-    title: first ? `${first} has been to` : "Has been to",
+    title: title(subject),
     lines: [
-      `${stats.total} countries and territories`,
+      stats.total === 1 ? "1 country or territory" : `${stats.total} countries and territories`,
       `${stats.unMembers} of ${stats.unTotal} UN countries`,
       `${stats.percent}% of the world`,
     ],
   };
 }
 
-export function shareFileName(name: string): string {
-  const safe = countrySearchKey(firstName(name)).replace(/[^a-z0-9]/g, "");
+export function shareFileName(subject: ShareSubject): string {
+  if (subject.kind !== "person") return `countries-${subject.kind}.png`;
+  const safe = countrySearchKey(firstName(subject.name)).replace(/[^a-z0-9]/g, "");
   return `countries-${safe || "map"}.png`;
 }
 
@@ -80,7 +95,7 @@ function fontOf(className: string | null, fallback: string): string {
   return family ? `${family}, ${fallback}` : fallback;
 }
 
-export async function composeShareImage(map: HTMLCanvasElement, name: string, stats: CountryStats): Promise<Blob> {
+export async function composeShareImage(map: HTMLCanvasElement, subject: ShareSubject, stats: CountryStats): Promise<Blob> {
   await document.fonts.ready;
   const canvas = document.createElement("canvas");
   canvas.width = SHARE_WIDTH;
@@ -117,7 +132,7 @@ export async function composeShareImage(map: HTMLCanvasElement, name: string, st
   }
   if (w === 0 || h === 0 || looksBlank(samples, paperPx)) throw new Error("The map capture is blank");
 
-  const { title, lines } = shareLines(name, stats);
+  const { title, lines } = shareLines(subject, stats);
   g.textAlign = "center";
   g.textBaseline = "alphabetic";
   g.fillStyle = ink;

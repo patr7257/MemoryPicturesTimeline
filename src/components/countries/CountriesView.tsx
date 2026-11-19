@@ -55,7 +55,8 @@ export type CountriesViewProps =
       a: { id: string; name: string; visited: string[] };
       b: { id: string; name: string; visited: string[] };
     }
-  | { mode: "union"; label: string; visited: string[] };
+  // everyone: the union covers every person, so the share image may say "family".
+  | { mode: "union"; label: string; visited: string[]; everyone: boolean };
 
 // The page gives this a key that changes with the selection, so state never
 // carries from one person to the next. The map goes above the stats in each
@@ -97,13 +98,17 @@ export function CountriesView(props: CountriesViewProps) {
   for (const k of props.visited) rows[k] = { kind: "visited" };
   const fills = fillsForUnion(props.visited);
   const stats = countryStats(props.visited);
-  // The union map is shared as the family map: its label is a list of names,
-  // so the image names the family instead.
+  // The share image names the family only when every person is in the union.
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <CountriesMap fills={fills} mapRef={mapRef} {...view} />
-        <ShareMapButton mapRef={mapRef} fills={fills} name="Family" stats={stats} />
+        <ShareMapButton
+          mapRef={mapRef}
+          fills={fills}
+          subject={{ kind: props.everyone ? "family" : "group" }}
+          stats={stats}
+        />
       </div>
       <CountryStatsPanel mode="single" label={props.label} stats={stats} />
       <CountryList rows={rows} />
@@ -270,7 +275,12 @@ function SingleCountries({
     <div className="flex flex-col gap-8" data-unsaved-work={pending ? "" : undefined}>
       <div className="flex flex-col gap-3">
         <CountriesMap fills={fills} onPick={pick} legend={legend} mapRef={mapRef} {...view} />
-        <ShareMapButton mapRef={mapRef} fills={fills} name={person.name} stats={stats} />
+        <ShareMapButton
+          mapRef={mapRef}
+          fills={fills}
+          subject={{ kind: "person", name: person.name }}
+          stats={stats}
+        />
       </div>
       <CountryStatsPanel mode="single" label={person.name} stats={stats} />
 

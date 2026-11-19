@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { CountryStats, FillState } from "@/lib/countries";
-import { composeShareImage, shareFileName, shareFills } from "@/lib/share-map-image";
+import { composeShareImage, shareFileName, shareFills, type ShareSubject } from "@/lib/share-map-image";
 
 import type { MapCapture } from "./CountriesMap";
 
@@ -38,13 +38,13 @@ function download(file: File) {
 export function ShareMapButton({
   mapRef,
   fills,
-  name,
+  subject,
   stats,
 }: {
   mapRef: React.RefObject<MapCapture | null>;
   // The fills on screen; only the visited ones reach the image (shareFills).
   fills: Record<string, FillState>;
-  name: string;
+  subject: ShareSubject;
   stats: CountryStats;
 }) {
   const [busy, setBusy] = useState(false);
@@ -66,8 +66,8 @@ export function ShareMapButton({
       const map = mapRef.current;
       if (!map) throw new Error("The map is not ready");
       const canvas = await map.capture(shareFills(fills));
-      const blob = await composeShareImage(canvas, name, stats);
-      const file = new File([blob], shareFileName(name), { type: "image/png" });
+      const blob = await composeShareImage(canvas, subject, stats);
+      const file = new File([blob], shareFileName(subject), { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({ files: [file] });
