@@ -104,6 +104,18 @@ export function fillsForUnion(keys: readonly string[]): Record<string, FillState
   return out;
 }
 
+// Search form of a country name or query: lower case, no diacritics, and the
+// Nordic letters NFD does not decompose (æ, ø) folded to plain Latin.
+export function countrySearchKey(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "o")
+    .replace(/å/g, "a")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
 export const YEAR_MIN = 1900;
 export const NOTE_MAX = 500;
 

@@ -6,13 +6,21 @@ export type NavSection =
   | "vacations"
   | "upload"
   | "map"
+  | "countries"
   | "people"
   | "notifications"
   | "account";
 
 export type NavTab = {
   key: Exclude<NavSection, "account">;
-  href: "/timeline" | "/vacations" | "/upload" | "/map" | "/people" | "/notifications";
+  href:
+    | "/timeline"
+    | "/vacations"
+    | "/upload"
+    | "/map"
+    | "/countries"
+    | "/people"
+    | "/notifications";
   label: string;
 };
 
@@ -22,6 +30,7 @@ export const NAV_TABS: readonly NavTab[] = [
   { key: "vacations", href: "/vacations", label: "Vacations" },
   { key: "upload", href: "/upload", label: "Add photos" },
   { key: "map", href: "/map", label: "Map" },
+  { key: "countries", href: "/countries", label: "Countries" },
   { key: "people", href: "/people", label: "People" },
   { key: "notifications", href: "/notifications", label: "Alerts" },
 ];
@@ -33,6 +42,7 @@ const ROOTS: ReadonlyArray<[string, NavSection]> = [
   ["trips", "vacations"],
   ["upload", "upload"],
   ["map", "map"],
+  ["countries", "countries"],
   ["people", "people"],
   ["notifications", "notifications"],
   ["account", "account"],

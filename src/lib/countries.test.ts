@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COUNTRIES, UN_MEMBER_TOTAL } from "./country-catalog";
 import {
-  cleanNote, comparePartition, countryStats, fillsForCompare, fillsForMarks,
+  cleanNote, comparePartition, countrySearchKey, countryStats, fillsForCompare, fillsForMarks,
   fillsForUnion, NOTE_MAX, parseYear, resolveSelection,
 } from "./countries";
 
@@ -97,5 +97,22 @@ describe("cleanNote", () => {
     expect(cleanNote("x".repeat(NOTE_MAX))).toEqual({ ok: true, note: "x".repeat(NOTE_MAX) });
     expect(cleanNote("x".repeat(NOTE_MAX + 1))).toEqual({ ok: false });
     expect(cleanNote(5)).toEqual({ ok: false });
+  });
+});
+
+describe("countrySearchKey", () => {
+  it("lower-cases and strips diacritics", () => {
+    expect(countrySearchKey("Côte d'Ivoire")).toBe("cote d'ivoire");
+    expect(countrySearchKey("Réunion")).toBe("reunion");
+    expect(countrySearchKey("CURAÇAO")).toBe("curacao");
+  });
+  it("folds the Nordic letters that NFD leaves alone", () => {
+    expect(countrySearchKey("Åland")).toBe("aland");
+    expect(countrySearchKey("Færøerne")).toBe("faeroerne");
+    expect(countrySearchKey("ØSTRIG")).toBe("ostrig");
+  });
+  it("lets a plain query match an accented name", () => {
+    expect(countrySearchKey("Côte d'Ivoire").includes(countrySearchKey("cote"))).toBe(true);
+    expect(countrySearchKey("Åland").includes(countrySearchKey("ÅL"))).toBe(true);
   });
 });

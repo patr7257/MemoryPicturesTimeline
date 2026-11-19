@@ -19,6 +19,7 @@ describe("activeSection", () => {
     expect(activeSection("/map")).toBe("map");
     expect(activeSection("/people")).toBe("people");
     expect(activeSection("/notifications")).toBe("notifications");
+    expect(activeSection("/countries")).toBe("countries");
   });
 
   it("counts every trip page as vacations", () => {
@@ -54,9 +55,15 @@ describe("NAV_TABS", () => {
       "vacations",
       "upload",
       "map",
+      "countries",
       "people",
       "notifications",
     ]);
+  });
+
+  it("puts Countries directly after Map", () => {
+    const i = NAV_TABS.findIndex((t) => t.key === "map");
+    expect(NAV_TABS[i + 1]).toEqual({ key: "countries", href: "/countries", label: "Countries" });
   });
 });
 
