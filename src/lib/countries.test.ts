@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COUNTRIES, UN_MEMBER_TOTAL } from "./country-catalog";
 import {
-  cleanNote, comparePartition, countrySearchKey, countryStats, fillsForCompare, fillsForMarks,
+  cleanNote, comparePartition, countrySearchKey, countryStats, needsRemoveConfirm, fillsForCompare, fillsForMarks,
   fillsForUnion, NOTE_MAX, parseYear, resolveSelection,
 } from "./countries";
 
@@ -114,5 +114,23 @@ describe("countrySearchKey", () => {
   it("lets a plain query match an accented name", () => {
     expect(countrySearchKey("Côte d'Ivoire").includes(countrySearchKey("cote"))).toBe(true);
     expect(countrySearchKey("Åland").includes(countrySearchKey("ÅL"))).toBe(true);
+  });
+});
+
+describe("needsRemoveConfirm", () => {
+  it("asks when a year would be lost", () => {
+    expect(needsRemoveConfirm({ countryKey: "208", status: "visited", year: 2019 })).toBe(true);
+  });
+  it("does not ask for a bare mark", () => {
+    expect(needsRemoveConfirm({ countryKey: "208", status: "visited", year: null, note: null })).toBe(false);
+  });
+  it("asks for a wishlist entry with a note", () => {
+    expect(needsRemoveConfirm({ countryKey: "208", status: "wishlist", year: null, note: "Fjords" })).toBe(true);
+  });
+  it("does not ask when the note was never read", () => {
+    expect(needsRemoveConfirm({ countryKey: "208", status: "visited", year: null })).toBe(false);
+  });
+  it("treats an empty note as no note", () => {
+    expect(needsRemoveConfirm({ countryKey: "208", status: "visited", year: null, note: "" })).toBe(false);
   });
 });

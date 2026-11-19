@@ -31,15 +31,18 @@ export function CountryCard({
   onRemove,
   onSaveYear,
   onSaveNote,
+  children,
 }: {
   country: Country;
   mark: CountryMark | null;
   tier: CountriesTier;
   onClose: () => void;
   onStatus: (status: "visited" | "wishlist") => void;
-  onRemove: () => Promise<string | null>;
+  onRemove: () => Promise<void>;
   onSaveYear: (raw: string) => Promise<string | null>;
   onSaveNote: (note: string) => Promise<string | null>;
+  // A nested dialog (the remove confirmation) rendered inside this one.
+  children?: React.ReactNode;
 }) {
   const editable = tier !== "view";
   const visited = mark?.status === "visited";
@@ -49,7 +52,6 @@ export function CountryCard({
   const [yearError, setYearError] = useState<string | null>(null);
   const [note, setNote] = useState(mark?.note ?? "");
   const [noteError, setNoteError] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
 
   async function commitYear() {
@@ -65,9 +67,8 @@ export function CountryCard({
 
   async function remove() {
     setRemoving(true);
-    const err = await onRemove();
+    await onRemove();
     setRemoving(false);
-    setRemoveError(err);
   }
 
   const summary = visited
@@ -127,11 +128,6 @@ export function CountryCard({
                 <Trash2 data-icon="inline-start" /> Remove
               </Button>
             </div>
-            {removeError && (
-              <p role="alert" className="text-destructive">
-                {removeError}
-              </p>
-            )}
 
             {visited && (
               <div className="flex flex-col gap-1.5">
@@ -189,6 +185,7 @@ export function CountryCard({
             )}
           </>
         ) : null}
+        {children}
       </DialogContent>
     </Dialog>
   );

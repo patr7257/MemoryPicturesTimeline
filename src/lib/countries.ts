@@ -8,6 +8,16 @@ export type CountryMark = {
   note?: string | null;
 };
 
+// What every country action returns. Expected refusals come back as data,
+// because production builds hide the message of a thrown error.
+export type CountryActionResult = { ok: true } | { ok: false; error: string };
+
+// Removing this mark would lose a year or a note the viewer can see, so the
+// UI asks first. A note the viewer may not read is never on the mark.
+export function needsRemoveConfirm(mark: CountryMark): boolean {
+  return typeof mark.year === "number" || (typeof mark.note === "string" && mark.note !== "");
+}
+
 export type CountryStats = {
   total: number;
   unMembers: number;
