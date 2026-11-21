@@ -8,16 +8,17 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { user as userTable } from "@/db/auth-schema";
-import { members, photos, tripPeople, trips } from "@/db/schema";
+import { familyPeople, members, photos, tripPeople, trips, tripShares } from "@/db/schema";
 import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/session";
 import {
+  audienceEmails,
   canSeeTrip,
   isSuperAdmin,
   loginAllowed,
   resolveRole,
-  superAdminEmails,
+  visibleTripIdsFrom,
   type Viewer,
 } from "@/lib/access-policy";
 
@@ -29,12 +30,20 @@ async function toViewer(u: SessionUser): Promise<Viewer | null> {
   const email = u.email.toLowerCase();
   const member = await getDb().query.members.findFirst({ where: eq(members.email, email) });
   if (!loginAllowed(email, member ? [member.email] : [], process.env)) return null;
+  const personId = member?.personId ?? null;
+  const familyRows = personId
+    ? await getDb()
+        .select({ id: familyPeople.familyId })
+        .from(familyPeople)
+        .where(eq(familyPeople.personId, personId))
+    : [];
   return {
     userId: u.id,
     email,
     name: u.name,
     role: resolveRole(email, member?.role, process.env),
-    personId: member?.personId ?? null,
+    personId,
+    familyIds: familyRows.map((r) => r.id),
   };
 }
 
@@ -54,22 +63,46 @@ export async function getViewerOrNull(): Promise<Viewer | null> {
   return session ? toViewer(session.user) : null;
 }
 
+// Server actions that must not throw: the viewer when super admin, else null.
+export async function getAdminOrNull(): Promise<Viewer | null> {
+  const viewer = await getViewerOrNull();
+  return viewer && isSuperAdmin(viewer) ? viewer : null;
+}
+
 export type TripRow = typeof trips.$inferSelect;
 
 // "all" for super admins, otherwise the ids the viewer may see.
 export async function visibleTripIds(viewer: Viewer): Promise<"all" | Set<string>> {
   if (isSuperAdmin(viewer)) return "all";
   const db = getDb();
-  const [created, tagged] = await Promise.all([
+  const none = Promise.resolve([] as { id: string }[]);
+  const [created, tagged, shared] = await Promise.all([
     db.select({ id: trips.id }).from(trips).where(eq(trips.createdBy, viewer.userId)),
     viewer.personId
       ? db
           .select({ id: tripPeople.tripId })
           .from(tripPeople)
           .where(eq(tripPeople.personId, viewer.personId))
-      : Promise.resolve([] as { id: string }[]),
+      : none,
+    viewer.personId
+      ? db
+          .select({ id: tripShares.tripId })
+          .from(tripShares)
+          .where(eq(tripShares.personId, viewer.personId))
+      : none,
   ]);
-  return new Set([...created, ...tagged].map((r) => r.id));
+  const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
+  return visibleTripIdsFrom(viewer, { created: ids(created), tagged: ids(tagged), shared: ids(shared) });
+}
+
+// Tagged and shared person ids of one trip: the facts canSeeTrip needs.
+async function tripPersonFacts(tripId: string): Promise<{ personIds: string[]; sharedPersonIds: string[] }> {
+  const db = getDb();
+  const [links, shares] = await Promise.all([
+    db.select({ personId: tripPeople.personId }).from(tripPeople).where(eq(tripPeople.tripId, tripId)),
+    db.select({ personId: tripShares.personId }).from(tripShares).where(eq(tripShares.tripId, tripId)),
+  ]);
+  return { personIds: links.map((l) => l.personId), sharedPersonIds: shares.map((s) => s.personId) };
 }
 
 // The trip when the viewer may see it, otherwise null. Callers treat null as
@@ -79,13 +112,8 @@ export async function findVisibleTrip(viewer: Viewer, tripId: string): Promise<T
   const trip = await db.query.trips.findFirst({ where: eq(trips.id, tripId) });
   if (!trip) return null;
   if (isSuperAdmin(viewer)) return trip;
-  const links = await db
-    .select({ personId: tripPeople.personId })
-    .from(tripPeople)
-    .where(eq(tripPeople.tripId, tripId));
-  return canSeeTrip(viewer, { createdBy: trip.createdBy, personIds: links.map((l) => l.personId) })
-    ? trip
-    : null;
+  const facts = await tripPersonFacts(tripId);
+  return canSeeTrip(viewer, { createdBy: trip.createdBy, ...facts }) ? trip : null;
 }
 
 export type PhotoRow = typeof photos.$inferSelect;
@@ -106,17 +134,8 @@ export async function tripAudienceUserIds(tripId: string): Promise<string[]> {
   const db = getDb();
   const trip = await db.query.trips.findFirst({ where: eq(trips.id, tripId) });
   if (!trip) return [];
-  const links = await db
-    .select({ personId: tripPeople.personId })
-    .from(tripPeople)
-    .where(eq(tripPeople.tripId, tripId));
-  const personIds = new Set(links.map((l) => l.personId));
-
-  const memberRows = await db.select().from(members);
-  const emails = new Set<string>(superAdminEmails(process.env));
-  for (const m of memberRows) {
-    if (m.role === "super_admin" || personIds.has(m.personId)) emails.add(m.email);
-  }
+  const [facts, memberRows] = await Promise.all([tripPersonFacts(tripId), db.select().from(members)]);
+  const emails = audienceEmails({ trip: facts, members: memberRows, env: process.env });
 
   const ids = new Set<string>();
   if (trip.createdBy) ids.add(trip.createdBy);

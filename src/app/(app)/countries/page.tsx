@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { CountriesPicker } from "@/components/countries/CountriesPicker";
 import { CountriesView, type CountriesViewProps } from "@/components/countries/CountriesView";
 import { getViewer } from "@/lib/access";
-import { canSeeCountries } from "@/lib/access-policy";
 import {
   getCountrySuggestions,
   getPersonCountries,
@@ -25,7 +24,6 @@ export default async function CountriesPage({
   searchParams: Promise<{ person?: PersonParam; view?: string | string[] }>;
 }) {
   const viewer = await getViewer();
-  if (!canSeeCountries(viewer)) notFound();
 
   const params = await searchParams;
   const family = params.view === "family";
