@@ -19,8 +19,10 @@ import {
   type ClientReport,
   type UploadStage,
 } from "@/lib/upload-client";
+import { defaultFamilySelection } from "@/lib/share-rules";
 import { draftError, emptyDraft } from "@/lib/vacations-view";
 import { TripPicker } from "@/components/upload/TripPicker";
+import type { PickerFamily } from "@/components/vacations/PeoplePicker";
 import { VacationFields } from "@/components/vacations/VacationFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,15 +58,23 @@ export function UploadForm({
   trips,
   people,
   viewerPersonId,
+  families,
 }: {
   trips: TripOption[];
   people: PersonRef[];
   viewerPersonId: string | null;
+  // The viewer's families: with some, "Who was here" asks for the family first.
+  families?: PickerFamily[];
 }) {
   const router = useRouter();
   const ready = useScriptReady();
   const [tripId, setTripId] = useState<string>(trips[0]?.id ?? "new");
-  const [draft, setDraft] = useState(() => emptyDraft(viewerPersonId));
+  const byFamily = families !== undefined && families.length > 0;
+  const [draft, setDraft] = useState(() =>
+    byFamily
+      ? { ...emptyDraft(null), personIds: defaultFamilySelection(families ?? [], people.map((p) => p.id)) }
+      : emptyDraft(viewerPersonId),
+  );
   // The vacation created during this upload, so the select can show it.
   const [created, setCreated] = useState<TripOption | null>(null);
   const [files, setFiles] = useState<FileState[]>([]);
@@ -325,7 +335,14 @@ export function UploadForm({
         <TripPicker options={tripOptions} value={tripId} onChange={setTripId} disabled={busy} />
         {tripId === "new" && (
           <div className="rounded-lg border bg-card p-4">
-            <VacationFields value={draft} onChange={setDraft} people={people} disabled={busy} />
+            <VacationFields
+              value={draft}
+              onChange={setDraft}
+              people={people}
+              disabled={busy}
+              families={byFamily ? families : undefined}
+              promptForFamily={byFamily}
+            />
           </div>
         )}
       </div>
