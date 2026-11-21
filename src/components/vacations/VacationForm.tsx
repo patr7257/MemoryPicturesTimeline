@@ -10,7 +10,7 @@ import { createTrip } from "@/actions/trips";
 import { draftError, emptyDraft } from "@/lib/vacations-view";
 import type { PersonRef } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
-import { initialTagged } from "@/lib/share-rules";
+import { initialTagged, needsSomeone } from "@/lib/share-rules";
 import type { PickerFamily } from "./PeoplePicker";
 import { VacationFields } from "./VacationFields";
 
@@ -99,7 +99,7 @@ export function VacationForm({ people, viewerPersonId, onCreated, onCancel, fami
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={busy} className="h-11 md:h-8">
+        <Button type="submit" disabled={busy || needsSomeone(draft.personIds)} className="h-11 md:h-8">
           {busy && <Loader2 className="animate-spin" />}
           Create vacation
         </Button>

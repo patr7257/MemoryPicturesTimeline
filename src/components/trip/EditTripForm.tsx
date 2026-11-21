@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PeoplePicker, type PickerFamily } from "@/components/vacations/PeoplePicker";
-import { outsideFamilies } from "@/lib/share-rules";
+import { needsSomeone, outsideFamilies } from "@/lib/share-rules";
 import type { TripSharing } from "@/lib/share-queries";
 import { ShareWithPeople } from "./ShareWithPeople";
 
@@ -165,7 +165,7 @@ export function EditTripForm({
           <Trash2 data-icon="inline-start" />
           Delete vacation
         </Button>
-        <Button onClick={save} disabled={pending} size="lg" className="min-h-11 sm:min-h-9">
+        <Button onClick={save} disabled={pending || needsSomeone(selected)} size="lg" className="min-h-11 sm:min-h-9">
           {pending ? "Saving..." : "Save vacation"}
         </Button>
       </div>

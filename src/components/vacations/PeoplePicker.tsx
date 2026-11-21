@@ -33,6 +33,14 @@ export type PeoplePickerProps = {
 export const VISIBILITY_NOTE =
   "Only the people you tag here, anyone it is shared with, you, and the admins can see this vacation.";
 export const PICK_FAMILY_HINT = "Pick the family that was on this vacation";
+// A vacation always keeps at least one person: the forms disable saving
+// while nobody is ticked, and this line says why.
+export const PICK_SOMEONE_HINT = "Pick at least one person";
+
+function PickSomeone({ value }: { value: string[] }) {
+  if (value.length > 0) return null;
+  return <p className="text-sm text-muted-foreground">{PICK_SOMEONE_HINT}</p>;
+}
 
 const CHIP =
   "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50 md:min-h-8 md:px-3";
@@ -99,6 +107,7 @@ export function PeoplePicker({
             </li>
           ))}
         </ul>
+        <PickSomeone value={value} />
         <p className="text-xs text-muted-foreground">{VISIBILITY_NOTE}</p>
       </div>
     );
@@ -192,6 +201,7 @@ export function PeoplePicker({
         </div>
       )}
 
+      <PickSomeone value={value} />
       <p className="text-xs text-muted-foreground">{VISIBILITY_NOTE}</p>
     </div>
   );

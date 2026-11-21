@@ -16,6 +16,27 @@ export const TRIP_NOT_FOUND = "This vacation was not found.";
 export const CANNOT_SHARE = "You cannot share this vacation.";
 export const SHARE_OUTSIDE = "You can only share with people in your families.";
 export const TAG_OUTSIDE = "You can only tag people in your families.";
+export const NEEDS_SOMEONE = "A vacation needs at least one person.";
+
+// A vacation always has at least one person tagged: true when this tag list
+// would leave it with nobody.
+export function needsSomeone(personIds: readonly string[]): boolean {
+  return personIds.length === 0;
+}
+
+// The vacations that would be left with nobody tagged once `personId` is
+// gone: those whose only tagged person (duplicates ignored) is that person.
+export function tripsOnlyTagging(
+  personId: string,
+  tagsByTrip: readonly { tripId: string; personIds: readonly string[] }[],
+): string[] {
+  return tagsByTrip
+    .filter((t) => {
+      const ids = new Set(t.personIds);
+      return ids.size === 1 && ids.has(personId);
+    })
+    .map((t) => t.tripId);
+}
 
 type Refusal = { ok: false; error: string };
 
@@ -62,13 +83,14 @@ export function decideShares(
 }
 
 // createTrip (current = []) and setTripPeople: the new tag list, or a refusal
-// when any new tag is someone the viewer may not tag.
+// when it is empty or any new tag is someone the viewer may not tag.
 export function decideTags(
   v: Viewer,
   input: { current: readonly string[]; next: unknown; facts: ReadonlyMap<string, PersonFacts> },
 ): { ok: true; next: string[] } | Refusal {
   const next = cleanIdList(input.next);
   if (next === null) return { ok: false, error: TAG_OUTSIDE };
+  if (needsSomeone(next)) return { ok: false, error: NEEDS_SOMEONE };
   const refused = refusedTags(v, { current: input.current, next, targets: input.facts });
   if (refused.length > 0) return { ok: false, error: TAG_OUTSIDE };
   return { ok: true, next };

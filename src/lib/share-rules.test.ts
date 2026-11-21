@@ -9,8 +9,11 @@ import {
   cleanIdList,
   decideShares,
   decideTags,
+  NEEDS_SOMEONE,
   defaultFamilySelection,
   initialTagged,
+  needsSomeone,
+  tripsOnlyTagging,
   outsideFamilies,
   toggleFamily,
   groupShareTargets,
@@ -177,6 +180,10 @@ describe("decideTags", () => {
     expect(decideTags(member, { current: [], next: [id(99)], facts: ALL })).toEqual({ ok: false, error: TAG_OUTSIDE });
     expect(decideTags(member, { current: [], next: ["x"], facts: ALL })).toEqual({ ok: false, error: TAG_OUTSIDE });
   });
+  it("refuses an empty list: a vacation keeps at least one person", () => {
+    expect(decideTags(member, { current: [], next: [], facts: ALL })).toEqual({ ok: false, error: NEEDS_SOMEONE });
+    expect(decideTags(member, { current: [SIS], next: [], facts: ALL })).toEqual({ ok: false, error: NEEDS_SOMEONE });
+  });
   it("a person in no family can tag only themselves", () => {
     expect(decideTags(loner, { current: [], next: [LONER], facts: ALL }).ok).toBe(true);
     expect(decideTags(loner, { current: [], next: [SIS], facts: ALL }).ok).toBe(false);
@@ -258,6 +265,33 @@ describe("defaultFamilySelection", () => {
   });
   it("no families: nothing", () => {
     expect(defaultFamilySelection([], ["a"])).toEqual([]);
+  });
+});
+
+describe("needsSomeone", () => {
+  it("is true for an empty list and false with anyone in it", () => {
+    expect(needsSomeone([])).toBe(true);
+    expect(needsSomeone(["a"])).toBe(false);
+  });
+});
+
+describe("tripsOnlyTagging", () => {
+  it("returns a vacation tagged only with this person", () => {
+    expect(tripsOnlyTagging("p", [{ tripId: "t1", personIds: ["p"] }])).toEqual(["t1"]);
+  });
+  it("skips a vacation tagged with this person and someone else", () => {
+    expect(tripsOnlyTagging("p", [{ tripId: "t1", personIds: ["p", "q"] }])).toEqual([]);
+  });
+  it("skips a vacation that does not tag this person", () => {
+    expect(tripsOnlyTagging("p", [{ tripId: "t1", personIds: ["q"] }])).toEqual([]);
+  });
+  it("counts a person listed twice as one", () => {
+    expect(
+      tripsOnlyTagging("p", [
+        { tripId: "t1", personIds: ["p", "p"] },
+        { tripId: "t2", personIds: ["q", "p"] },
+      ]),
+    ).toEqual(["t1"]);
   });
 });
 
