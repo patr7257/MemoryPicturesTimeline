@@ -442,6 +442,24 @@ see.
 - Layout of `/family` and `/settings` inside the existing theme, using the
   `impeccable` and `frontend-ui-patterns` skills.
 
+## Decided during the build
+
+- Whoever may edit a vacation (its creator or a super admin) may remove any
+  tag from it, also a tag on a person outside their families. Adding a tag
+  is what the family rule limits.
+- Auto-visited writes for every tagged person whoever triggered it, so on a
+  vacation with people from two families a member of one can cause a
+  country to appear on the map of a tagged person of the other (by adding a
+  located photo). That follows from "filled from the vacations you are
+  tagged on" and is accepted; locations are range-checked, existing rows are
+  never changed, and the person can remove the country.
+- A family with no member the viewer can see has no chip in the filter.
+- The upload finalize route accepts a photo id only together with the
+  original uploaded under that very id.
+- A removed login loses its push subscriptions with its sessions.
+- Known and left: two super admins adding people at the same moment can
+  collide on a colour and get the generic retry message.
+
 ## Still open with Patrick
 
 - The split in `docs/free-vs-premium.md` and the questions at its end.
