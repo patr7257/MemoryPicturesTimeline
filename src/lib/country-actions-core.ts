@@ -57,7 +57,7 @@ const OK: CountryActionResult = { ok: true };
 
 type Edit = { person: { id: string; hasLogin: boolean }; key: string };
 
-// Order: country key, person id shape, person exists, permission. Input
+// Order: country key, person id shape, permission, person exists. Input
 // parsing and the write follow in each action. No store call happens before
 // the person id has the right shape.
 async function requireEdit(
@@ -69,9 +69,11 @@ async function requireEdit(
   if (!isCountryKey(countryKey)) return refuse(UNKNOWN_COUNTRY);
   const id = typeof personId === "string" ? parsePersonParam(personId)[0] : undefined;
   if (id === undefined) return refuse(PERSON_NOT_FOUND);
+  // Permission needs only the id, so it is decided before the lookup: the
+  // refusal is the same whether or not that person exists.
+  if (!canEditCountries(viewer, id)) return refuse(NOT_ALLOWED);
   const person = await store.findPerson(id);
   if (!person) return refuse(PERSON_NOT_FOUND);
-  if (!canEditCountries(viewer, person.id)) return refuse(NOT_ALLOWED);
   return { person, key: countryKey };
 }
 

@@ -48,8 +48,9 @@ export async function getTagTargets(viewer: Viewer, taggedIds: readonly string[]
   const missing = Array.from(new Set(taggedIds.filter((id) => isUuid(id) && !seen.has(id))));
   if (missing.length === 0) return visible;
   const extra = await getDb()
-    .select({ id: people.id, name: people.name, color: people.color })
+    .select({ id: people.id, name: people.name })
     .from(people)
     .where(inArray(people.id, missing));
-  return mergeByName(visible, extra);
+  // Only the name of someone outside the viewer families is theirs to see.
+  return mergeByName(visible, extra.map((p) => ({ ...p, color: null })));
 }

@@ -162,6 +162,20 @@ describe("resolveFilter", () => {
     ).toEqual([ANN, FLO]);
   });
 
+  it("a family with no visible member has no chip and cannot be selected", () => {
+    const empty = { id: "f-empty", name: "Empty", memberIds: [] as string[] };
+    const hidden = { id: "f-hidden", name: "Hidden", memberIds: ["p-not-visible"] };
+    const r = resolveFilter({
+      selection: { familyIds: ["f-empty", "f-hidden"], personIds: [] },
+      families: [...families, empty, hidden],
+      people,
+    });
+    expect(r.familyChips).toEqual(families);
+    expect(r.selection).toEqual({ familyIds: [], personIds: [] });
+    expect(r.effective).toBeNull();
+    expect(r.nameChips).toEqual(people);
+  });
+
   it("shows family chips only with two or more families", () => {
     expect(resolveFilter({ selection: none, families: [famA], people }).familyChips).toEqual([]);
     expect(resolveFilter({ selection: none, families, people }).familyChips).toEqual(families);

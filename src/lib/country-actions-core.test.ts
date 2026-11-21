@@ -118,6 +118,15 @@ describe("check order and refusals", () => {
     expect(f.calls).toEqual([["findPerson", MISSING_PERSON]]);
   });
 
+  it("gives a member the same refusal for a map that exists and one that does not, with no lookup", async () => {
+    const f = fakeStore();
+    const real = await setCountryStatusCore(f.store, otherMember, { personId: OWNER_PERSON, countryKey: DK, status: "visited" }, NOW);
+    const missing = await setCountryStatusCore(f.store, otherMember, { personId: MISSING_PERSON, countryKey: DK, status: "visited" }, NOW);
+    expect(real).toEqual(NOT_ALLOWED);
+    expect(missing).toEqual(NOT_ALLOWED);
+    expect(f.calls).toEqual([]);
+  });
+
   it("refuses another member's map without writing", async () => {
     const f = fakeStore();
     const r = await setCountryStatusCore(f.store, otherMember, { personId: OWNER_PERSON, countryKey: DK, status: "visited" }, NOW);

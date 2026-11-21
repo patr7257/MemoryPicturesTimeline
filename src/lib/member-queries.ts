@@ -50,7 +50,10 @@ export async function getFamilyAdminData(): Promise<{
       .select({ id: people.id, name: people.name, color: people.color })
       .from(people)
       .orderBy(asc(people.name)),
-    db.select({ familyId: familyPeople.familyId, personId: familyPeople.personId }).from(familyPeople),
+    db
+      .select({ familyId: familyPeople.familyId, personId: familyPeople.personId })
+      .from(familyPeople)
+      .orderBy(asc(familyPeople.familyId), asc(familyPeople.personId)),
     db
       .select({
         id: members.id,

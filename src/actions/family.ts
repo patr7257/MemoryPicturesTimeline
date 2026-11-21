@@ -5,7 +5,7 @@ import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { session, user } from "@/db/auth-schema";
-import { families, familyPeople, members, people } from "@/db/schema";
+import { families, familyPeople, members, people, pushSubscriptions } from "@/db/schema";
 import { getAdminOrNull } from "@/lib/access";
 import { fail, type ActionResult } from "@/lib/action-result";
 import { sendInviteEmail } from "@/lib/email";
@@ -349,7 +349,8 @@ export async function updateMember(input: {
   return { ok: true };
 }
 
-// Deletes the member row and every session of that login so access ends now.
+// Deletes the member row, every session and every push subscription of that
+// login so access ends now.
 // The user row, photos and comments stay.
 export async function removeMember(memberId: string): Promise<ActionResult> {
   const viewer = await getAdminOrNull();
@@ -368,7 +369,11 @@ export async function removeMember(memberId: string): Promise<ActionResult> {
     .select({ id: user.id })
     .from(user)
     .where(sql`lower(${user.email}) = ${email}`);
-  for (const u of users) await db.delete(session).where(eq(session.userId, u.id));
+  for (const u of users) {
+    await db.delete(session).where(eq(session.userId, u.id));
+    // No more pushes about vacations this login could see.
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, u.id));
+  }
   refresh();
   return { ok: true };
 }

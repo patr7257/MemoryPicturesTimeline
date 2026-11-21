@@ -7,6 +7,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { tripPeople, trips, tripShares } from "@/db/schema";
 import { findVisibleTrip, getViewer, tripAudienceUserIds } from "@/lib/access";
+import { validateLatLng } from "@/lib/photo-location";
 import { AccessError, canManageTrip, type Viewer } from "@/lib/access-policy";
 import { fail, type ActionResult } from "@/lib/action-result";
 import { syncVisitedForTrip } from "@/lib/auto-visited-sync";
@@ -142,8 +143,18 @@ export async function updateTrip(input: UpdateTripInput): Promise<void> {
   if (input.endDate !== undefined) patch.endDate = input.endDate || null;
   if (input.locationName !== undefined) patch.locationName = input.locationName?.trim() || null;
   if (input.description !== undefined) patch.description = input.description?.trim() || null;
-  if (input.lat !== undefined) patch.lat = input.lat;
-  if (input.lng !== undefined) patch.lng = input.lng;
+  if (input.lat !== undefined || input.lng !== undefined) {
+    // Both together: a real spot, or both null to clear the place.
+    if (input.lat === null && input.lng === null) {
+      patch.lat = null;
+      patch.lng = null;
+    } else {
+      const spot = validateLatLng(input.lat, input.lng);
+      if (!spot.ok) throw new Error("Bad location");
+      patch.lat = spot.value.lat;
+      patch.lng = spot.value.lng;
+    }
+  }
   if (input.coverPhotoId !== undefined) patch.coverPhotoId = input.coverPhotoId;
   if (Object.keys(patch).length === 0) return;
 

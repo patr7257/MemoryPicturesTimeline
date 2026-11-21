@@ -6,7 +6,8 @@ import { getDb } from "@/db";
 import { photos, trips } from "@/db/schema";
 import { findVisibleTrip, getViewerOrNull } from "@/lib/access";
 import { processOriginal } from "@/lib/images";
-import { thumbKey } from "@/lib/keys";
+import { keyBelongsToPhoto, thumbKey } from "@/lib/keys";
+import { validateLatLng } from "@/lib/photo-location";
 import { getObjectBuffer, putObject, r2Configured } from "@/lib/r2";
 import { syncVisitedForTrip } from "@/lib/auto-visited-sync";
 import { fillTripLocations } from "@/lib/fill-locations";
@@ -41,7 +42,9 @@ export async function POST(req: Request): Promise<Response> {
     return reject(400, "Bad request", { user });
   }
   const context = { user, trip: body.tripId, photo: body.photoId };
-  if (!body.key.startsWith("originals/")) {
+  // The key must be the original of this very photo id: the thumbnails are
+  // written under the photo id, so a mismatch could overwrite another photo.
+  if (!keyBelongsToPhoto(body.key, body.photoId)) {
     return reject(400, "Bad key", context);
   }
 
@@ -84,8 +87,10 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "Processing the photo failed. Press retry." }, { status: 500 });
   }
 
-  const lat = typeof body.lat === "number" ? body.lat : null;
-  const lng = typeof body.lng === "number" ? body.lng : null;
+  // A location off the map is dropped, not stored.
+  const spot = validateLatLng(body.lat, body.lng);
+  const lat = spot.ok ? spot.value.lat : null;
+  const lng = spot.ok ? spot.value.lng : null;
   const geo = lat !== null && lng !== null
     ? await reverseGeocode(lat, lng)
     : { city: null, country: null };

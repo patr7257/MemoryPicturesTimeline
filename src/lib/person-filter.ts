@@ -75,7 +75,11 @@ export function resolveFilter(input: {
   families: readonly FilterFamily[];
   people: readonly FilterPerson[];
 }): ResolvedFilter {
-  const { families, people } = input;
+  const { people } = input;
+  // A family with no member the viewer can see (empty, or all hidden) has no
+  // chip and cannot be selected: selecting it would leave nothing to pick.
+  const known = new Set(people.map((p) => p.id));
+  const families = input.families.filter((f) => f.memberIds.some((id) => known.has(id)));
   const selected = families.filter((f) => input.selection.familyIds.includes(f.id));
   const inSelected = new Set(selected.flatMap((f) => f.memberIds));
   const nameChips = selected.length === 0 ? [...people] : people.filter((p) => inSelected.has(p.id));
