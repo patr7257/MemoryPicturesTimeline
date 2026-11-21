@@ -2,49 +2,59 @@
 
 ## Date, branch, PR, CI
 
-2026-11-14, branch `main` (push to main = Dokploy production deploy, watch
-paths cover src/public/package/Dockerfile/drizzle). No open PRs. Work now
-goes through short-lived feature branches and merge PRs. Latest deploy green,
-live at `https://memories.patrickrobel.dk` (`/version.json` shows the commit).
+2026-11-21, branch `main` (push to main = Dokploy production deploy, watch
+paths cover src/public/package/Dockerfile/drizzle). The families release went
+in through one pull request. The repo has no CI workflows: the gate is
+`pnpm verify` run locally. Live at `https://memories.patrickrobel.dk`
+(`/version.json` shows the commit).
 
 ## TLDR of session outcome
 
-- **Passkeys**: the prod rpID is now `memories.patrickrobel.dk`, so Chrome no
-  longer offers the Todo and Hub passkeys (rpID `patrickrobel.dk`) on the
-  Memories login. Passkeys made before this need to be created again on
-  `/account`.
-- **Photo date** can be set or changed after upload (pencil next to the date
-  on the back of the postcard). The photo moves to its new day row.
-- **Vacation page**: each day is one sideways-scrolling row of equal square
-  tiles (160px on a phone, 240px on PC).
-- **Pins follow the cover photo** (`src/lib/trip-pin.ts`). The cover picker
-  marks photos that have a location. This fixed Lissabon showing in North
-  America.
-- **Globe**: zoom (+/- buttons, pinch, Ctrl + scroll), a hover card docked
-  on the right, hovering a pin highlights its chip, and the chips stay on one
-  sideways-scrolling line.
-- **Map tab** shows every GPS photo at its own spot, stacked when zoomed out
-  (supercluster), with a popup linking to the photo's vacation.
-- **Photo location** can be set by hand on a map (pencil next to the place on
-  the back of the postcard), with "Same place as <nearest photo>".
+- **Families**: people are grouped into families, set up by super admins on
+  `/family`. A member sees only the people and country maps of their own
+  families, and the vacations they created, are tagged on or had shared with
+  them. Design: `docs/superpowers/specs/2026-11-21-families-design.md`. The
+  facts a session needs are in `CLAUDE.md` (Families, Tagging and sharing,
+  Filter, Person colours, Auto-visited, Countries).
+- **One filter** (family chips, then names) on timeline, map, vacations,
+  slideshow and countries. No "Everyone".
+- **Countries**: globe colour glitch fixed (the shapes file needed unwrapping
+  at the antimeridian, which also fixed the server putting the far north in
+  Russia), hover tint, a tap only opens the card, several people in one view
+  with a colour each, countries filled in from vacations.
+- **`/family`** replaces `/people` and `/members`; **`/settings`** (gear icon)
+  holds Alerts. The old routes redirect.
+- **Archive import**: old vacations back to 2000 were created with photos and
+  video stills from two USB drives. Each such vacation has a note saying
+  which folder or DVD and which minutes its pictures came from.
+- **Database**: migration applied (families, family links, vacation shares,
+  person colour). The two families, the colours and the first auto-visited
+  marks are in place.
 
 ## Prioritized next steps
 
-1. Missing locations were backfilled from same-day photos (58 written,
-   marked approximate; `node scripts/fill-locations.mjs` reports what is
-   left). Fix the 6 doubtful ones by hand with the place pencil: Sommerhus i
-   Lynæs 28 Oct 19:49 and 20:52 (got Stenløse) and 30 Oct 10:48, 10:53, 19:18
-   (got Helsinge), and Oslo v2 15 Jun 17:48 (got Strömstad). 16 photos still
-   have no location (no date, or no GPS photo that day).
-2. Find out whose uploads lose GPS: run the per-uploader query in the Neon
-   SQL editor (photos joined to "user" on uploader_id, grouped by uploader).
-   If it is the iPhone photo picker, tell that person to turn on Location
-   under Options before uploading.
-3. Family onboarding: invite each member on the Members page (the invite
-   mail is sent when the box is ticked), tag them on their vacations, and
-   have them add a passkey on `/account`.
-4. Parked ideas: bulk "set location for selected photos", search a place by
-   name in the picker (Photon), HEIC via client-side conversion, video.
+1. Have one family member who is not a super admin sign in and confirm what
+   they see: only their own family on `/family`, in the filters and on
+   `/countries`; no vacation they are not tagged on or shared into.
+2. Invites: on `/family`, People tab, use Resend for the members who never
+   signed in, and click Resend on your own row once to confirm the invite
+   mail itself arrives (sign-in mail is proven, the invite template is not).
+3. Check the guesses from the archive import and correct them in the app:
+   places and dates of the video vacations (no date on the tapes), the
+   Campingferie 2001 place (set to Harzen from the footage), and whether
+   every tagged person was really on each old vacation (the ski trips are
+   tagged with the whole family and marked France for all of them).
+4. Add photos to the vacations that have none yet; their notes say where to
+   look.
+5. Carried over: fix the doubtful backfilled photo locations by hand with the
+   place pencil (`pnpm fill-locations` reports what is left), and find out
+   whose uploads lose GPS (per-uploader query in the Neon SQL editor).
+6. Settle the split in `docs/free-vs-premium.md` (the families rows are open).
+7. Parked ideas: a fade when a country is marked, the share image layout,
+   bulk "set location for selected photos", place search in the picker
+   (Photon), HEIC via client-side conversion, video, regions and cities for
+   the countries map, a committed script for importing from an archive folder
+   (this session used one-off scripts that were not kept).
 
 ## Verbatim resume commands
 
@@ -56,33 +66,57 @@ cd "C:\Users\pr\repos\1-Personal\MemoryPicturesTimeline"; pnpm dev
 cd "C:\Users\pr\repos\1-Personal\MemoryPicturesTimeline"; pnpm verify
 ```
 
+```powershell
+cd "C:\Users\pr\repos\1-Personal\MemoryPicturesTimeline"; pnpm backfill:visited
+```
+
 ## Gotchas discovered this session
 
-- A vacation's stored `trips.lat/lng` comes from the FIRST GPS photo
-  uploaded, so one stray photo used to misplace the pin. The pin is now
-  derived from the cover photo on read; `trips.lat/lng` is only a fallback.
-- Passkeys are scoped by rpID. Two apps on the same rpID show each other's
-  passkeys in the browser picker, and a wrong pick fails sign-in.
-- Location and date come from EXIF read in the browser. The iPhone photo
-  picker can strip GPS while keeping the date, and nothing on the server can
-  recover it.
-- A Turbopack build can crash with "failed to receive message" (internal
-  timeout). It is not a code error; rerun `pnpm verify`.
-- Running `pnpm dev` rewrites `next-env.d.ts` to `.next/dev/types`; never
-  commit that change. After deleting a route, remove `.next/dev` or
-  `pnpm check-types` fails on the stale validator.
-- The Dokploy API token lives at `~\.dokploy\token`. A 401 means it was
-  revoked: make a new one in the panel (Profile, API/CLI).
+- An editor that has `.env` open writes its own older copy back over any tool
+  that changes the file. Close the file (or save from the editor) before
+  blaming the tool.
+- `scripts\push-dokploy-env.ps1` replaces the whole production env from the
+  local `.env` and makes a new auth secret, which signs everyone out. Run it
+  only on purpose, and only when the local file has every key.
+- A vacation's own place (`trips.lat`, `trips.lng`) is the spot of the first
+  GPS photo ever uploaded to it and can be wrong on a vacation that has
+  photos. Auto-visited therefore uses it only when a vacation has no located
+  photo.
+- `world-atlas` 50m shapes are stitched across the antimeridian and cut open
+  at the pole. Anything that draws or tests points against them must go
+  through `src/lib/antimeridian.ts` first.
+- To run the app's TypeScript modules from plain Node (a one-off check
+  against the database): `node --import tsx`, plus a stub for the
+  `server-only` import. Do not add the `react-server` condition: `next`
+  modules then fail to load.
+- `pnpm exec next typegen` regenerates the typed routes without a full build
+  when `pnpm check-types` fails on a new route's href.
+- Raw `pg` writes a JavaScript Date in the machine's time zone. A camera wall
+  clock goes in as text (`'2012-05-17 10:00:00'`), never as a Date.
+- Old cameras lie: one camera in the archive ran a year behind for two
+  years, and action cameras reset their clock. Check a folder's dates against
+  its name before trusting EXIF.
+- A fresh worktree that was moved needs `CI=true pnpm install` (a plain
+  install aborts without a terminal).
+- Still true from earlier: production Next.js hides the message of an error
+  thrown in a server action (return `{ ok: false, error }`), a Turbopack
+  build can crash with "failed to receive message" (rerun `pnpm verify`), and
+  `pnpm dev` rewrites `next-env.d.ts` (never commit it).
 
 ## Open decisions waiting on Patrick
 
-- Bulk location setting for many photos at once: build it, yes or no?
-- Place search in the location picker (sends the typed text to Photon by
-  komoot): add it, yes or no?
+- Free vs premium: confirm or change the split in `docs/free-vs-premium.md`,
+  and settle the questions at its end.
+- The local feature branches of this session and the two older ones
+  (`docs/ios-roadmap-pointer`, `feat/og-image`): delete them, yes or no?
+- A committed, tested script for importing photos and video stills from an
+  archive folder: build it, yes or no?
+- Carried over: bulk location setting for many photos, build it, yes or no?
+  Place search in the location picker (sends the typed text to Photon by
+  komoot), add it, yes or no?
 
 ## Environment state
 
 - No dev server running, no Docker containers, no extra worktrees.
-- All of this session's feature branches are merged and deleted, local and
-  remote.
+- Local branches of this session are merged but not deleted.
 - One Dokploy schedule on the memories app ("on-this-day push").
