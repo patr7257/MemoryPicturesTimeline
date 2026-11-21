@@ -24,6 +24,28 @@ describe("keyAtPoint", () => {
     expect(keyAtPoint(shapes, 999, 12)).toBeNull();
     expect(keyAtPoint(shapes, Number.NaN, 12)).toBeNull();
   });
+  it("keeps the far north out of Russia: its ring is stitched across the antimeridian", () => {
+    expect(resolveKey(shapes, 67.28, 14.4)).toBe("578");   // Bodo, Norway (in the sea at 50m: coast rule)
+    expect(keyAtPoint(shapes, 67.0, 15.5)).toBe("578");    // Nordland, inland of Bodo
+    expect(keyAtPoint(shapes, 65.68, -18.1)).toBe("352");  // Akureyri, Iceland
+    expect(keyAtPoint(shapes, 66.5, 25.7)).toBe("246");    // Rovaniemi, Finland
+    expect(keyAtPoint(shapes, 66, -140)).toBe("124");      // Yukon, Canada
+    expect(keyAtPoint(shapes, 67, -5)).toBeNull();         // Norwegian Sea
+    expect(resolveKey(shapes, 67, -5)).toBeNull();
+  });
+  it("still finds the countries on both sides of the antimeridian", () => {
+    expect(keyAtPoint(shapes, 66.5, -175)).toBe("643");    // Chukotka, west longitude
+    expect(keyAtPoint(shapes, 67.5, 172)).toBe("643");     // Chukotka, east longitude
+    expect(resolveKey(shapes, 64.73, 177.5)).toBe("643");  // Anadyr
+    expect(keyAtPoint(shapes, -17.8, 178.0)).toBe("242");  // Viti Levu, Fiji
+  });
+  it("puts the whole of Antarctica in Antarctica, the pole included", () => {
+    expect(keyAtPoint(shapes, -89.5, 0)).toBe("010");      // South pole
+    expect(keyAtPoint(shapes, -80, 30)).toBe("010");
+    expect(keyAtPoint(shapes, -85, -170)).toBe("010");
+    expect(resolveKey(shapes, -77.85, 166.67)).toBe("010"); // McMurdo
+    expect(keyAtPoint(shapes, -60, 0)).toBeNull();          // Southern Ocean
+  });
   it("keeps only markable shapes, one per key", () => {
     expect(shapes.every((s) => typeof s.key === "string" && s.key.length > 0)).toBe(true);
     expect(new Set(shapes.map((s) => s.key)).size).toBe(shapes.length);
@@ -55,6 +77,10 @@ describe("nearestKeyWithin", () => {
     expect(nearestKeyWithin(shapes, 55.68, 12.57, 25)).toBe("208");
     expect(nearestKeyWithin(shapes, 55.68, 12.57, 0)).toBeNull();
     expect(nearestKeyWithin(shapes, 56.0, 6.0, 25)).toBeNull();
+  });
+  it("measures to coasts moved past 180 from the west side of the line", () => {
+    // Just off the Chukotka coast in the Bering Strait, west of 180.
+    expect(nearestKeyWithin(shapes, 66.0, -169.6, 25)).toBe("643");
   });
 });
 
