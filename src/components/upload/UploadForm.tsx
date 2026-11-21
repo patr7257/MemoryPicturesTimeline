@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { createTrip } from "@/actions/trips";
 import { parseExif, type ClientExif } from "@/lib/exif-client";
-import type { PersonRef } from "@/lib/queries";
+import type { PersonRef, TripOption } from "@/lib/queries";
 import {
   MAX_REPORTS_PER_BATCH,
   UploadTimeoutError,
@@ -19,13 +19,14 @@ import {
   type ClientReport,
   type UploadStage,
 } from "@/lib/upload-client";
+import { initialTagged, needsSomeone } from "@/lib/share-rules";
 import { draftError, emptyDraft } from "@/lib/vacations-view";
+import { TripPicker } from "@/components/upload/TripPicker";
+import type { PickerFamily } from "@/components/vacations/PeoplePicker";
 import { VacationFields } from "@/components/vacations/VacationFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-type TripOption = { id: string; title: string; startDate: string };
 
 type FileState = {
   file: File;
@@ -57,15 +58,23 @@ export function UploadForm({
   trips,
   people,
   viewerPersonId,
+  families,
 }: {
   trips: TripOption[];
   people: PersonRef[];
   viewerPersonId: string | null;
+  // The viewer's families: with some, "Who was here" asks for the family first.
+  families?: PickerFamily[];
 }) {
   const router = useRouter();
   const ready = useScriptReady();
   const [tripId, setTripId] = useState<string>(trips[0]?.id ?? "new");
-  const [draft, setDraft] = useState(() => emptyDraft(viewerPersonId));
+  const byFamily = families !== undefined && families.length > 0;
+  const [draft, setDraft] = useState(() =>
+    byFamily
+      ? { ...emptyDraft(null), personIds: initialTagged(families ?? [], people.map((p) => p.id), viewerPersonId) }
+      : emptyDraft(viewerPersonId),
+  );
   // The vacation created during this upload, so the select can show it.
   const [created, setCreated] = useState<TripOption | null>(null);
   const [files, setFiles] = useState<FileState[]>([]);
@@ -138,7 +147,12 @@ export function UploadForm({
         return null;
       }
       const id = res.id;
-      setCreated({ id, title: draft.title.trim(), startDate: draft.startDate });
+      setCreated({
+        id,
+        title: draft.title.trim(),
+        startDate: draft.startDate,
+        locationName: draft.locationName.trim() || null,
+      });
       setTripId(id);
       return id;
     } catch (err) {
@@ -318,22 +332,17 @@ export function UploadForm({
     <div className="flex flex-col gap-6" data-unsaved-work={unsavedWork ? "" : undefined}>
       <div className="flex flex-col gap-3">
         <Label htmlFor="trip">Vacation</Label>
-        <select
-          id="trip"
-          className="border-input h-11 w-full rounded-md border bg-card px-3 text-base md:h-9 md:text-sm"
-          value={tripId}
-          onChange={(e) => setTripId(e.target.value)}
-        >
-          {tripOptions.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title} ({t.startDate})
-            </option>
-          ))}
-          <option value="new">+ New vacation...</option>
-        </select>
+        <TripPicker options={tripOptions} value={tripId} onChange={setTripId} disabled={busy} />
         {tripId === "new" && (
           <div className="rounded-lg border bg-card p-4">
-            <VacationFields value={draft} onChange={setDraft} people={people} disabled={busy} />
+            <VacationFields
+              value={draft}
+              onChange={setDraft}
+              people={people}
+              disabled={busy}
+              families={byFamily ? families : undefined}
+              promptForFamily={byFamily}
+            />
           </div>
         )}
       </div>
@@ -398,7 +407,8 @@ export function UploadForm({
       <div className="flex flex-col gap-2">
         <Button
           onClick={() => void startUpload()}
-          disabled={!ready || busy || queuedCount === 0}
+          // A new vacation needs at least one person (the picker says so).
+          disabled={!ready || busy || queuedCount === 0 || (tripId === "new" && needsSomeone(draft.personIds))}
           size="lg"
           className="h-11 md:h-9"
         >

@@ -43,6 +43,7 @@ import type { FamilyWithMembers } from "@/lib/family-queries";
 import type { AdminPerson } from "@/lib/member-queries";
 import type { LoginEntry } from "@/lib/members";
 import { isPaletteKey } from "@/lib/person-colors";
+import { soleTripsNote } from "@/lib/share-rules";
 
 const FILTER_PARAM = "family";
 const btn = "h-11 sm:h-8";
@@ -388,6 +389,9 @@ export function PeopleTab({
             <AlertDialogTitle>Remove {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
               Their vacation tags and country marks disappear too.
+              {deleting && deleting.soleTrips > 0
+                ? ` ${soleTripsNote(deleting.name, deleting.soleTrips, deleting.soleTripPhotos)}`
+                : ""}
               {deleting && deleting.logins.length > 0
                 ? " They still have a login: remove it in the Logins list first."
                 : ""}

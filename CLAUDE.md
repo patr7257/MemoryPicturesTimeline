@@ -63,7 +63,25 @@ multi-tenancy work.
   `planShareChange`; decisions in `src/lib/share-rules.ts`). A share from
   another family is never listed, counted or removed. Someone a vacation
   was only shared with cannot share it on. Creating a person is for super
-  admins, on `/family`.
+  admins, on `/family`. Every vacation has at least one tagged person:
+  `decideTags` refuses an empty list on create and on edit, and the forms
+  cannot save with nobody ticked. Deleting a person (`deletePerson`) also
+  deletes, in the same transaction, every vacation on which they were the
+  only tagged person, with its photos; the stored image files go after the
+  commit (best effort). "Who was here" asks for the family first
+  (`PeoplePicker` with `families`).
+- **Slideshow**: `/slideshow` has two kinds. The photo slideshow shows one
+  photo at a time (projector or plain fade). The vacation slideshow walks
+  through the vacations with screens of at most four photos and the note
+  underneath ("Selected": cover first, then spread over the trip; "All":
+  every photo, four per screen). Both run on `SlideshowPlayer` over a list
+  of slide ids; screen building and settings are pure in
+  `src/lib/slideshow.ts`, data comes viewer-scoped from
+  `src/lib/slideshow-queries.ts` (`visibleTripsWhere`).
+- **Search**: the timeline header filters vacations on the client (title,
+  place, note, tagged people, year; `searchYears` in `src/lib/trip-search.ts`,
+  which also folds case, accents and the Danish letters), kept in the URL as
+  `q`. The upload page finds the vacation with the same matcher.
 - **App shell**: signed-in pages live in the `src/app/(app)` route group; its
   layout renders `AppNav` (top bar on desktop, bottom tab bar on phones), so
   pages never render their own site header. `/timeline` is home (`/`

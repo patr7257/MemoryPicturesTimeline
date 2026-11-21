@@ -10,6 +10,8 @@ import { createTrip } from "@/actions/trips";
 import { draftError, emptyDraft } from "@/lib/vacations-view";
 import type { PersonRef } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
+import { initialTagged, needsSomeone } from "@/lib/share-rules";
+import type { PickerFamily } from "./PeoplePicker";
 import { VacationFields } from "./VacationFields";
 
 export type VacationFormProps = {
@@ -19,10 +21,26 @@ export type VacationFormProps = {
   // Called with the new vacation's id after it was created.
   onCreated: (tripId: string) => void;
   onCancel?: () => void;
+  // The viewer's families. With some, the picker asks for the family first and
+  // starts from the default selection, or the viewer's own person when that is
+  // empty (see initialTagged).
+  families?: PickerFamily[];
 };
 
-export function VacationForm({ people, viewerPersonId, onCreated, onCancel }: VacationFormProps) {
-  const [draft, setDraft] = useState(() => emptyDraft(viewerPersonId));
+export function VacationForm({ people, viewerPersonId, onCreated, onCancel, families }: VacationFormProps) {
+  const byFamily = families !== undefined && families.length > 0;
+  const [draft, setDraft] = useState(() =>
+    byFamily
+      ? {
+          ...emptyDraft(null),
+          personIds: initialTagged(
+            families ?? [],
+            people.map((p) => p.id),
+            viewerPersonId,
+          ),
+        }
+      : emptyDraft(viewerPersonId),
+  );
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -61,7 +79,14 @@ export function VacationForm({ people, viewerPersonId, onCreated, onCancel }: Va
 
   return (
     <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-5">
-      <VacationFields value={draft} onChange={setDraft} people={people} disabled={busy} />
+      <VacationFields
+        value={draft}
+        onChange={setDraft}
+        people={people}
+        disabled={busy}
+        families={byFamily ? families : undefined}
+        promptForFamily={byFamily}
+      />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {onCancel && (
           <Button
@@ -74,7 +99,7 @@ export function VacationForm({ people, viewerPersonId, onCreated, onCancel }: Va
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={busy} className="h-11 md:h-8">
+        <Button type="submit" disabled={busy || needsSomeone(draft.personIds)} className="h-11 md:h-8">
           {busy && <Loader2 className="animate-spin" />}
           Create vacation
         </Button>

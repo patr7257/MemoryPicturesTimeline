@@ -6,12 +6,13 @@ import { getViewer } from "@/lib/access";
 import { getViewerFamilies, getVisiblePeople } from "@/lib/family-queries";
 import { type FilterParams, parseFilterParams, resolveFilter } from "@/lib/person-filter";
 import { selectionTitle } from "@/lib/slideshow";
-import { getSlideshowPhotos } from "@/lib/slideshow-queries";
+import { getSlideshowPhotos, getSlideshowVacations } from "@/lib/slideshow-queries";
 
 export const metadata: Metadata = { title: "Slideshow" };
 export const dynamic = "force-dynamic";
 
-// /slideshow?family=<id>&person=<id>: photos of the vacations ANY effective
+// /slideshow?family=<id>&person=<id>: photos (and, for the vacation
+// slideshow, the vacations with their notes) of the vacations ANY effective
 // person is on. No filter on means every vacation the viewer may see. Ids the
 // viewer cannot see are dropped by resolveFilter, as if absent.
 export default async function SlideshowPage({
@@ -25,8 +26,11 @@ export default async function SlideshowPage({
   const resolved = resolveFilter({ selection, families, people });
   const effective = resolved.effective;
 
-  const photos =
-    (await getSlideshowPhotos(viewer, { personIds: effective ?? undefined })) ?? [];
+  const [photoResult, vacations] = await Promise.all([
+    getSlideshowPhotos(viewer, { personIds: effective ?? undefined }),
+    getSlideshowVacations(viewer, effective ?? undefined),
+  ]);
+  const photos = photoResult ?? [];
   const names = effective
     ? people.filter((p) => effective.includes(p.id)).map((p) => p.name)
     : [];
@@ -39,7 +43,7 @@ export default async function SlideshowPage({
         <PeopleFilter pathname="/slideshow" resolved={resolved} families={families} />
       </div>
 
-      <SlideshowLauncher key={effective?.join(",") ?? "all"} photos={photos} />
+      <SlideshowLauncher key={effective?.join(",") ?? "all"} photos={photos} vacations={vacations} />
     </main>
   );
 }

@@ -5,9 +5,10 @@ import { asc, count, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { passkey, user } from "@/db/auth-schema";
-import { families, familyPeople, members, people } from "@/db/schema";
+import { families, familyPeople, members, people, photos, tripPeople } from "@/db/schema";
 import type { FamilyWithMembers } from "@/lib/family-queries";
 import { mergeLogins, normalizeEmail, type LoginEntry, type MemberStatus } from "@/lib/members";
+import { tagsByTrip, tripsOnlyTagging } from "@/lib/share-rules";
 
 async function loginFacts() {
   const db = getDb();
@@ -34,6 +35,10 @@ export type AdminPerson = {
   color: string | null;
   familyIds: string[];
   logins: { email: string; status: MemberStatus }[];
+  // Vacations only this person is tagged on, and their photos: deleting the
+  // person deletes them too (see deletePerson).
+  soleTrips: number;
+  soleTripPhotos: number;
 };
 
 // Everything the super admin /family page needs, in one go: all families with
@@ -44,7 +49,7 @@ export async function getFamilyAdminData(): Promise<{
   logins: LoginEntry[];
 }> {
   const db = getDb();
-  const [familyRows, peopleRows, links, memberRows, facts] = await Promise.all([
+  const [familyRows, peopleRows, links, memberRows, facts, tagRows, photoCounts] = await Promise.all([
     db.select({ id: families.id, name: families.name }).from(families).orderBy(asc(families.name)),
     db
       .select({ id: people.id, name: people.name, color: people.color })
@@ -66,8 +71,16 @@ export async function getFamilyAdminData(): Promise<{
       .innerJoin(people, eq(members.personId, people.id))
       .orderBy(asc(people.name), asc(members.email)),
     loginFacts(),
+    db.select({ tripId: tripPeople.tripId, personId: tripPeople.personId }).from(tripPeople),
+    db.select({ tripId: photos.tripId, n: count() }).from(photos).groupBy(photos.tripId),
   ]);
   const logins = mergeLogins(memberRows, facts.userEmails, facts.passkeyCounts, process.env);
+  const tagged = tagsByTrip(tagRows);
+  const photosByTrip = new Map(photoCounts.map((r) => [r.tripId, Number(r.n)]));
+  const sole = (personId: string) => {
+    const ids = tripsOnlyTagging(personId, tagged);
+    return { soleTrips: ids.length, soleTripPhotos: ids.reduce((sum, t) => sum + (photosByTrip.get(t) ?? 0), 0) };
+  };
   // peopleRows is ordered by name, so member lists come out in name order.
   return {
     families: familyRows.map((f) => ({
@@ -86,6 +99,7 @@ export async function getFamilyAdminData(): Promise<{
         .filter((l): l is Extract<LoginEntry, { kind: "member" }> => l.kind === "member")
         .filter((l) => l.personId === p.id)
         .map((l) => ({ email: l.email, status: l.status })),
+      ...sole(p.id),
     })),
     logins,
   };

@@ -167,7 +167,9 @@ void main(){
 
 // Dashed (or, with uF=1, glowing with a travelling pulse) arc material. uP is
 // the drawn fraction along the arc, uT the pulse position, uD the dash count.
-export function createTrailMaterial(color: string): THREE.ShaderMaterial {
+// With `shrink` the arc must carry the `aC` centre-line attribute
+// (createArcTube with centres): uK scales the tube's thickness around it.
+export function createTrailMaterial(color: string, shrink = false): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -178,8 +180,11 @@ export function createTrailMaterial(color: string): THREE.ShaderMaterial {
       uD: { value: 30 },
       uG: { value: 0.3 },
       uF: { value: 0 },
+      uK: { value: 1 },
     },
-    vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    vertexShader: shrink
+      ? `attribute vec3 aC;uniform float uK;varying vec2 vUv;void main(){vUv=uv;vec3 p=aC+(position-aC)*uK;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`
+      : `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader: `uniform float uP,uT,uD,uG,uF;uniform vec3 uC;varying vec2 vUv;
 void main(){float on=step(vUv.x,uP);float dash=mix(step(fract(vUv.x*uD),.55),1.,uF);
  float pulse=uF*on*(1.-smoothstep(0.,.14,abs(fract(uT)-vUv.x)));
@@ -194,10 +199,25 @@ export function createArcTube(
   h: number,
   radius: number,
   mat: THREE.Material,
+  withCentres = false,
 ): THREE.Mesh {
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i <= 40; i++) pts.push(arcPoint(a, b, i / 40, h));
-  return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, radius, 6, false), mat);
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tubular = 96;
+  const radial = 6;
+  const geo = new THREE.TubeGeometry(curve, tubular, radius, radial, false);
+  if (withCentres) {
+    // One centre-line point per vertex, so a shader can thin the tube.
+    const c = new Float32Array((tubular + 1) * (radial + 1) * 3);
+    const p = new THREE.Vector3();
+    for (let i = 0; i <= tubular; i++) {
+      curve.getPointAt(i / tubular, p);
+      for (let j = 0; j <= radial; j++) p.toArray(c, (i * (radial + 1) + j) * 3);
+    }
+    geo.setAttribute("aC", new THREE.BufferAttribute(c, 3));
+  }
+  return new THREE.Mesh(geo, mat);
 }
 
 export function createPin(p: THREE.Vector3, color: string, scale: number): THREE.Group {
@@ -217,6 +237,45 @@ export function createPin(p: THREE.Vector3, color: string, scale: number): THREE
   g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p.clone().normalize());
   g.scale.setScalar(scale);
   return g;
+}
+
+// Map-pin sprite texture: a round head tapering to a tip, a thin dark outline
+// (reads on land and sea) and a light inner dot. The tip sits PIN_TIP_V of the
+// way up from the bottom edge: use it as the sprite's centre.
+const PIN_W = 96;
+const PIN_H = 144;
+const PIN_TIP_Y = 138;
+export const PIN_TIP_V = (PIN_H - PIN_TIP_Y) / PIN_H;
+export const PIN_ASPECT = PIN_W / PIN_H;
+export function pinTexture(fill: string, outline: string, dot: string): THREE.CanvasTexture {
+  const c = makeCanvas(PIN_W, PIN_H);
+  const g = c.getContext("2d")!;
+  const cx = PIN_W / 2;
+  const cy = 50;
+  const r = 36;
+  const len = PIN_TIP_Y - cy;
+  // Angle (canvas, y down) of the point where the straight edge leaves the head.
+  const a = Math.atan2(r / len, Math.sqrt(1 - (r / len) ** 2));
+  g.beginPath();
+  g.moveTo(cx, PIN_TIP_Y);
+  g.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+  g.arc(cx, cy, r, a, Math.PI - a, true);
+  g.closePath();
+  g.fillStyle = fill;
+  g.fill();
+  g.lineWidth = 6;
+  g.lineJoin = "round";
+  g.strokeStyle = outline;
+  g.stroke();
+  g.beginPath();
+  g.arc(cx, cy, 13, 0, Math.PI * 2);
+  g.fillStyle = dot;
+  g.fill();
+  g.lineWidth = 3;
+  g.stroke();
+  const t = canvasTexture(c);
+  t.anisotropy = 4;
+  return t;
 }
 
 // Font stack for text drawn into canvases: the app's handwriting font when
