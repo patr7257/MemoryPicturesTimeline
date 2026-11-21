@@ -133,6 +133,19 @@ export function defaultFamilySelection(
   return Array.from(new Set(families[0].memberIds)).filter((id) => allowed.has(id));
 }
 
+// Who a new vacation starts tagged with: the default family selection, or,
+// when that is empty (several families, or none), the viewer's own person
+// when they have one and may be tagged.
+export function initialTagged(
+  families: readonly { memberIds: readonly string[] }[],
+  allowedIds: readonly string[],
+  viewerPersonId: string | null,
+): string[] {
+  const picked = defaultFamilySelection(families, allowedIds);
+  if (picked.length > 0) return picked;
+  return viewerPersonId !== null && allowedIds.includes(viewerPersonId) ? [viewerPersonId] : [];
+}
+
 // Ids that belong to none of the given families (the "Also on this vacation"
 // group of the picker: already tagged, outside the viewer's families).
 export function outsideFamilies(

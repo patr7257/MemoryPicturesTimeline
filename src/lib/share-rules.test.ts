@@ -10,6 +10,7 @@ import {
   decideShares,
   decideTags,
   defaultFamilySelection,
+  initialTagged,
   outsideFamilies,
   toggleFamily,
   groupShareTargets,
@@ -257,6 +258,26 @@ describe("defaultFamilySelection", () => {
   });
   it("no families: nothing", () => {
     expect(defaultFamilySelection([], ["a"])).toEqual([]);
+  });
+});
+
+describe("initialTagged", () => {
+  const fam = (fid: string, name: string, memberIds: string[]) => ({ id: fid, name, memberIds });
+  it("one family: the whole family", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a", "b", "z"])], ["a", "b", "me"], "me")).toEqual(["a", "b"]);
+  });
+  it("several families: only the viewer's own person", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a"]), fam(FAM_B, "B", ["b"])], ["a", "b", "me"], "me")).toEqual(["me"]);
+  });
+  it("several families and no own person: nobody", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a"]), fam(FAM_B, "B", ["b"])], ["a", "b"], null)).toEqual([]);
+  });
+  it("no families: the viewer's own person", () => {
+    expect(initialTagged([], ["a", "me"], "me")).toEqual(["me"]);
+  });
+  it("the own person only when it is among the allowed ids", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a"]), fam(FAM_B, "B", ["b"])], ["a", "b"], "me")).toEqual([]);
+    expect(initialTagged([], ["a"], "me")).toEqual([]);
   });
 });
 

@@ -19,7 +19,7 @@ import {
   type ClientReport,
   type UploadStage,
 } from "@/lib/upload-client";
-import { defaultFamilySelection } from "@/lib/share-rules";
+import { initialTagged } from "@/lib/share-rules";
 import { draftError, emptyDraft } from "@/lib/vacations-view";
 import { TripPicker } from "@/components/upload/TripPicker";
 import type { PickerFamily } from "@/components/vacations/PeoplePicker";
@@ -72,7 +72,7 @@ export function UploadForm({
   const byFamily = families !== undefined && families.length > 0;
   const [draft, setDraft] = useState(() =>
     byFamily
-      ? { ...emptyDraft(null), personIds: defaultFamilySelection(families ?? [], people.map((p) => p.id)) }
+      ? { ...emptyDraft(null), personIds: initialTagged(families ?? [], people.map((p) => p.id), viewerPersonId) }
       : emptyDraft(viewerPersonId),
   );
   // The vacation created during this upload, so the select can show it.
