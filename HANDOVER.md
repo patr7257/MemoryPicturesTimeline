@@ -107,8 +107,9 @@ cd "C:\Users\pr\repos\1-Personal\MemoryPicturesTimeline"; pnpm backfill:visited
 
 - Free vs premium: confirm or change the split in `docs/free-vs-premium.md`,
   and settle the questions at its end.
-- The local feature branches of this session and the two older ones
-  (`docs/ios-roadmap-pointer`, `feat/og-image`): delete them, yes or no?
+- Branch `docs/ios-roadmap-pointer` is not in main: it adds a pointer to
+  `docs/ios-roadmap.md` in `CLAUDE.md` and `HANDOVER.md`. Merge it or delete
+  it?
 - A committed, tested script for importing photos and video stills from an
   archive folder: build it, yes or no?
 - Carried over: bulk location setting for many photos, build it, yes or no?
@@ -118,5 +119,6 @@ cd "C:\Users\pr\repos\1-Personal\MemoryPicturesTimeline"; pnpm backfill:visited
 ## Environment state
 
 - No dev server running, no Docker containers, no extra worktrees.
-- Local branches of this session are merged but not deleted.
+- The feature branches of this session are merged and deleted, local and
+  remote. `docs/ios-roadmap-pointer` is kept.
 - One Dokploy schedule on the memories app ("on-this-day push").
