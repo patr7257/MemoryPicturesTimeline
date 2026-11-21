@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { createTrip } from "@/actions/trips";
 import { parseExif, type ClientExif } from "@/lib/exif-client";
-import type { PersonRef } from "@/lib/queries";
+import type { PersonRef, TripOption } from "@/lib/queries";
 import {
   MAX_REPORTS_PER_BATCH,
   UploadTimeoutError,
@@ -20,12 +20,11 @@ import {
   type UploadStage,
 } from "@/lib/upload-client";
 import { draftError, emptyDraft } from "@/lib/vacations-view";
+import { TripPicker } from "@/components/upload/TripPicker";
 import { VacationFields } from "@/components/vacations/VacationFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-type TripOption = { id: string; title: string; startDate: string };
 
 type FileState = {
   file: File;
@@ -138,7 +137,12 @@ export function UploadForm({
         return null;
       }
       const id = res.id;
-      setCreated({ id, title: draft.title.trim(), startDate: draft.startDate });
+      setCreated({
+        id,
+        title: draft.title.trim(),
+        startDate: draft.startDate,
+        locationName: draft.locationName.trim() || null,
+      });
       setTripId(id);
       return id;
     } catch (err) {
@@ -318,19 +322,7 @@ export function UploadForm({
     <div className="flex flex-col gap-6" data-unsaved-work={unsavedWork ? "" : undefined}>
       <div className="flex flex-col gap-3">
         <Label htmlFor="trip">Vacation</Label>
-        <select
-          id="trip"
-          className="border-input h-11 w-full rounded-md border bg-card px-3 text-base md:h-9 md:text-sm"
-          value={tripId}
-          onChange={(e) => setTripId(e.target.value)}
-        >
-          {tripOptions.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title} ({t.startDate})
-            </option>
-          ))}
-          <option value="new">+ New vacation...</option>
-        </select>
+        <TripPicker options={tripOptions} value={tripId} onChange={setTripId} disabled={busy} />
         {tripId === "new" && (
           <div className="rounded-lg border bg-card p-4">
             <VacationFields value={draft} onChange={setDraft} people={people} disabled={busy} />
