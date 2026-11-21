@@ -19,10 +19,13 @@ import { Button } from "@/components/ui/button";
 export default async function TimelinePage({
   searchParams,
 }: {
-  searchParams: Promise<FilterParams>;
+  searchParams: Promise<FilterParams & { q?: string | string[] }>;
 }) {
   const viewer = await getViewer();
-  const { selection } = parseFilterParams(await searchParams);
+  const params = await searchParams;
+  const { selection } = parseFilterParams(params);
+  // The search text rides along on the filter chips, as in TimelineView.
+  const q = (Array.isArray(params.q) ? params.q[0] : params.q)?.trim() ?? "";
   const [families, people] = await Promise.all([getViewerFamilies(viewer), getVisiblePeople(viewer)]);
   const resolved = resolveFilter({ selection, families, people });
   const filtered = resolved.effective !== null;
@@ -51,7 +54,12 @@ export default async function TimelinePage({
       <main>
         <TimelineHeader subtitle="Your family's memories, year by year." />
 
-        <PeopleFilter pathname="/timeline" resolved={resolved} families={families} />
+        <PeopleFilter
+          pathname="/timeline"
+          resolved={resolved}
+          families={families}
+          keep={q ? { q } : undefined}
+        />
 
         <section className="mx-auto max-w-md px-6 py-20 text-center">
           <Camera className="mx-auto size-10 text-muted-foreground" />
