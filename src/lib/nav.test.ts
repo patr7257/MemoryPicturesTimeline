@@ -17,8 +17,11 @@ describe("activeSection", () => {
     expect(activeSection("/vacations")).toBe("vacations");
     expect(activeSection("/upload")).toBe("upload");
     expect(activeSection("/map")).toBe("map");
-    expect(activeSection("/people")).toBe("people");
-    expect(activeSection("/notifications")).toBe("notifications");
+    expect(activeSection("/family")).toBe("family");
+    expect(activeSection("/people")).toBe("family");
+    expect(activeSection("/members")).toBe("family");
+    expect(activeSection("/settings")).toBe("settings");
+    expect(activeSection("/notifications")).toBe("settings");
     expect(activeSection("/countries")).toBe("countries");
   });
 
@@ -28,9 +31,8 @@ describe("activeSection", () => {
     expect(activeSection("/trips/abc/slideshow")).toBe("vacations");
   });
 
-  it("marks the account menu for /account and /members", () => {
+  it("marks the account menu for /account", () => {
     expect(activeSection("/account")).toBe("account");
-    expect(activeSection("/members")).toBe("account");
   });
 
   it("does not match on a shared prefix", () => {
@@ -56,9 +58,14 @@ describe("NAV_TABS", () => {
       "upload",
       "map",
       "countries",
-      "people",
-      "notifications",
+      "family",
+      "settings",
     ]);
+  });
+
+  it("labels the tabs and shows Settings as an icon only", () => {
+    expect(NAV_TABS.map((t) => t.label)).toEqual(["Timeline", "Vacations", "Add photos", "Map", "Countries", "Family", "Settings"]);
+    expect(NAV_TABS.find((t) => t.key === "settings")?.iconOnly).toBe(true);
   });
 
   it("puts Countries directly after Map", () => {

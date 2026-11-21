@@ -7,8 +7,8 @@ export type NavSection =
   | "upload"
   | "map"
   | "countries"
-  | "people"
-  | "notifications"
+  | "family"
+  | "settings"
   | "account";
 
 export type NavTab = {
@@ -19,9 +19,11 @@ export type NavTab = {
     | "/upload"
     | "/map"
     | "/countries"
-    | "/people"
-    | "/notifications";
+    | "/family"
+    | "/settings";
   label: string;
+  // Rendered as an icon with an accessible name only, at every width.
+  iconOnly?: boolean;
 };
 
 // Desktop tab order. "Add photos" (upload) is the emphasised primary action.
@@ -31,8 +33,8 @@ export const NAV_TABS: readonly NavTab[] = [
   { key: "upload", href: "/upload", label: "Add photos" },
   { key: "map", href: "/map", label: "Map" },
   { key: "countries", href: "/countries", label: "Countries" },
-  { key: "people", href: "/people", label: "People" },
-  { key: "notifications", href: "/notifications", label: "Alerts" },
+  { key: "family", href: "/family", label: "Family" },
+  { key: "settings", href: "/settings", label: "Settings", iconOnly: true },
 ];
 
 const ROOTS: ReadonlyArray<[string, NavSection]> = [
@@ -43,10 +45,12 @@ const ROOTS: ReadonlyArray<[string, NavSection]> = [
   ["upload", "upload"],
   ["map", "map"],
   ["countries", "countries"],
-  ["people", "people"],
-  ["notifications", "notifications"],
+  ["family", "family"],
+  ["people", "family"],
+  ["members", "family"],
+  ["settings", "settings"],
+  ["notifications", "settings"],
   ["account", "account"],
-  ["members", "account"],
 ];
 
 export function activeSection(pathname: string): NavSection | null {

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MotionConfig, motion } from "motion/react";
 import {
-  Bell,
   Globe,
   Images,
   LogOut,
@@ -13,10 +12,10 @@ import {
   Menu,
   Plane,
   Plus,
+  Settings,
   Upload,
   UserRound,
   Users,
-  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,8 +42,8 @@ const ICONS: Record<Exclude<NavSection, "account">, LucideIcon> = {
   upload: Upload,
   map: MapPin,
   countries: Globe,
-  people: Users,
-  notifications: Bell,
+  family: Users,
+  settings: Settings,
 };
 
 // Rendered inside (app)/layout.tsx on every signed-in page. The layout adds
@@ -53,11 +52,10 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
   const section = activeSection(usePathname());
   const [moreOpen, setMoreOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
-  const isAdmin = viewer.role === "super_admin";
   const moreActive =
     section === "countries" ||
-    section === "people" ||
-    section === "notifications" ||
+    section === "family" ||
+    section === "settings" ||
     section === "account";
 
   function askSignOut() {
@@ -81,21 +79,24 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
               const Icon = ICONS[tab.key];
               const active = section === tab.key;
               const primary = tab.key === "upload";
+              const iconOnly = tab.iconOnly === true;
               return (
                 <Button
                   key={tab.key}
                   variant={primary ? (active ? "default" : "secondary") : "ghost"}
                   nativeButton={false}
                   aria-current={active ? "page" : undefined}
+                  aria-label={iconOnly ? tab.label : undefined}
                   className={cn(
                     "h-9 px-2 text-[13px] whitespace-nowrap lg:px-3 lg:text-sm",
+                    iconOnly && "w-9 px-0 lg:px-0",
                     !primary && active && "bg-muted font-semibold text-foreground",
                     primary && "mx-0.5",
                   )}
                   render={<Link href={tab.href} />}
                 >
-                  <Icon data-slot="icon" className="hidden lg:block" />
-                  {tab.label}
+                  <Icon data-slot="icon" className={iconOnly ? undefined : "hidden lg:block"} />
+                  {!iconOnly && tab.label}
                 </Button>
               );
             })}
@@ -122,11 +123,6 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
                 <DropdownMenuItem render={<Link href="/account" />} className="min-h-10">
                   <UserRound /> Account
                 </DropdownMenuItem>
-                {isAdmin && (
-                  <DropdownMenuItem render={<Link href="/members" />} className="min-h-10">
-                    <UsersRound /> Members
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="min-h-10" onClick={() => setSignOutOpen(true)}>
                   <LogOut /> Sign out
@@ -185,20 +181,15 @@ export function AppNav({ viewer }: { viewer: NavViewer }) {
             <SheetLink href="/countries" Icon={Globe} active={section === "countries"} onNavigate={() => setMoreOpen(false)}>
               Countries
             </SheetLink>
-            <SheetLink href="/people" Icon={Users} active={section === "people"} onNavigate={() => setMoreOpen(false)}>
-              People
+            <SheetLink href="/family" Icon={Users} active={section === "family"} onNavigate={() => setMoreOpen(false)}>
+              Family
             </SheetLink>
-            <SheetLink href="/notifications" Icon={Bell} active={section === "notifications"} onNavigate={() => setMoreOpen(false)}>
-              Alerts
+            <SheetLink href="/settings" Icon={Settings} active={section === "settings"} onNavigate={() => setMoreOpen(false)}>
+              Settings
             </SheetLink>
             <SheetLink href="/account" Icon={UserRound} active={section === "account"} onNavigate={() => setMoreOpen(false)}>
               Account
             </SheetLink>
-            {isAdmin && (
-              <SheetLink href="/members" Icon={UsersRound} active={false} onNavigate={() => setMoreOpen(false)}>
-                Members
-              </SheetLink>
-            )}
             <li>
               <button
                 type="button"
@@ -259,7 +250,7 @@ function SheetLink({
   onNavigate,
   children,
 }: {
-  href: "/countries" | "/people" | "/notifications" | "/account" | "/members";
+  href: "/countries" | "/family" | "/settings" | "/account";
   Icon: LucideIcon;
   active: boolean;
   onNavigate: () => void;

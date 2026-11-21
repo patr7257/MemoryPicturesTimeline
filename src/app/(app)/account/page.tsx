@@ -58,7 +58,7 @@ export default async function AccountPage() {
           Settings
         </h2>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" nativeButton={false} render={<Link href="/notifications" />}>
+          <Button variant="outline" nativeButton={false} render={<Link href="/settings" />}>
             <Bell data-slot="icon" />
             Notification settings
           </Button>
