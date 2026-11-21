@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/session";
+import { getViewerOrNull } from "@/lib/access";
 import { ACCEPTED_MIMES, MAX_UPLOAD_BYTES, originalKey } from "@/lib/keys";
 import { presignPut, r2Configured } from "@/lib/r2";
 
@@ -9,9 +9,9 @@ function reject(status: number, error: string, context: Record<string, unknown>)
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const session = await getSession();
-  if (!session) return reject(401, "Unauthorized", {});
-  const user = session.user.id;
+  const viewer = await getViewerOrNull();
+  if (!viewer) return reject(401, "Unauthorized", {});
+  const user = viewer.userId;
   if (!r2Configured()) {
     return reject(503, "Storage not configured", { user });
   }

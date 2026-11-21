@@ -25,7 +25,9 @@ Status: **built** (in the app today), **planned** (designed, not built),
 | Core | Captions, set date and location by hand | built | yes | yes |
 | Core | Notes on vacations and photos | built | yes | yes |
 | Family | Members, invites, passkey sign-in | built | yes | yes |
-| Family | People tagging, person filter | built | yes | yes |
+| Family | People tagging, family and person filter | built | yes | yes |
+| Family | Several families in one space, each private to its members | built | open | open |
+| Family | Share a vacation with people who were not on it | built | open | open |
 | Maps | Photo map (every GPS photo at its spot) | built | yes | yes |
 | Maps | Globe with vacation pins | built | yes | yes |
 | Slideshow | Plain fade slideshow | built | yes | yes |
@@ -34,10 +36,10 @@ Status: **built** (in the app today), **planned** (designed, not built),
 | Push | On this day | built | no | yes |
 | Countries | Mark countries and territories | built | yes | yes |
 | Countries | Stats: count, UN members, percent of world, per continent | built | yes | yes |
-| Countries | Suggestions from your vacations | built | yes | yes |
+| Countries | Countries filled in from your vacations | built | yes | yes |
 | Countries | Share map as image | built | yes | yes |
 | Countries | 3D globe view | built | no | yes |
-| Countries | Family map and compare two people | built | no | yes |
+| Countries | Several people on one map, a colour per person | built | no | yes |
 | Countries | Wishlist ("want to go") | built | 5 spots | unlimited |
 | Countries | Year and private note per country | built | no | yes |
 | Countries | Regions, states, cities | parked | no | yes |
@@ -49,7 +51,7 @@ Status: **built** (in the app today), **planned** (designed, not built),
 | App | Native iPhone app, native photo picker, share sheet | planned | yes | yes |
 
 The split of each row is a proposal until Patrick confirms it; the model
-above is decided.
+above is decided. Rows marked open have no proposal yet.
 
 ## Open decisions
 

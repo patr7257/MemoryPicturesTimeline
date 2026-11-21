@@ -121,7 +121,7 @@ export function UploadForm({
       return null;
     }
     try {
-      const { id } = await withTimeout("create-trip", () =>
+      const res = await withTimeout("create-trip", () =>
         createTrip({
           title: draft.title,
           startDate: draft.startDate,
@@ -131,6 +131,13 @@ export function UploadForm({
           personIds: draft.personIds,
         }),
       );
+      if (!res.ok) {
+        // A refusal (say, a tag outside the viewer's families): nothing was
+        // written, the form keeps its values and the error stays until dismissed.
+        toast.error(res.error, { duration: Infinity, closeButton: true });
+        return null;
+      }
+      const id = res.id;
       setCreated({ id, title: draft.title.trim(), startDate: draft.startDate });
       setTripId(id);
       return id;

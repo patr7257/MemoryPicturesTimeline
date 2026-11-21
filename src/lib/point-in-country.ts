@@ -1,3 +1,4 @@
+import { unwrapPolygon } from "./antimeridian";
 import { shapeKey } from "./country-catalog";
 
 // [minLng, minLat, maxLng, maxLat] of a polygon's outer ring.
@@ -24,7 +25,10 @@ export function toCountryShapes(features: readonly Feature[]): CountryShape[] {
     if (!f.geometry) continue;
     const key = shapeKey(f);
     if (key === null) continue;
-    const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    // Unwrapped, so a ring stitched across the antimeridian (Russia, Fiji) or
+    // around the south pole (Antarctica) is not a line across the world.
+    const raw = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const polys = raw.map(unwrapPolygon);
     const existing = byKey.get(key);
     if (existing) {
       existing.polygons.push(...polys);
@@ -66,15 +70,23 @@ function inPolygon(polygon: number[][][], lng: number, lat: number): boolean {
 export function keyAtPoint(shapes: readonly CountryShape[], lat: number, lng: number): string | null {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  const lngs = alsoEast(lng);
   for (const shape of shapes) {
     for (let i = 0; i < shape.polygons.length; i++) {
       const [minX, minY, maxX, maxY] = shape.boxes[i];
-      if (lng < minX || lng > maxX || lat < minY || lat > maxY) continue;
-      if (inPolygon(shape.polygons[i], lng, lat)) return shape.key;
+      if (lat < minY || lat > maxY) continue;
+      for (const x of lngs) {
+        if (x < minX || x > maxX) continue;
+        if (inPolygon(shape.polygons[i], x, lat)) return shape.key;
+      }
     }
   }
   return null;
 }
+
+// Rings that crossed the antimeridian run on past 180 (src/lib/antimeridian.ts),
+// so a point west of the line is also looked for one world further east.
+const alsoEast = (lng: number): number[] => (lng < 0 ? [lng, lng + 360] : [lng]);
 
 export const NEAR_COAST_KM = 25;
 
@@ -111,17 +123,21 @@ export function nearestKeyWithin(
   const dLng = kx > 1e-9 ? maxKm / kx : Infinity;
   let bestKey: string | null = null;
   let best = Infinity;
+  const lngs = alsoEast(lng);
   for (const shape of shapes) {
     for (let p = 0; p < shape.polygons.length; p++) {
       const polygon = shape.polygons[p];
       const [minX, minY, maxX, maxY] = shape.boxes[p];
-      if (lat < minY - dLat || lat > maxY + dLat || lng < minX - dLng || lng > maxX + dLng) continue;
-      for (const ring of polygon) {
-        for (let i = 1; i < ring.length; i++) {
-          const d = segmentKm(ring[i - 1], ring[i], lng, lat, kx);
-          if (d < best) {
-            best = d;
-            bestKey = shape.key;
+      if (lat < minY - dLat || lat > maxY + dLat) continue;
+      for (const x of lngs) {
+        if (x < minX - dLng || x > maxX + dLng) continue;
+        for (const ring of polygon) {
+          for (let i = 1; i < ring.length; i++) {
+            const d = segmentKm(ring[i - 1], ring[i], x, lat, kx);
+            if (d < best) {
+              best = d;
+              bestKey = shape.key;
+            }
           }
         }
       }

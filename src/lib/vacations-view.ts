@@ -5,6 +5,8 @@
 // Dates are plain "yyyy-mm-dd" strings; day maths uses UTC so the result never
 // depends on the runner's local clock or daylight saving.
 
+import { matchesPeople, parseFamilyParam, parsePersonParam } from "./person-filter";
+
 export type VacationItem = {
   id: string;
   title: string;
@@ -31,7 +33,10 @@ export type ViewMode = (typeof VIEW_MODES)[number];
 
 export type ViewState = {
   q: string;
-  person: string | null;
+  // Raw URL lists. The server resolves them against what the viewer may
+  // see (resolveFilter); filtering uses that result, never these.
+  family: string[];
+  person: string[];
   year: number | null;
   sort: SortKey;
   // "table" means table from the md breakpoint up and cards on phones;
@@ -41,24 +46,24 @@ export type ViewState = {
 
 export const DEFAULT_VIEW_STATE: ViewState = {
   q: "",
-  person: null,
+  family: [],
+  person: [],
   year: null,
   sort: "newest",
   view: "table",
 };
 
 const MAX_QUERY_LENGTH = 100;
-const MAX_ID_LENGTH = 64;
 
 // ---------------------------------------------------------------- URL state
 
-type ParamReader = { get(name: string): string | null };
+type ParamReader = { get(name: string): string | null; getAll(name: string): string[] };
 
 export function parseViewState(params: ParamReader): ViewState {
   const q = (params.get("q") ?? "").trim().slice(0, MAX_QUERY_LENGTH);
 
-  const rawPerson = (params.get("person") ?? "").trim();
-  const person = rawPerson && rawPerson.length <= MAX_ID_LENGTH ? rawPerson : null;
+  const family = parseFamilyParam(params.getAll("family"));
+  const person = parsePersonParam(params.getAll("person"));
 
   const rawYear = params.get("year") ?? "";
   const year = /^\d{4}$/.test(rawYear) ? Number(rawYear) : null;
@@ -73,7 +78,7 @@ export function parseViewState(params: ParamReader): ViewState {
     ? (rawView as ViewMode)
     : DEFAULT_VIEW_STATE.view;
 
-  return { q, person, year, sort, view };
+  return { q, family, person, year, sort, view };
 }
 
 // Query string without the leading "?"; defaults are omitted so the plain
@@ -82,7 +87,8 @@ export function serializeViewState(state: ViewState): string {
   const out = new URLSearchParams();
   const q = state.q.trim();
   if (q) out.set("q", q);
-  if (state.person) out.set("person", state.person);
+  for (const id of state.family) out.append("family", id);
+  for (const id of state.person) out.append("person", id);
   if (state.year !== null) out.set("year", String(state.year));
   if (state.sort !== DEFAULT_VIEW_STATE.sort) out.set("sort", state.sort);
   if (state.view !== DEFAULT_VIEW_STATE.view) out.set("view", state.view);
@@ -90,7 +96,7 @@ export function serializeViewState(state: ViewState): string {
 }
 
 export function hasActiveFilters(state: ViewState): boolean {
-  return state.q.trim() !== "" || state.person !== null || state.year !== null;
+  return state.q.trim() !== "" || state.family.length > 0 || state.person.length > 0 || state.year !== null;
 }
 
 // ------------------------------------------------------------------- search
@@ -116,12 +122,18 @@ export function startYear(item: Pick<VacationItem, "startDate">): number {
 
 export function filterVacations<T extends VacationItem>(
   items: readonly T[],
-  state: Pick<ViewState, "q" | "person" | "year">,
+  state: Pick<ViewState, "q" | "year">,
+  // The server's resolved `effective`: null = no person filter, else any-of.
+  people: readonly string[] | null,
 ): T[] {
   return items.filter(
     (item) =>
       matchesQuery(item, state.q) &&
-      (state.person === null || item.people.some((p) => p.id === state.person)) &&
+      (people === null ||
+        matchesPeople(
+          people,
+          item.people.map((p) => p.id),
+        )) &&
       (state.year === null || startYear(item) === state.year),
   );
 }
@@ -153,8 +165,12 @@ export function sortVacations<T extends VacationItem>(items: readonly T[], sort:
   return [...items].sort(COMPARATORS[sort]);
 }
 
-export function applyViewState<T extends VacationItem>(items: readonly T[], state: ViewState): T[] {
-  return sortVacations(filterVacations(items, state), state.sort);
+export function applyViewState<T extends VacationItem>(
+  items: readonly T[],
+  state: ViewState,
+  people: readonly string[] | null,
+): T[] {
+  return sortVacations(filterVacations(items, state, people), state.sort);
 }
 
 // -------------------------------------------------------------------- dates

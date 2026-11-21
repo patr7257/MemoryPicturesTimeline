@@ -1,5 +1,13 @@
 # Where have I been: design
 
+> Parts of this design were replaced by
+> `docs/superpowers/specs/2026-11-21-families-design.md`: who sees a map
+> (people in your families, not every member), the compare and union views
+> and the "Me" and "Family" chips (one filter and a multi-person view),
+> suggestions (countries are filled in from vacations), a tap marking a
+> country visited (a tap only opens the card), removal deleting the row (a
+> visited country becomes `dismissed`) and the UTC year limit (Copenhagen).
+
 A per-person map of visited countries inside Memories, modelled on the
 `been.app` country tracker.
 

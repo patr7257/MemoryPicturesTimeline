@@ -50,10 +50,9 @@ const PREVIEW_COUNT = 5;
 
 export async function getTimelineData(
   viewer: Viewer,
-  personIds?: readonly string[],
+  personIds?: readonly string[] | null,
 ): Promise<{
   years: TimelineYear[];
-  allPeople: PersonRef[];
   totalTrips: number;
 }> {
   const db = getDb();
@@ -100,7 +99,7 @@ export async function getTimelineData(
     photosByTrip.set(p.tripId, list);
   }
 
-  // Any selected person tagged on the trip matches; empty or undefined = everyone.
+  // Any selected person tagged on the trip matches; null, undefined or empty = no filter.
   const filtered = allTrips.filter((t) =>
     matchesPeople(
       personIds ?? [],
@@ -140,7 +139,7 @@ export async function getTimelineData(
     .sort((a, b) => b[0] - a[0])
     .map(([year, list]) => ({ year, trips: list }));
 
-  return { years, allPeople, totalTrips: filtered.length };
+  return { years, totalTrips: filtered.length };
 }
 
 // Null when the trip does not exist OR the viewer may not see it.
@@ -224,11 +223,4 @@ export async function getMapPhotos(
     out.push({ ...p, lat: p.lat, lng: p.lng, tripTitle });
   }
   return out;
-}
-
-export async function getAllPeople(): Promise<PersonRef[]> {
-  return getDb()
-    .select({ id: people.id, name: people.name })
-    .from(people)
-    .orderBy(asc(people.name));
 }

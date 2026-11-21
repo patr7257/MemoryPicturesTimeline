@@ -2,23 +2,31 @@ import Link from "next/link";
 import { Camera, Plane, Play } from "lucide-react";
 
 import { getViewer } from "@/lib/access";
+import { getViewerFamilies, getVisiblePeople } from "@/lib/family-queries";
 import { getTimelineData } from "@/lib/queries";
-import { parsePersonParam, personQuery, type PersonParam } from "@/lib/person-filter";
+import {
+  filterQuery,
+  type FilterParams,
+  parseFilterParams,
+  resolveFilter,
+} from "@/lib/person-filter";
 import { FlightProvider } from "@/components/globe/FlightProvider";
 import { GlobeOfMemories } from "@/components/globe/GlobeOfMemories";
-import { PersonFilter } from "@/components/timeline/PersonFilter";
+import { PeopleFilter } from "@/components/filter/PeopleFilter";
 import { Timeline } from "@/components/timeline/Timeline";
 import { Button } from "@/components/ui/button";
 
 export default async function TimelinePage({
   searchParams,
 }: {
-  searchParams: Promise<{ person?: PersonParam }>;
+  searchParams: Promise<FilterParams>;
 }) {
   const viewer = await getViewer();
-  const personIds = parsePersonParam((await searchParams).person);
-  const filtered = personIds.length > 0;
-  const { years, allPeople, totalTrips } = await getTimelineData(viewer, personIds);
+  const { selection } = parseFilterParams(await searchParams);
+  const [families, people] = await Promise.all([getViewerFamilies(viewer), getVisiblePeople(viewer)]);
+  const resolved = resolveFilter({ selection, families, people });
+  const filtered = resolved.effective !== null;
+  const { years, totalTrips } = await getTimelineData(viewer, resolved.effective);
 
   return (
     <FlightProvider>
@@ -45,7 +53,7 @@ export default async function TimelinePage({
               </Button>
               <Button
                 nativeButton={false}
-                render={<Link href={{ pathname: "/slideshow", query: personQuery(personIds) }} />}
+                render={<Link href={{ pathname: "/slideshow", query: filterQuery(resolved.selection) }} />}
                 className="h-11 px-4 md:h-8 md:px-2.5"
               >
                 <Play />
@@ -55,7 +63,7 @@ export default async function TimelinePage({
           )}
         </header>
 
-        <PersonFilter people={allPeople} activeIds={personIds} basePath="/timeline" />
+        <PeopleFilter pathname="/timeline" resolved={resolved} families={families} />
 
         {totalTrips === 0 ? (
           <section className="mx-auto max-w-md px-6 py-20 text-center">
@@ -65,7 +73,7 @@ export default async function TimelinePage({
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {filtered
-                ? "Pick Everyone to see all your vacations, or browse the full list."
+                ? "Turn the filters off to see all your vacations, or browse the full list."
                 : "Add the first vacation photos and the timeline starts here. Vacations other people tag you in show up here too."}
             </p>
             <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">

@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Link2, Mail, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { removeMember, resendInvite, updateMember } from "@/actions/members";
+import { removeMember, resendInvite, updateMember } from "@/actions/family";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { InviteForm } from "@/components/members/InviteForm";
 import type { LoginEntry } from "@/lib/members";
 
 type Person = { id: string; name: string };
@@ -37,26 +36,20 @@ function StatusBadge({ entry }: { entry: LoginEntry }) {
   );
 }
 
-export function MembersManager({
+// The logins of everyone who may sign in: resend, edit role and person,
+// remove, plus the logins that only exist in server config.
+export function LoginsList({
   logins,
   people,
   viewerEmail,
-  invitePersonId,
+  onLinkConfigLogin,
 }: {
   logins: LoginEntry[];
   people: Person[];
   viewerEmail: string;
-  invitePersonId: string | null;
+  onLinkConfigLogin: (email: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const formRef = useRef<HTMLDivElement>(null);
-  // The key remounts the form so a new prefill takes effect.
-  const [form, setForm] = useState({
-    key: 0,
-    personId: invitePersonId,
-    email: "",
-    sendEmail: true,
-  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState("member");
   const [editPerson, setEditPerson] = useState("");
@@ -65,11 +58,6 @@ export function MembersManager({
   const members = logins.filter((l): l is MemberEntry => l.kind === "member");
   const configLogins = logins.filter((l) => l.kind !== "member");
   const isSelf = (email: string) => email.toLowerCase() === viewerEmail.toLowerCase();
-
-  function linkConfigLogin(email: string) {
-    setForm((f) => ({ key: f.key + 1, personId: null, email, sendEmail: false }));
-    formRef.current?.scrollIntoView({ block: "start" });
-  }
 
   function resend(m: MemberEntry) {
     startTransition(async () => {
@@ -102,28 +90,13 @@ export function MembersManager({
 
   return (
     <div className="flex flex-col gap-8">
-      <div ref={formRef} className="scroll-mt-24">
-        <InviteForm
-          key={form.key}
-          people={people}
-          initialPersonId={form.personId}
-          prefillEmail={form.email}
-          defaultSendEmail={form.sendEmail}
-          onDone={() =>
-            setForm((f) => ({ key: f.key + 1, personId: null, email: "", sendEmail: true }))
-          }
-        />
-      </div>
-
       <section className="flex flex-col gap-3" aria-labelledby="members-heading">
         <h2 id="members-heading" className="font-hand text-2xl">
-          Members
+          Logins
         </h2>
         {members.length === 0 && (
           <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            No members yet. Start with the form above: choose who they are in People (or create
-            them), then enter their email. They can then request a sign-in link on the login page
-            and add a passkey.
+            No logins here. Use the form above: add someone with their email and they can request a sign-in link on the login page and add a passkey.
           </p>
         )}
         <ul className="flex flex-col gap-2">
@@ -250,7 +223,7 @@ export function MembersManager({
                     <StatusBadge entry={c} />
                   </div>
                 </div>
-                <Button variant="outline" className={btn} onClick={() => linkConfigLogin(c.email)}>
+                <Button variant="outline" className={btn} onClick={() => onLinkConfigLogin(c.email)}>
                   <Link2 data-icon="inline-start" />
                   Link to a person
                 </Button>

@@ -36,6 +36,13 @@
       "when": 1795077730536,
       "tag": "0004_elite_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795258970329,
+      "tag": "0005_needy_northstar",
+      "breakpoints": true
     }
   ]
 }

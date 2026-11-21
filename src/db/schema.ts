@@ -22,8 +22,33 @@ export const people = pgTable("people", {
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+  // A palette key from src/lib/person-colors.ts; null means "use the fallback".
+  color: text("color").unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// A named group of people. Members see the people who share a family with them.
+export const families = pgTable("families", {
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// One row means "this person belongs to this family". A person may be in several.
+export const familyPeople = pgTable(
+  "family_people",
+  {
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.familyId, t.personId] })],
+);
 
 export const trips = pgTable("trips", {
   id: uuid("id")
@@ -88,6 +113,23 @@ export const tripPeople = pgTable(
     personId: uuid("person_id")
       .notNull()
       .references(() => people.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.tripId, t.personId] })],
+);
+
+// One row means "this trip is shared with this person": they see it as if
+// tagged, but may not share it on. sharedBy is who shared it (never shown).
+export const tripShares = pgTable(
+  "trip_shares",
+  {
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    sharedBy: text("shared_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.tripId, t.personId] })],
 );

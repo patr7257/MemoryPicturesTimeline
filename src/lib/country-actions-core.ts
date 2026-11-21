@@ -23,7 +23,16 @@ export type CountryStore = {
   updateYear(personId: string, countryKey: string, year: number | null, updatedBy: string): Promise<number>;
   updateNote(personId: string, countryKey: string, note: string | null, updatedBy: string): Promise<number>;
   deleteMark(personId: string, countryKey: string, opts: { onlyWithoutNote: boolean }): Promise<number>;
-  markExists(personId: string, countryKey: string): Promise<boolean>;
+  // A visited row becomes dismissed with year and note cleared, so it is
+  // never added again automatically. With onlyWithoutNote a row carrying a
+  // note is left alone. One statement; returns the number of rows changed.
+  dismissMark(personId: string, countryKey: string, opts: { onlyWithoutNote: boolean }): Promise<number>;
+  // The row's status and whether it has a year or a note, never the note
+  // itself; null when there is no row.
+  findMark(
+    personId: string,
+    countryKey: string,
+  ): Promise<{ status: "visited" | "wishlist" | "dismissed"; hasYear: boolean; hasNote: boolean } | null>;
   // Whether the row exists and carries a note. Asked only for an editor who
   // may not read the notes.
   noteExists(personId: string, countryKey: string): Promise<boolean>;
@@ -41,13 +50,14 @@ const BAD_YEAR = "Enter a year like 2019";
 const NOTE_TOO_LONG = "Note is too long";
 const PRIVATE_NOTE = "This country has a private note, so only its owner can change or remove it.";
 const NO_LONGER_MARKED = "This country is no longer marked. Reload the page.";
+const UNSEEN_DETAILS = "This country has a year or a note this page did not show. Reload the page.";
 
 const refuse = (error: string): CountryActionResult => ({ ok: false, error });
 const OK: CountryActionResult = { ok: true };
 
 type Edit = { person: { id: string; hasLogin: boolean }; key: string };
 
-// Order: country key, person id shape, person exists, permission. Input
+// Order: country key, person id shape, permission, person exists. Input
 // parsing and the write follow in each action. No store call happens before
 // the person id has the right shape.
 async function requireEdit(
@@ -59,9 +69,11 @@ async function requireEdit(
   if (!isCountryKey(countryKey)) return refuse(UNKNOWN_COUNTRY);
   const id = typeof personId === "string" ? parsePersonParam(personId)[0] : undefined;
   if (id === undefined) return refuse(PERSON_NOT_FOUND);
+  // Permission needs only the id, so it is decided before the lookup: the
+  // refusal is the same whether or not that person exists.
+  if (!canEditCountries(viewer, id)) return refuse(NOT_ALLOWED);
   const person = await store.findPerson(id);
   if (!person) return refuse(PERSON_NOT_FOUND);
-  if (!canEditCountries(viewer, person.id)) return refuse(NOT_ALLOWED);
   return { person, key: countryKey };
 }
 
@@ -136,17 +148,29 @@ export async function setCountryNoteCore(
   return changed > 0 ? OK : refuse(NO_LONGER_MARKED);
 }
 
+// Removing a visited country keeps it as dismissed (year and note cleared),
+// so auto-visited never adds it again; removing a wishlist entry deletes it.
+// `confirmed` is true only when the person saw and accepted the confirmation
+// that a year or a note goes too. Without it, a row that has a year or a
+// readable note is refused: the page that sent the removal did not show them.
 export async function removeCountryCore(
   store: CountryStore,
   viewer: Viewer,
-  input: { personId: unknown; countryKey: unknown },
+  input: { personId: unknown; countryKey: unknown; confirmed: unknown },
 ): Promise<CountryActionResult> {
   const edit = await requireEdit(store, viewer, input.personId, input.countryKey);
   if (isRefusal(edit)) return edit;
-  // A viewer who may not read the notes must never delete one unseen: the
-  // store deletes only a row without a note in that case.
-  const onlyWithoutNote = !canReadCountryNotes(viewer, edit.person);
-  const deleted = await store.deleteMark(edit.person.id, edit.key, { onlyWithoutNote });
-  if (deleted > 0 || !onlyWithoutNote) return OK;
-  return (await store.markExists(edit.person.id, edit.key)) ? refuse(PRIVATE_NOTE) : OK;
+  const found = await store.findMark(edit.person.id, edit.key);
+  if (found === null || found.status === "dismissed") return OK;
+  const readsNotes = canReadCountryNotes(viewer, edit.person);
+  // A viewer who may not read the notes must never remove one unseen.
+  if (found.hasNote && !readsNotes) return refuse(PRIVATE_NOTE);
+  if (input.confirmed !== true && (found.hasYear || found.hasNote)) return refuse(UNSEEN_DETAILS);
+  // The guard stays in the write too, for a note added after findMark.
+  const onlyWithoutNote = !readsNotes;
+  const changed =
+    found.status === "wishlist"
+      ? await store.deleteMark(edit.person.id, edit.key, { onlyWithoutNote })
+      : await store.dismissMark(edit.person.id, edit.key, { onlyWithoutNote });
+  return changed === 0 && onlyWithoutNote ? refuse(PRIVATE_NOTE) : OK;
 }
