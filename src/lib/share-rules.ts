@@ -16,6 +16,51 @@ export const TRIP_NOT_FOUND = "This vacation was not found.";
 export const CANNOT_SHARE = "You cannot share this vacation.";
 export const SHARE_OUTSIDE = "You can only share with people in your families.";
 export const TAG_OUTSIDE = "You can only tag people in your families.";
+export const NEEDS_SOMEONE = "A vacation needs at least one person.";
+
+// A vacation always has at least one person tagged: true when this tag list
+// would leave it with nobody.
+export function needsSomeone(personIds: readonly string[]): boolean {
+  return personIds.length === 0;
+}
+
+// trip_people rows grouped per vacation, for tripsOnlyTagging.
+export function tagsByTrip(
+  rows: readonly { tripId: string; personId: string }[],
+): { tripId: string; personIds: string[] }[] {
+  const out = new Map<string, string[]>();
+  for (const r of rows) {
+    const ids = out.get(r.tripId);
+    if (ids) ids.push(r.personId);
+    else out.set(r.tripId, [r.personId]);
+  }
+  return Array.from(out, ([tripId, personIds]) => ({ tripId, personIds }));
+}
+
+// The vacations that would be left with nobody tagged once `personId` is
+// gone: those whose only tagged person (duplicates ignored) is that person.
+export function tripsOnlyTagging(
+  personId: string,
+  tagsByTrip: readonly { tripId: string; personIds: readonly string[] }[],
+): string[] {
+  return tagsByTrip
+    .filter((t) => {
+      const ids = new Set(t.personIds);
+      return ids.size === 1 && ids.has(personId);
+    })
+    .map((t) => t.tripId);
+}
+
+// The line in the "remove person" confirm about what goes with them: the
+// vacations only they were on (tripsOnlyTagging) and those vacations' photos.
+export function soleTripsNote(name: string, tripCount: number, photoCount: number): string {
+  if (tripCount <= 0) return "";
+  const one = tripCount === 1;
+  const trips = `${tripCount} vacation${one ? "" : "s"} where ${name} is the only person`;
+  if (photoCount <= 0) return `This also deletes ${trips}.`;
+  const photos = `${photoCount} photo${photoCount === 1 ? "" : "s"}`;
+  return `This also deletes ${trips}, with ${one ? "its" : "their"} ${photos}.`;
+}
 
 type Refusal = { ok: false; error: string };
 
@@ -62,13 +107,14 @@ export function decideShares(
 }
 
 // createTrip (current = []) and setTripPeople: the new tag list, or a refusal
-// when any new tag is someone the viewer may not tag.
+// when it is empty or any new tag is someone the viewer may not tag.
 export function decideTags(
   v: Viewer,
   input: { current: readonly string[]; next: unknown; facts: ReadonlyMap<string, PersonFacts> },
 ): { ok: true; next: string[] } | Refusal {
   const next = cleanIdList(input.next);
   if (next === null) return { ok: false, error: TAG_OUTSIDE };
+  if (needsSomeone(next)) return { ok: false, error: NEEDS_SOMEONE };
   const refused = refusedTags(v, { current: input.current, next, targets: input.facts });
   if (refused.length > 0) return { ok: false, error: TAG_OUTSIDE };
   return { ok: true, next };
@@ -131,6 +177,19 @@ export function defaultFamilySelection(
   if (families.length !== 1) return [];
   const allowed = new Set(allowedIds);
   return Array.from(new Set(families[0].memberIds)).filter((id) => allowed.has(id));
+}
+
+// Who a new vacation starts tagged with: the default family selection, or,
+// when that is empty (several families, or none), the viewer's own person
+// when they have one and may be tagged.
+export function initialTagged(
+  families: readonly { memberIds: readonly string[] }[],
+  allowedIds: readonly string[],
+  viewerPersonId: string | null,
+): string[] {
+  const picked = defaultFamilySelection(families, allowedIds);
+  if (picked.length > 0) return picked;
+  return viewerPersonId !== null && allowedIds.includes(viewerPersonId) ? [viewerPersonId] : [];
 }
 
 // Ids that belong to none of the given families (the "Also on this vacation"

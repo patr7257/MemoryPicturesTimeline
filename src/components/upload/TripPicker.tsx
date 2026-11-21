@@ -31,14 +31,19 @@ export function TripPicker({
   const uid = useId();
   const listId = `${uid}-list`;
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
+  // Row the arrow keys move from; null follows the default: the chosen row
+  // while the search is empty, else the first match.
+  const [active, setActive] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const matches = useMemo(() => searchTrips(options, query), [options, query]);
   // Row ids in display order: matches, then the "new vacation" row.
   const rowIds = [...matches.map((t) => t.id), NEW_TRIP];
-  const activeId = rowIds[Math.min(active, rowIds.length - 1)];
+  const blank = query.trim() === "";
+  const chosenRow = rowIds.indexOf(value);
+  const activeIndex = active ?? (blank && chosenRow >= 0 ? chosenRow : 0);
+  const activeId = rowIds[Math.min(activeIndex, rowIds.length - 1)];
   const optionDomId = (id: string) => `${uid}-opt-${id}`;
 
   const chosen = options.find((t) => t.id === value);
@@ -46,25 +51,26 @@ export function TripPicker({
   function pick(id: string) {
     onChange(id);
     setQuery("");
-    setActive(0);
+    setActive(null);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => (i + 1) % rowIds.length);
+      setActive((activeIndex + 1) % rowIds.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((i) => (i - 1 + rowIds.length) % rowIds.length);
+      setActive((activeIndex - 1 + rowIds.length) % rowIds.length);
     } else if (e.key === "Enter") {
-      // Never submit a surrounding form with Enter.
+      // Never submit a surrounding form with Enter. With an empty search it
+      // does nothing, so the Go key never replaces the current choice.
       e.preventDefault();
-      pick(activeId);
+      if (!blank) pick(activeId);
     } else if (e.key === "Escape") {
       if (query) {
         e.preventDefault();
         setQuery("");
-        setActive(0);
+        setActive(null);
       }
     }
   }
@@ -113,7 +119,7 @@ export function TripPicker({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setActive(0);
+            setActive(null);
           }}
           onKeyDown={onKeyDown}
           onFocus={onFocus}
@@ -141,7 +147,7 @@ export function TripPicker({
             </span>
           </Row>
         ))}
-        {matches.length === 0 && (
+        {matches.length === 0 && !blank && (
           <li role="presentation" className="px-3 py-3 text-sm text-muted-foreground">
             No vacation matches &quot;{query.trim()}&quot;. Clear the search or add a new vacation.
           </li>

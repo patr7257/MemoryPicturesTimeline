@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { setTripPeople, updateTrip } from "@/actions/trips";
 import { draftError, sameIds, type VacationDraft, type VacationListItem } from "@/lib/vacations-view";
 import type { PersonRef } from "@/lib/queries";
-import { mergeByName, outsideFamilies } from "@/lib/share-rules";
+import { mergeByName, needsSomeone, outsideFamilies } from "@/lib/share-rules";
 import { Button } from "@/components/ui/button";
 import type { PickerFamily } from "./PeoplePicker";
 import { ResponsiveDialog } from "./ResponsiveDialog";
@@ -134,7 +134,7 @@ function EditBody({
         <Button type="button" variant="outline" onClick={onClose} disabled={busy} className="h-11 md:h-8">
           Cancel
         </Button>
-        <Button type="submit" disabled={busy} className="h-11 md:h-8">
+        <Button type="submit" disabled={busy || needsSomeone(draft.personIds)} className="h-11 md:h-8">
           {busy && <Loader2 className="animate-spin" />}
           Save
         </Button>

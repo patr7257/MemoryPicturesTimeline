@@ -9,7 +9,13 @@ import {
   cleanIdList,
   decideShares,
   decideTags,
+  NEEDS_SOMEONE,
   defaultFamilySelection,
+  initialTagged,
+  needsSomeone,
+  soleTripsNote,
+  tagsByTrip,
+  tripsOnlyTagging,
   outsideFamilies,
   toggleFamily,
   groupShareTargets,
@@ -176,6 +182,10 @@ describe("decideTags", () => {
     expect(decideTags(member, { current: [], next: [id(99)], facts: ALL })).toEqual({ ok: false, error: TAG_OUTSIDE });
     expect(decideTags(member, { current: [], next: ["x"], facts: ALL })).toEqual({ ok: false, error: TAG_OUTSIDE });
   });
+  it("refuses an empty list: a vacation keeps at least one person", () => {
+    expect(decideTags(member, { current: [], next: [], facts: ALL })).toEqual({ ok: false, error: NEEDS_SOMEONE });
+    expect(decideTags(member, { current: [SIS], next: [], facts: ALL })).toEqual({ ok: false, error: NEEDS_SOMEONE });
+  });
   it("a person in no family can tag only themselves", () => {
     expect(decideTags(loner, { current: [], next: [LONER], facts: ALL }).ok).toBe(true);
     expect(decideTags(loner, { current: [], next: [SIS], facts: ALL }).ok).toBe(false);
@@ -257,6 +267,87 @@ describe("defaultFamilySelection", () => {
   });
   it("no families: nothing", () => {
     expect(defaultFamilySelection([], ["a"])).toEqual([]);
+  });
+});
+
+describe("needsSomeone", () => {
+  it("is true for an empty list and false with anyone in it", () => {
+    expect(needsSomeone([])).toBe(true);
+    expect(needsSomeone(["a"])).toBe(false);
+  });
+});
+
+describe("tripsOnlyTagging", () => {
+  it("returns a vacation tagged only with this person", () => {
+    expect(tripsOnlyTagging("p", [{ tripId: "t1", personIds: ["p"] }])).toEqual(["t1"]);
+  });
+  it("skips a vacation tagged with this person and someone else", () => {
+    expect(tripsOnlyTagging("p", [{ tripId: "t1", personIds: ["p", "q"] }])).toEqual([]);
+  });
+  it("skips a vacation that does not tag this person", () => {
+    expect(tripsOnlyTagging("p", [{ tripId: "t1", personIds: ["q"] }])).toEqual([]);
+  });
+  it("counts a person listed twice as one", () => {
+    expect(
+      tripsOnlyTagging("p", [
+        { tripId: "t1", personIds: ["p", "p"] },
+        { tripId: "t2", personIds: ["q", "p"] },
+      ]),
+    ).toEqual(["t1"]);
+  });
+});
+
+describe("tagsByTrip", () => {
+  it("groups tag rows per vacation, in first-seen order", () => {
+    expect(
+      tagsByTrip([
+        { tripId: "t1", personId: "a" },
+        { tripId: "t2", personId: "b" },
+        { tripId: "t1", personId: "c" },
+      ]),
+    ).toEqual([
+      { tripId: "t1", personIds: ["a", "c"] },
+      { tripId: "t2", personIds: ["b"] },
+    ]);
+  });
+});
+
+describe("soleTripsNote", () => {
+  it("says nothing when no vacation goes", () => {
+    expect(soleTripsNote("Patrick", 0, 0)).toBe("");
+  });
+  it("counts vacations and photos", () => {
+    expect(soleTripsNote("Patrick", 4, 40)).toBe(
+      "This also deletes 4 vacations where Patrick is the only person, with their 40 photos.",
+    );
+  });
+  it("uses the singular for one", () => {
+    expect(soleTripsNote("Anna", 1, 1)).toBe(
+      "This also deletes 1 vacation where Anna is the only person, with its 1 photo.",
+    );
+  });
+  it("leaves the photos out when there are none", () => {
+    expect(soleTripsNote("Anna", 2, 0)).toBe("This also deletes 2 vacations where Anna is the only person.");
+  });
+});
+
+describe("initialTagged", () => {
+  const fam = (fid: string, name: string, memberIds: string[]) => ({ id: fid, name, memberIds });
+  it("one family: the whole family", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a", "b", "z"])], ["a", "b", "me"], "me")).toEqual(["a", "b"]);
+  });
+  it("several families: only the viewer's own person", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a"]), fam(FAM_B, "B", ["b"])], ["a", "b", "me"], "me")).toEqual(["me"]);
+  });
+  it("several families and no own person: nobody", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a"]), fam(FAM_B, "B", ["b"])], ["a", "b"], null)).toEqual([]);
+  });
+  it("no families: the viewer's own person", () => {
+    expect(initialTagged([], ["a", "me"], "me")).toEqual(["me"]);
+  });
+  it("the own person only when it is among the allowed ids", () => {
+    expect(initialTagged([fam(FAM_A, "A", ["a"]), fam(FAM_B, "B", ["b"])], ["a", "b"], "me")).toEqual([]);
+    expect(initialTagged([], ["a"], "me")).toEqual([]);
   });
 });
 

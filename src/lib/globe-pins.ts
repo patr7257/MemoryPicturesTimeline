@@ -69,6 +69,21 @@ export function arcWidthFactor(cameraDistance: number): number {
   return clamp(Math.pow(Math.max(ratio, 0), 1.25), 0.08, 1);
 }
 
+// --- which pins face the camera --------------------------------------------
+
+// A point p on the unit globe is in front of the horizon seen from a camera at
+// `camera` (globe centre at the origin) exactly when p . camera > 1. The
+// margin above 1 hides a pin a little before the limb so it never peeks round.
+export const HORIZON_MARGIN = 1.03;
+
+type Vec = { x: number; y: number; z: number };
+
+// True when a pin standing at unit position p shows from `camera`. Pins draw
+// without the depth test, so this is the only thing that hides the far side.
+export function onNearSide(p: Vec, camera: Vec, margin: number = HORIZON_MARGIN): boolean {
+  return p.x * camera.x + p.y * camera.y + p.z * camera.z > margin;
+}
+
 // --- fanning out vacations at one spot -------------------------------------
 
 export type PinSite = { id: string; lat: number; lng: number };

@@ -21,6 +21,7 @@ import {
   arcWidthFactor,
   fanOffsets,
   glowOpacity,
+  onNearSide,
   pinPixelTarget,
   pinWorldHeight,
   pxToWorld,
@@ -110,11 +111,14 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
   const home = vec3(HOME.lat, HOME.lng);
   // Pins and glows are camera-facing sprites sharing one texture and one
   // material each: a pin's tip is the sprite's anchor, so it stands on its spot.
+  // A pin stands on the sphere, so below the globe's centre on screen its body
+  // lies inside it: the sprites skip the depth test and draw after the globe and
+  // the arcs (renderOrder), and the update loop hides those on the far side.
   const pinTex = pinTexture(COL.primary, COL.ink, COL.card);
   const homeTex = pinTexture(COL.ink, COL.card, COL.primary);
   const glowTex = glowTexture("rgba(255,205,120,.95)", "rgba(255,190,100,0)");
   const spriteMat = (map: THREE.Texture, opacity = 1) =>
-    new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, opacity });
+    new THREE.SpriteMaterial({ map, transparent: true, depthTest: false, depthWrite: false, opacity });
   const pinMat = spriteMat(pinTex);
   const homeMat = spriteMat(homeTex);
   const glowMat = spriteMat(glowTex, 0.4);
@@ -323,8 +327,12 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
       const arcK = arcWidthFactor(view.dist);
       glowMat.opacity = glowOpacity(view.dist, maxDist());
       homePin.scale.set(pinH * PIN_ASPECT * 1.1, pinH * 1.1, 1);
+      homePin.visible = onNearSide(home, camera.position);
       const n = items.length;
       items.forEach((it, i) => {
+        const near = onNearSide(it.p, camera.position);
+        it.pin.visible = near;
+        it.glow.visible = near;
         const stagger = n > 1 ? (i / (n - 1)) * 1.5 : 0;
         const pr = RM ? 1 : easeOut(clamp((intro * INTRO_SECONDS - 0.3 - stagger) / 0.9, 0, 1));
         if (it.mat) {
@@ -368,7 +376,8 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
     const lift = pinPixelTarget(h) * 0.45;
     const hits: { it: Item; d: number }[] = [];
     for (const it of items) {
-      if (it.p.dot(camera.position) < 1.03) continue;
+      // Same horizon rule as drawing: a pin hidden behind the globe cannot be hit.
+      if (!it.pin.visible || !onNearSide(it.p, camera.position)) continue;
       v.copy(it.p).project(camera);
       const d = Math.hypot((v.x * 0.5 + 0.5) * w - x, (-v.y * 0.5 + 0.5) * h - lift - y);
       if (d < radius) hits.push({ it, d });

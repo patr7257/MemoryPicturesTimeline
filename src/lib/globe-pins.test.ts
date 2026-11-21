@@ -10,6 +10,8 @@ import {
   pinPixelTarget,
   pinWorldHeight,
   pxToWorld,
+  HORIZON_MARGIN,
+  onNearSide,
 } from "./globe-pins";
 import { ZOOM_MIN_DIST } from "./globe-math";
 
@@ -150,5 +152,37 @@ describe("fanOffsets", () => {
 
   it("handles an empty list", () => {
     expect(fanOffsets([]).size).toBe(0);
+  });
+});
+
+describe("onNearSide", () => {
+  const camera = { x: 0, y: 0, z: 3 };
+
+  it("shows a point facing the camera", () => {
+    expect(onNearSide({ x: 0, y: 0, z: 1 }, camera)).toBe(true);
+  });
+
+  it("hides the antipode", () => {
+    expect(onNearSide({ x: 0, y: 0, z: -1 }, camera)).toBe(false);
+  });
+
+  it("hides a point exactly on the limb", () => {
+    // For a unit sphere the limb seen from distance d is where p.z = 1 / d.
+    const z = 1 / 3;
+    const r = Math.sqrt(1 - z * z);
+    expect(onNearSide({ x: r, y: 0, z }, camera)).toBe(false);
+    expect(onNearSide({ x: 0, y: -r, z }, camera)).toBe(false);
+  });
+
+  it("uses the default margin as the threshold on p dot camera", () => {
+    const inside = (HORIZON_MARGIN + 0.001) / 3;
+    const outside = (HORIZON_MARGIN - 0.001) / 3;
+    expect(onNearSide({ x: 0, y: Math.sqrt(1 - inside * inside), z: inside }, camera)).toBe(true);
+    expect(onNearSide({ x: 0, y: Math.sqrt(1 - outside * outside), z: outside }, camera)).toBe(false);
+  });
+
+  it("takes a custom margin", () => {
+    expect(onNearSide({ x: 0, y: 0, z: 1 }, camera, 2.9)).toBe(true);
+    expect(onNearSide({ x: 0, y: 0, z: 1 }, camera, 3.1)).toBe(false);
   });
 });

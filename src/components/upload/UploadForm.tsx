@@ -19,7 +19,7 @@ import {
   type ClientReport,
   type UploadStage,
 } from "@/lib/upload-client";
-import { defaultFamilySelection } from "@/lib/share-rules";
+import { initialTagged, needsSomeone } from "@/lib/share-rules";
 import { draftError, emptyDraft } from "@/lib/vacations-view";
 import { TripPicker } from "@/components/upload/TripPicker";
 import type { PickerFamily } from "@/components/vacations/PeoplePicker";
@@ -72,7 +72,7 @@ export function UploadForm({
   const byFamily = families !== undefined && families.length > 0;
   const [draft, setDraft] = useState(() =>
     byFamily
-      ? { ...emptyDraft(null), personIds: defaultFamilySelection(families ?? [], people.map((p) => p.id)) }
+      ? { ...emptyDraft(null), personIds: initialTagged(families ?? [], people.map((p) => p.id), viewerPersonId) }
       : emptyDraft(viewerPersonId),
   );
   // The vacation created during this upload, so the select can show it.
@@ -407,7 +407,8 @@ export function UploadForm({
       <div className="flex flex-col gap-2">
         <Button
           onClick={() => void startUpload()}
-          disabled={!ready || busy || queuedCount === 0}
+          // A new vacation needs at least one person (the picker says so).
+          disabled={!ready || busy || queuedCount === 0 || (tripId === "new" && needsSomeone(draft.personIds))}
           size="lg"
           className="h-11 md:h-9"
         >
