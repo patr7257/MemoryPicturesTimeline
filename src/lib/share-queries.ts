@@ -7,10 +7,21 @@ import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { people, tripPeople, tripShares } from "@/db/schema";
 import { canShareTrip, isUuid, type Viewer } from "@/lib/access-policy";
-import { getPersonFacts, getVisiblePeople, type PersonChoice } from "@/lib/family-queries";
-import { mergeByName, shareTargetsFrom } from "@/lib/share-rules";
+import {
+  getPersonFacts,
+  getViewerFamilies,
+  getVisiblePeople,
+  type PersonChoice,
+} from "@/lib/family-queries";
+import { groupShareTargets, mergeByName, shareTargetsFrom, type ShareGroup } from "@/lib/share-rules";
 
-export type TripSharing = { canShare: boolean; targets: PersonChoice[]; sharedIds: string[] };
+// `groups` regroups exactly `targets` (never more) by the viewer's families.
+export type TripSharing = {
+  canShare: boolean;
+  targets: PersonChoice[];
+  groups: ShareGroup<PersonChoice>[];
+  sharedIds: string[];
+};
 
 // Who the viewer may share this vacation with, and which of them it is shared
 // with now. Shares outside those targets (made by another family) are never
@@ -25,19 +36,20 @@ export async function getTripSharing(
     .from(tripPeople)
     .where(eq(tripPeople.tripId, trip.id));
   const canShare = canShareTrip(viewer, { createdBy: trip.createdBy, personIds: tagged.map((t) => t.personId) });
-  if (!canShare) return { canShare: false, targets: [], sharedIds: [] };
+  if (!canShare) return { canShare: false, targets: [], groups: [], sharedIds: [] };
 
   const visible = await getVisiblePeople(viewer);
   const facts = await getPersonFacts(visible.map((p) => p.id));
   const targets = shareTargetsFrom(viewer, visible, facts);
-  if (targets.length === 0) return { canShare: true, targets: [], sharedIds: [] };
+  if (targets.length === 0) return { canShare: true, targets: [], groups: [], sharedIds: [] };
+  const groups = groupShareTargets(targets, await getViewerFamilies(viewer));
 
   const shares = await db
     .select({ personId: tripShares.personId })
     .from(tripShares)
     .where(eq(tripShares.tripId, trip.id));
   const targetIds = new Set(targets.map((t) => t.id));
-  return { canShare: true, targets, sharedIds: shares.map((s) => s.personId).filter((id) => targetIds.has(id)) };
+  return { canShare: true, targets, groups, sharedIds: shares.map((s) => s.personId).filter((id) => targetIds.has(id)) };
 }
 
 // The people the viewer may tag: those they see plus those already tagged on

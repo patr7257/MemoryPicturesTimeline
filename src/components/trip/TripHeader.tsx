@@ -60,7 +60,7 @@ export function TripHeader({
       )}
       {sharing?.canShare && sharing.targets.length > 0 && (
         <div className="mt-4">
-          <ShareWithPeople tripId={trip.id} targets={sharing.targets} sharedIds={sharing.sharedIds} />
+          <ShareWithPeople tripId={trip.id} groups={sharing.groups} sharedIds={sharing.sharedIds} />
         </div>
       )}
     </header>

@@ -9,6 +9,8 @@ import {
   cleanIdList,
   decideShares,
   decideTags,
+  groupShareTargets,
+  groupState,
   mergeByName,
   shareTargetsFrom,
 } from "./share-rules";
@@ -177,6 +179,53 @@ describe("decideTags", () => {
   });
   it("a super admin tags anyone", () => {
     expect(decideTags(admin, { current: [], next: [SIS, COUSIN, LONER], facts: ALL }).ok).toBe(true);
+  });
+});
+
+describe("groupShareTargets", () => {
+  const p = (pid: string, name: string) => ({ id: pid, name, color: null });
+  const anna = p(id(10), "Anna");
+  const bo = p(id(11), "Bo");
+  const cy = p(id(12), "Cy");
+  const solo = p(id(13), "Solo");
+  const fam = (fid: string, name: string, memberIds: string[]) => ({ id: fid, name, memberIds });
+
+  it("puts a person in two families under both, sorted by name", () => {
+    const groups = groupShareTargets(
+      [cy, bo, anna],
+      [fam(FAM_B, "Zed", [cy.id, anna.id]), fam(FAM_A, "Alpha", [bo.id, anna.id])],
+    );
+    expect(groups.map((g) => [g.name, g.people.map((x) => x.name)])).toEqual([
+      ["Alpha", ["Anna", "Bo"]],
+      ["Zed", ["Anna", "Cy"]],
+    ]);
+    expect(groups.map((g) => g.id)).toEqual([FAM_A, FAM_B]);
+  });
+
+  it("leaves out a family with no allowed target, and never lists a non target", () => {
+    const groups = groupShareTargets([anna], [fam(FAM_A, "Alpha", [anna.id, bo.id]), fam(FAM_B, "Zed", [bo.id])]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].people.map((x) => x.id)).toEqual([anna.id]);
+  });
+
+  it("targets outside every family land last in No family", () => {
+    const groups = groupShareTargets([solo, anna], [fam(FAM_A, "Alpha", [anna.id])]);
+    expect(groups.map((g) => g.id)).toEqual([FAM_A, null]);
+    expect(groups[1]).toMatchObject({ name: "No family", people: [solo] });
+  });
+
+  it("no No family group when every target has a family; empty in, empty out", () => {
+    expect(groupShareTargets([anna], [fam(FAM_A, "Alpha", [anna.id])]).some((g) => g.id === null)).toBe(false);
+    expect(groupShareTargets([], [fam(FAM_A, "Alpha", [anna.id])])).toEqual([]);
+  });
+});
+
+describe("groupState", () => {
+  const ids = ["a", "b"];
+  it("none, some and all ticked", () => {
+    expect(groupState(ids, [])).toBe("none");
+    expect(groupState(ids, ["b", "x"])).toBe("some");
+    expect(groupState(ids, ["a", "b", "x"])).toBe("all");
   });
 });
 

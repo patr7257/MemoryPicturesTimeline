@@ -74,6 +74,43 @@ export function decideTags(
   return { ok: true, next };
 }
 
+export type ShareGroup<T> = { id: string | null; name: string; people: T[] };
+
+// The share dialog's groups: one per family that has at least one allowed
+// target (families sorted by name), then "No family" for targets in none of
+// the given families. Only people in `targets` ever appear, so the allowed set
+// is never widened; a person in two families appears under both.
+export function groupShareTargets<T extends { id: string; name: string }>(
+  targets: readonly T[],
+  families: readonly { id: string; name: string; memberIds: readonly string[] }[],
+): ShareGroup<T>[] {
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+  const allowed = new Map(targets.map((t) => [t.id, t]));
+  const listed = new Set<string>();
+  const groups: ShareGroup<T>[] = [];
+  for (const f of [...families].sort(byName)) {
+    const people: T[] = [];
+    for (const pid of new Set(f.memberIds)) {
+      const t = allowed.get(pid);
+      if (t) {
+        people.push(t);
+        listed.add(pid);
+      }
+    }
+    if (people.length > 0) groups.push({ id: f.id, name: f.name, people: people.sort(byName) });
+  }
+  const rest = targets.filter((t) => !listed.has(t.id)).sort(byName);
+  if (rest.length > 0) groups.push({ id: null, name: "No family", people: rest });
+  return groups;
+}
+
+// Tri-state of a family row from the ticked set.
+export function groupState(personIds: readonly string[], ticked: readonly string[]): "none" | "some" | "all" {
+  const on = personIds.filter((id) => ticked.includes(id)).length;
+  if (on === 0) return "none";
+  return on === personIds.length ? "all" : "some";
+}
+
 // The visible people plus those already tagged (who stay), once each, by name.
 export function mergeByName<T extends { id: string; name: string }>(a: readonly T[], b: readonly T[]): T[] {
   const out = new Map<string, T>();

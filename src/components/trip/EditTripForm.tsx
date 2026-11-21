@@ -162,7 +162,7 @@ export function EditTripForm({
       {sharing?.canShare && sharing.targets.length > 0 && (
         <div className="flex flex-col items-start gap-2">
           <Label>Shared with</Label>
-          <ShareWithPeople tripId={trip.id} targets={sharing.targets} sharedIds={sharing.sharedIds} />
+          <ShareWithPeople tripId={trip.id} groups={sharing.groups} sharedIds={sharing.sharedIds} />
         </div>
       )}
 
