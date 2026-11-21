@@ -8,14 +8,12 @@ import {
   estimateLabel,
   formatPlace,
   formatTakenAt,
-  parsePersonParam,
   parseSettings,
   selectionTitle,
   shuffle,
   sortByTime,
   stepIndex,
   summaryLabel,
-  togglePerson,
   tripCountOf,
 } from "./slideshow";
 
@@ -172,27 +170,7 @@ describe("driftFor", () => {
   });
 });
 
-describe("parsePersonParam", () => {
-  const A = "11111111-1111-4111-8111-111111111111";
-  const B = "22222222-2222-4222-8222-222222222222";
-  it("accepts one id, repeated ids and nothing", () => {
-    expect(parsePersonParam(undefined)).toEqual([]);
-    expect(parsePersonParam(A)).toEqual([A]);
-    expect(parsePersonParam([A, B])).toEqual([A, B]);
-  });
-  it("ignores malformed ids, dedupes and lower-cases", () => {
-    expect(parsePersonParam(["nope", A, "", A.toUpperCase(), "1; drop table"])).toEqual([A]);
-    expect(parsePersonParam("not-a-uuid")).toEqual([]);
-    expect(parsePersonParam([])).toEqual([]);
-  });
-});
-
-describe("togglePerson and selectionTitle", () => {
-  it("adds and removes an id", () => {
-    expect(togglePerson([], "a")).toEqual(["a"]);
-    expect(togglePerson(["a"], "b")).toEqual(["a", "b"]);
-    expect(togglePerson(["a", "b"], "a")).toEqual(["b"]);
-  });
+describe("selectionTitle", () => {
   it("words the title for any number of people", () => {
     expect(selectionTitle([])).toBe("everyone");
     expect(selectionTitle(["Anna"])).toBe("Anna");

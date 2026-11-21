@@ -1,85 +1,45 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { PeopleFilter } from "@/components/filter/PeopleFilter";
 import { SlideshowLauncher } from "@/components/slideshow/SlideshowLauncher";
 import { getViewer } from "@/lib/access";
-import { getAllPeople } from "@/lib/queries";
-import { parsePersonParam, selectionTitle, togglePerson } from "@/lib/slideshow";
+import { getViewerFamilies, getVisiblePeople } from "@/lib/family-queries";
+import { type FilterParams, parseFilterParams, resolveFilter } from "@/lib/person-filter";
+import { selectionTitle } from "@/lib/slideshow";
 import { getSlideshowPhotos } from "@/lib/slideshow-queries";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Slideshow" };
 export const dynamic = "force-dynamic";
 
-const chip =
-  "inline-flex min-h-11 items-center rounded-full border px-4 text-sm transition-colors";
-
-// /slideshow?person=<id>&person=<id>: photos of the vacations ANY of these people
-// is on. One param still works (links from the People page); none means all.
+// /slideshow?family=<id>&person=<id>: photos of the vacations ANY effective
+// person is on. No filter on means every vacation the viewer may see. Ids the
+// viewer cannot see are dropped by resolveFilter, as if absent.
 export default async function SlideshowPage({
   searchParams,
 }: {
-  searchParams: Promise<{ person?: string | string[] }>;
+  searchParams: Promise<FilterParams>;
 }) {
   const viewer = await getViewer();
-  const { person } = await searchParams;
-
-  const everyone = await getAllPeople();
-  // Unknown or malformed ids are ignored: no valid selection behaves like no filter.
-  const wanted = new Set(parsePersonParam(person));
-  const selected = everyone.filter((p) => wanted.has(p.id));
-  const selectedIds = selected.map((p) => p.id);
+  const { selection } = parseFilterParams(await searchParams);
+  const [families, people] = await Promise.all([getViewerFamilies(viewer), getVisiblePeople(viewer)]);
+  const resolved = resolveFilter({ selection, families, people });
+  const effective = resolved.effective;
 
   const photos =
-    (await getSlideshowPhotos(viewer, {
-      personIds: selectedIds.length > 0 ? selectedIds : undefined,
-    })) ?? [];
+    (await getSlideshowPhotos(viewer, { personIds: effective ?? undefined })) ?? [];
+  const names = effective
+    ? people.filter((p) => effective.includes(p.id)).map((p) => p.name)
+    : [];
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
-      <h1 className="font-hand text-4xl">
-        Slideshow: {selectionTitle(selected.map((p) => p.name))}
-      </h1>
+      <h1 className="font-hand text-4xl">Slideshow: {selectionTitle(names)}</h1>
 
-      <nav aria-label="Whose vacations (pick one or more)" className="flex flex-wrap gap-2">
-        <Link
-          href="/slideshow"
-          aria-current={selected.length > 0 ? undefined : "page"}
-          className={cn(
-            chip,
-            selected.length > 0
-              ? "border-border bg-background hover:bg-muted"
-              : "border-primary bg-primary text-primary-foreground",
-          )}
-        >
-          All my vacations
-        </Link>
-        {everyone.map((p) => {
-          const active = wanted.has(p.id);
-          const next = togglePerson(selectedIds, p.id);
-          return (
-            <Link
-              key={p.id}
-              href={
-                next.length > 0
-                  ? { pathname: "/slideshow", query: { person: next } }
-                  : "/slideshow"
-              }
-              aria-current={active ? "true" : undefined}
-              className={cn(
-                chip,
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-muted",
-              )}
-            >
-              {p.name}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="[&>nav]:max-w-none [&>nav]:px-0 [&>nav]:py-0">
+        <PeopleFilter pathname="/slideshow" resolved={resolved} families={families} />
+      </div>
 
-      <SlideshowLauncher key={selectedIds.join(",") || "all"} photos={photos} />
+      <SlideshowLauncher key={effective?.join(",") ?? "all"} photos={photos} />
     </main>
   );
 }

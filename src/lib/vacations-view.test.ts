@@ -18,7 +18,12 @@ import {
   serializeViewState,
   sortVacations,
   type VacationItem,
+  type ViewState,
 } from "./vacations-view";
+
+const A = "11111111-1111-4111-8111-111111111111";
+const B = "22222222-2222-4222-8222-222222222222";
+const F = "33333333-3333-4333-8333-333333333333";
 
 const trip = (over: Partial<VacationItem> & { id: string }): VacationItem => ({
   title: "Trip",
@@ -70,14 +75,21 @@ describe("parseViewState", () => {
 
   it("reads every known param", () => {
     const state = parseViewState(
-      new URLSearchParams("q=  garda &person=p-anna&year=2019&sort=photos&view=cards"),
+      new URLSearchParams(`q=  garda &person=${A}&person=${B}&family=${F}&year=2019&sort=photos&view=cards`),
     );
-    expect(state).toEqual({ q: "garda", person: "p-anna", year: 2019, sort: "photos", view: "cards" });
+    expect(state).toEqual({
+      q: "garda",
+      family: [F],
+      person: [A, B],
+      year: 2019,
+      sort: "photos",
+      view: "cards",
+    });
   });
 
   it("falls back to defaults for unknown or malformed values", () => {
     const state = parseViewState(
-      new URLSearchParams("year=20x9&sort=sideways&view=grid&person=" + "x".repeat(200)),
+      new URLSearchParams("year=20x9&sort=sideways&view=grid&person=" + "x".repeat(200) + "&family=nope"),
     );
     expect(state).toEqual(DEFAULT_VIEW_STATE);
     expect(parseViewState(new URLSearchParams("year=-2019")).year).toBeNull();
@@ -95,8 +107,9 @@ describe("serializeViewState", () => {
   });
 
   it("round-trips a full state", () => {
-    const state = { q: "garda lake", person: "p-anna", year: 2019, sort: "title", view: "cards" } as const;
+    const state: ViewState = { q: "garda lake", family: [F], person: [A, B], year: 2019, sort: "title", view: "cards" };
     expect(parseViewState(new URLSearchParams(serializeViewState(state)))).toEqual(state);
+    expect(new URLSearchParams(serializeViewState(state)).getAll("person")).toEqual([A, B]);
   });
 
   it("encodes special characters safely", () => {
@@ -113,7 +126,8 @@ describe("hasActiveFilters", () => {
   it("ignores sort and view, counts search, person and year", () => {
     expect(hasActiveFilters({ ...DEFAULT_VIEW_STATE, sort: "title", view: "cards" })).toBe(false);
     expect(hasActiveFilters({ ...DEFAULT_VIEW_STATE, q: "x" })).toBe(true);
-    expect(hasActiveFilters({ ...DEFAULT_VIEW_STATE, person: "p" })).toBe(true);
+    expect(hasActiveFilters({ ...DEFAULT_VIEW_STATE, person: [A] })).toBe(true);
+    expect(hasActiveFilters({ ...DEFAULT_VIEW_STATE, family: [F] })).toBe(true);
     expect(hasActiveFilters({ ...DEFAULT_VIEW_STATE, year: 2019 })).toBe(true);
   });
 });
@@ -138,17 +152,23 @@ describe("matchesQuery", () => {
 });
 
 describe("filterVacations", () => {
-  it("filters by person", () => {
-    expect(filterVacations(all, { q: "", person: "p-anna", year: null }).map((t) => t.id)).toEqual(["t1", "t2"]);
+  it("filters by the effective people, any of them", () => {
+    expect(filterVacations(all, DEFAULT_VIEW_STATE, ["p-anna"]).map((t) => t.id)).toEqual(["t1", "t2"]);
+    expect(filterVacations(all, DEFAULT_VIEW_STATE, null)).toHaveLength(all.length);
+    expect(
+      filterVacations(all, DEFAULT_VIEW_STATE, ["p-anna"]).every((v) =>
+        v.people.some((p) => p.id === "p-anna"),
+      ),
+    ).toBe(true);
   });
 
   it("filters by start year", () => {
-    expect(filterVacations(all, { q: "", person: null, year: 2019 }).map((t) => t.id)).toEqual(["t1", "t3"]);
+    expect(filterVacations(all, { ...DEFAULT_VIEW_STATE, year: 2019 }, null).map((t) => t.id)).toEqual(["t1", "t3"]);
   });
 
   it("combines filters", () => {
-    expect(filterVacations(all, { q: "year", person: "p-ben", year: 2019 }).map((t) => t.id)).toEqual(["t3"]);
-    expect(filterVacations(all, { q: "", person: "p-nobody", year: null })).toEqual([]);
+    expect(filterVacations(all, { ...DEFAULT_VIEW_STATE, q: "year", year: 2019 }, ["p-ben"]).map((t) => t.id)).toEqual(["t3"]);
+    expect(filterVacations(all, DEFAULT_VIEW_STATE, ["p-nobody"])).toEqual([]);
   });
 });
 
@@ -192,8 +212,8 @@ describe("sortVacations", () => {
 
 describe("applyViewState", () => {
   it("filters, then sorts", () => {
-    const state = { ...DEFAULT_VIEW_STATE, person: "p-ben", sort: "oldest" } as const;
-    expect(applyViewState(all, state).map((t) => t.id)).toEqual(["t1", "t3"]);
+    const state = { ...DEFAULT_VIEW_STATE, sort: "oldest" } as const;
+    expect(applyViewState(all, state, ["p-ben"]).map((t) => t.id)).toEqual(["t1", "t3"]);
   });
 });
 

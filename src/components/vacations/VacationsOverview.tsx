@@ -1,10 +1,14 @@
 "use client";
 
-// The /vacations overview: summary strip, toolbar (search, person, year, sort,
-// view) and the list as cards or a table. Filter, sort and view live in the
-// URL query string and are written with the History API, so typing never
-// causes a server round trip and the back button steps through the changes.
+// The /vacations overview: summary strip, family and person chips, toolbar
+// (search, year, sort, view) and the list as cards or a table. Search, year,
+// sort and view live in the URL query string and are written with the History
+// API, so typing never causes a server round trip and the back button steps
+// through the changes. The family and person chips are plain links: the
+// server resolves them against what the viewer may see and hands down
+// filter.resolved.
 import { useMemo, useState, useTransition } from "react";
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "motion/react";
@@ -27,7 +31,9 @@ import {
   type ViewState,
   type VacationListItem,
 } from "@/lib/vacations-view";
+import type { FilterFamily, ResolvedFilter } from "@/lib/person-filter";
 import type { PersonRef } from "@/lib/queries";
+import { PeopleFilter } from "@/components/filter/PeopleFilter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,10 +59,12 @@ export function VacationsOverview({
   vacations,
   people,
   viewerPersonId,
+  filter,
 }: {
   vacations: VacationListItem[];
   people: PersonRef[];
   viewerPersonId: string | null;
+  filter: { resolved: ResolvedFilter; families: FilterFamily[] };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -85,19 +93,26 @@ export function VacationsOverview({
   }
 
   const effective: ViewState = { ...state, q: qInput };
-  const shown = useMemo(() => applyViewState(vacations, effective), [vacations, qInput, state]); // eslint-disable-line react-hooks/exhaustive-deps
+  const effectivePeople = filter.resolved.effective;
+  const shown = useMemo(
+    () => applyViewState(vacations, effective, effectivePeople),
+    [vacations, qInput, state, effectivePeople], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const stats = useMemo(() => computeStats(vacations), [vacations]);
   const years = useMemo(() => availableYears(vacations), [vacations]);
-  const taggedPeople = useMemo(() => {
-    const seen = new Map<string, PersonRef>();
-    for (const v of vacations) for (const p of v.people) seen.set(p.id, p);
-    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, "en"));
-  }, [vacations]);
-  const filtered = hasActiveFilters(effective);
+  // Only the people filter the server accepted counts; ids it dropped do not.
+  const filtered =
+    hasActiveFilters({ ...effective, family: [], person: [] }) || filter.resolved.effective !== null;
+  // The chips keep the page's own params when they toggle.
+  const keep = Object.fromEntries(
+    new URLSearchParams(serializeViewState({ ...effective, family: [], person: [] })),
+  );
 
   function clearFilters() {
     setQInput("");
-    update({ q: "", person: null, year: null });
+    // The people filter is resolved on the server, so this is a navigation.
+    const qs = serializeViewState({ ...state, q: "", year: null, family: [], person: [] });
+    router.push((qs ? `${pathname}?${qs}` : pathname) as Route);
   }
 
   function confirmDelete() {
@@ -144,6 +159,15 @@ export function VacationsOverview({
               <Stat label="Places" value={String(stats.places)} />
             </dl>
 
+            <div className="[&>nav]:max-w-none [&>nav]:px-0 [&>nav]:py-0">
+              <PeopleFilter
+                pathname="/vacations"
+                resolved={filter.resolved}
+                families={filter.families}
+                keep={keep}
+              />
+            </div>
+
             <div role="search" className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
               <div className="relative md:w-72">
                 <Search
@@ -163,19 +187,6 @@ export function VacationsOverview({
                 />
               </div>
               <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
-                <select
-                  aria-label="Filter by person"
-                  value={state.person ?? ""}
-                  onChange={(e) => update({ person: e.target.value || null })}
-                  className={SELECT}
-                >
-                  <option value="">Everyone</option>
-                  {taggedPeople.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
                 <select
                   aria-label="Filter by year"
                   value={state.year ?? ""}

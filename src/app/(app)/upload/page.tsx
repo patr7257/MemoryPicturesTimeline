@@ -1,10 +1,11 @@
 import { getViewer } from "@/lib/access";
-import { getAllPeople, getVisibleTripOptions } from "@/lib/queries";
+import { getVisiblePeople } from "@/lib/family-queries";
+import { getVisibleTripOptions } from "@/lib/queries";
 import { UploadForm } from "@/components/upload/UploadForm";
 
 export default async function UploadPage() {
   const viewer = await getViewer();
-  const [tripOptions, people] = await Promise.all([getVisibleTripOptions(viewer), getAllPeople()]);
+  const [tripOptions, people] = await Promise.all([getVisibleTripOptions(viewer), getVisiblePeople(viewer)]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
