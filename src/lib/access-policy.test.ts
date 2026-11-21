@@ -18,6 +18,7 @@ import {
   loginAllowed,
   parseEmailList,
   peopleScope,
+  isUuid,
   planShareChange,
   refusedTags,
   resolveRole,
@@ -231,6 +232,33 @@ describe("families, shares and tags", () => {
       remove: ["pAnn"],
     });
   });
+  it("isUuid accepts a uuid and nothing else", () => {
+    expect(isUuid("3f2b8c1e-5a4d-4e6f-9a1b-2c3d4e5f6a7b")).toBe(true);
+    expect(isUuid("3F2B8C1E-5A4D-4E6F-9A1B-2C3D4E5F6A7B")).toBe(true);
+    expect(isUuid("abc")).toBe(false);
+    expect(isUuid("3f2b8c1e-5a4d-4e6f-9a1b-2c3d4e5f6a7b'; --")).toBe(false);
+    expect(isUuid(undefined)).toBe(false);
+  });
+
+  it("a share with someone else does not open the vacation", () => {
+    const trip = { createdBy: "u-x", personIds: ["pCy"], sharedPersonIds: ["pAnn"] };
+    expect(canSeeTrip(bo, trip)).toBe(false);
+  });
+
+  it("planShareChange ignores duplicates and a kept share the viewer could not have made", () => {
+    expect(planShareChange(bo, { current: [], ticked: ["pAnn", "pAnn"], targets })).toEqual({
+      ok: true,
+      add: ["pAnn"],
+      remove: [],
+    });
+    // pCy was shared by the other family; posting it back ticked is not a refusal.
+    expect(planShareChange(bo, { current: ["pCy"], ticked: ["pCy", "pAnn"], targets })).toEqual({
+      ok: true,
+      add: ["pAnn"],
+      remove: [],
+    });
+  });
+
   it("planShareChange refuses the whole save on any target that is not pickable", () => {
     expect(planShareChange(bo, { current: [], ticked: ["pCy"], targets })).toEqual({ ok: false, refused: ["pCy"] });
     expect(planShareChange(bo, { current: [], ticked: ["pAnn", "pZed"], targets })).toEqual({

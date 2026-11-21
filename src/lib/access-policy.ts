@@ -93,6 +93,11 @@ export type TripAccessFacts = {
   sharedPersonIds: readonly string[];
 };
 
+// Ids arrive from URLs and forms. One that is not a uuid can match no row,
+// and handing it to Postgres would throw instead of finding nothing.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isUuid = (id: unknown): id is string => typeof id === "string" && UUID.test(id);
+
 export function canSeeTrip(v: Viewer, trip: TripAccessFacts): boolean {
   if (isSuperAdmin(v)) return true;
   if (trip.createdBy !== null && trip.createdBy === v.userId) return true;
@@ -114,9 +119,11 @@ export function canShareWith(v: Viewer, target: PersonFacts): boolean {
 
 export type ShareChangePlan = { ok: true; add: string[]; remove: string[] } | { ok: false; refused: string[] };
 
-// Pickable = known in targets and canShareWith. Any ticked id that is not
-// pickable refuses the whole save. A current share that is not pickable was
-// made by someone else (another family) and is never removed.
+// Pickable = known in targets and canShareWith. Any newly ticked id that is
+// not pickable refuses the whole save. A current share that is not pickable
+// was made by someone else (another family): it is never removed, and ticking
+// it again changes nothing. The caller checks canShareTrip first; this only
+// decides who may be picked.
 export function planShareChange(
   v: Viewer,
   input: { current: readonly string[]; ticked: readonly string[]; targets: ReadonlyMap<string, PersonFacts> },
@@ -126,7 +133,7 @@ export function planShareChange(
     return t !== undefined && canShareWith(v, t);
   };
   const ticked = Array.from(new Set(input.ticked));
-  const refused = ticked.filter((id) => !pickable(id));
+  const refused = ticked.filter((id) => !pickable(id) && !input.current.includes(id));
   if (refused.length > 0) return { ok: false, refused };
   return {
     ok: true,

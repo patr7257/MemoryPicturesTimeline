@@ -16,6 +16,7 @@ import {
   audienceEmails,
   canSeeTrip,
   isSuperAdmin,
+  isUuid,
   loginAllowed,
   resolveRole,
   visibleTripIdsFrom,
@@ -108,6 +109,7 @@ async function tripPersonFacts(tripId: string): Promise<{ personIds: string[]; s
 // The trip when the viewer may see it, otherwise null. Callers treat null as
 // "not found" so an invisible trip is indistinguishable from a missing one.
 export async function findVisibleTrip(viewer: Viewer, tripId: string): Promise<TripRow | null> {
+  if (!isUuid(tripId)) return null;
   const db = getDb();
   const trip = await db.query.trips.findFirst({ where: eq(trips.id, tripId) });
   if (!trip) return null;
@@ -123,6 +125,7 @@ export async function findVisiblePhoto(
   viewer: Viewer,
   photoId: string,
 ): Promise<{ photo: PhotoRow; trip: TripRow } | null> {
+  if (!isUuid(photoId)) return null;
   const photo = await getDb().query.photos.findFirst({ where: eq(photos.id, photoId) });
   if (!photo) return null;
   const trip = await findVisibleTrip(viewer, photo.tripId);
