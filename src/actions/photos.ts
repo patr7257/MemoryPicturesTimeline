@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { and, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { photos, trips } from "@/db/schema";
 import { findVisiblePhoto, getViewer } from "@/lib/access";
 import { AccessError, canManagePhoto } from "@/lib/access-policy";
+import { syncVisitedForTrip } from "@/lib/auto-visited-sync";
 import { reverseGeocode } from "@/lib/geocode";
 import { validateLatLng } from "@/lib/photo-location";
 import { deleteObjects, r2Configured } from "@/lib/r2";
@@ -79,6 +81,7 @@ export async function updatePhotoLocation(
   // A spot set by hand is exact: it is no longer an inferred one.
   const stored = { ...checked.value, city: geo.city, country: geo.country, locationInferred: false as const };
   await getDb().update(photos).set(stored).where(eq(photos.id, photo.id));
+  after(() => syncVisitedForTrip(photo.tripId));
   revalidatePath("/", "layout");
   return stored;
 }
