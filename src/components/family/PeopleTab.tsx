@@ -1,20 +1,19 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { Check, Palette, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Check, Palette, Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  addPerson,
   assignMissingColors,
   deletePerson,
   renamePerson,
   setPersonColor,
   setPersonFamilies,
 } from "@/actions/family";
+import { AddOrInviteForm } from "@/components/family/AddOrInviteForm";
 import { ColorSwatches } from "@/components/family/ColorSwatches";
 import { FamilyChecks } from "@/components/family/FamilyChecks";
-import { InviteForm } from "@/components/family/InviteForm";
 import { LoginsList } from "@/components/family/LoginsList";
 import { PersonDot } from "@/components/family/PersonDot";
 import {
@@ -30,11 +29,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  NO_FAMILY,
+  defaultFilter,
+  filterForPerson,
+  initialFilter,
+  loginsForFilter,
+  peopleForFilter,
+  resolveFilter,
+} from "@/lib/family-admin";
+import { cn } from "@/lib/utils";
 import type { FamilyWithMembers } from "@/lib/family-queries";
 import type { AdminPerson } from "@/lib/member-queries";
 import type { LoginEntry } from "@/lib/members";
 import { isPaletteKey } from "@/lib/person-colors";
 
+const FILTER_PARAM = "family";
 const btn = "h-11 sm:h-8";
 const iconBtn = "size-11 sm:size-7";
 const inputCls = "h-11 text-base sm:h-8 sm:text-xs";
@@ -220,38 +230,52 @@ export function PeopleTab({
 }) {
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLDivElement>(null);
-  const [newName, setNewName] = useState("");
-  const [newFamilies, setNewFamilies] = useState<string[]>([]);
   const [deleting, setDeleting] = useState<AdminPerson | null>(null);
-  // The key remounts the invite form so a new prefill takes effect.
+  // The key remounts the form so a new prefill takes effect.
   const [form, setForm] = useState({
     key: 0,
     personId: invitePersonId,
     email: "",
     sendEmail: true,
   });
+  // One family at a time, kept in the URL as ?family=<id|none>. The server
+  // cannot see it for the first paint, so it is read right after mount.
+  const [filter, setFilter] = useState(() =>
+    initialFilter({ raw: null, invitePerson: invitePersonId, people, families }),
+  );
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get(FILTER_PARAM);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the query only exists in the browser
+    setFilter(initialFilter({ raw, invitePerson: invitePersonId, people, families }));
+    // Only on mount: later changes come from the chips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A deleted family cannot stay selected.
+  const activeFilter = resolveFilter(filter, families) ?? defaultFilter(families, people);
+  const shown = peopleForFilter(people, activeFilter);
+  const shownIds = new Set(shown.map((p) => p.id));
+  const shownLogins = loginsForFilter(logins, shownIds, activeFilter);
+  const activeName =
+    activeFilter === NO_FAMILY ? "No family" : (families.find((f) => f.id === activeFilter)?.name ?? "");
 
   const familyOptions = families.map((f) => ({ id: f.id, name: f.name }));
   const personOptions = people.map((p) => ({ id: p.id, name: p.name }));
   const missingColors = people.filter((p) => !isPaletteKey(p.color)).length;
 
-  function startInvite(personId: string | null, email: string, sendEmail: boolean) {
-    setForm((f) => ({ key: f.key + 1, personId, email, sendEmail }));
-    formRef.current?.scrollIntoView({ block: "start" });
+  function chooseFilter(next: string) {
+    setFilter(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set(FILTER_PARAM, next);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
-  function add(e: React.FormEvent) {
-    e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    startTransition(async () => {
-      const res = await addPerson({ name, familyIds: newFamilies });
-      if (res.ok) {
-        toast.success(`${name} added`);
-        setNewName("");
-        setNewFamilies([]);
-      } else toast.error(res.error);
-    });
+  function startInvite(personId: string | null, email: string, sendEmail: boolean) {
+    const person = personId ? people.find((p) => p.id === personId) : undefined;
+    if (person) setFilter(filterForPerson(person, activeFilter));
+    setForm((f) => ({ key: f.key + 1, personId, email, sendEmail }));
+    formRef.current?.scrollIntoView({ block: "start" });
   }
 
   function giveColors() {
@@ -275,33 +299,36 @@ export function PeopleTab({
 
   return (
     <div className="flex flex-col gap-8 text-sm">
-      <form onSubmit={add} className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-        <h2 className="font-hand text-2xl">Add a person</h2>
-        <Input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Name"
-          aria-label="Name of the person to add"
-          className={inputCls}
-        />
-        <FamilyChecks
-          legend="Families of the new person"
-          options={familyOptions}
-          selected={newFamilies}
-          disabled={pending}
-          onChange={setNewFamilies}
-        />
-        <Button type="submit" className={`${btn} sm:self-start`} disabled={pending || !newName.trim()}>
-          <Plus data-icon="inline-start" />
-          Add person
-        </Button>
-      </form>
+      <div role="group" aria-label="Show one family" className="flex flex-wrap gap-2">
+        {[...families.map((f) => ({ id: f.id, name: f.name })), { id: NO_FAMILY, name: "No family" }].map(
+          (c) => {
+            const on = c.id === activeFilter;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => chooseFilter(c.id)}
+                className={cn(
+                  "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm transition-colors sm:min-h-8 sm:px-3",
+                  on
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {c.name}
+              </button>
+            );
+          },
+        )}
+      </div>
 
       <div ref={formRef} className="scroll-mt-24">
-        <InviteForm
+        <AddOrInviteForm
           key={form.key}
-          people={personOptions}
           families={familyOptions}
+          people={people}
+          filter={activeFilter}
           initialPersonId={form.personId}
           prefillEmail={form.email}
           defaultSendEmail={form.sendEmail}
@@ -312,7 +339,7 @@ export function PeopleTab({
       <section aria-labelledby="people-heading" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h2 id="people-heading" className="font-hand flex-1 text-2xl">
-            People
+            People{activeName ? `: ${activeName}` : ""}
           </h2>
           {missingColors > 0 && (
             <Button variant="outline" className={btn} disabled={pending} onClick={giveColors}>
@@ -321,13 +348,13 @@ export function PeopleTab({
             </Button>
           )}
         </div>
-        {people.length === 0 ? (
+        {shown.length === 0 ? (
           <p className="rounded-lg border border-dashed p-4 text-muted-foreground">
-            Nobody yet. Add the first person above.
+            Nobody in {activeName || "this view"} yet. Add the first person above.
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {people.map((p) => (
+            {shown.map((p) => (
               <PersonCard
                 key={`${p.id}:${p.name}:${p.color}:${p.familyIds.join(",")}`}
                 person={p}
@@ -349,7 +376,7 @@ export function PeopleTab({
       </section>
 
       <LoginsList
-        logins={logins}
+        logins={shownLogins}
         people={personOptions}
         viewerEmail={viewerEmail}
         onLinkConfigLogin={(email) => startInvite(null, email, false)}

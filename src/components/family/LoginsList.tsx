@@ -96,9 +96,7 @@ export function LoginsList({
         </h2>
         {members.length === 0 && (
           <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            No logins yet. Start with the form above: choose who they are (or create them), then
-            enter their email. They can then request a sign-in link on the login page
-            and add a passkey.
+            No logins here. Use the form above: add someone with their email and they can request a sign-in link on the login page and add a passkey.
           </p>
         )}
         <ul className="flex flex-col gap-2">
