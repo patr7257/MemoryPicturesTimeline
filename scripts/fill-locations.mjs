@@ -3,7 +3,8 @@
 // vacation (rule: src/lib/infer-location.mjs, the same one uploads use), and
 // flags them location_inferred. Prints every match first and writes only
 // after a yes. FILL_LOCATIONS_UNDO=1 clears every inferred location instead.
-// Run from the repo root: node scripts/fill-locations.mjs
+// Run from the repo root: pnpm fill-locations   (node --import tsx scripts/fill-locations.mjs)
+// After writing, it also adds the countries those photos reveal (scripts/backfill-visited.mjs).
 //   FILL_LOCATIONS_YES=1   write without asking (no terminal, or CI)
 //   FILL_LOCATIONS_UNDO=1  remove inferred locations instead of adding them
 // Needs DATABASE_URL in .env and the location_inferred column (pnpm db:migrate).
@@ -129,6 +130,21 @@ async function main() {
       client.release();
     }
     console.log(`Wrote ${written} locations (flagged as inferred). Undo: FILL_LOCATIONS_UNDO=1.`);
+
+    // New locations can reveal new countries. The locations are already written,
+    // so a failure here (for example no tsx) only prints a hint and keeps exit 0.
+    try {
+      const { syncTrips, formatPlan } = await import("./backfill-visited.mjs");
+      const { COUNTRIES } = await import("../src/lib/country-catalog.ts");
+      const tripIds = [...new Set(plan.map((f) => byId.get(f.id)?.tripId).filter(Boolean))];
+      const { rows: added } = await syncTrips(pool, tripIds, { apply: true });
+      const names = new Map((await pool.query("SELECT id, name FROM people")).rows.map((p) => [p.id, p.name]));
+      const countryNames = new Map(COUNTRIES.map((c) => [c.key, c.name]));
+      console.log(`Added ${added.length} visited marks.`);
+      for (const line of formatPlan(added, names, (k) => countryNames.get(k))) console.log(`  ${line}`);
+    } catch {
+      console.log("Countries were not updated: run pnpm backfill:visited.");
+    }
   } finally {
     await pool.end();
   }

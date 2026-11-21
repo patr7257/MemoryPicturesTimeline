@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
@@ -7,6 +8,7 @@ import { findVisibleTrip, getViewerOrNull } from "@/lib/access";
 import { processOriginal } from "@/lib/images";
 import { thumbKey } from "@/lib/keys";
 import { getObjectBuffer, putObject, r2Configured } from "@/lib/r2";
+import { syncVisitedForTrip } from "@/lib/auto-visited-sync";
 import { fillTripLocations } from "@/lib/fill-locations";
 import { reverseGeocode } from "@/lib/geocode";
 
@@ -125,6 +127,9 @@ export async function POST(req: Request): Promise<Response> {
   } catch (err) {
     console.error("[upload] location fill failed for trip", body.tripId, err instanceof Error ? err.name : "error");
   }
+
+  // Mark the countries this vacation shows. Runs after the response and never fails it.
+  after(() => syncVisitedForTrip(trip.id));
 
   revalidatePath("/", "layout");
   return Response.json({ photo: row ?? null, existed: false });

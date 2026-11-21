@@ -11,6 +11,8 @@
     "test:watch": "vitest",
     "verify": "pnpm build && pnpm check-types && pnpm test",
     "test:scripts": "node --test scripts/*.test.mjs",
+    "backfill:visited": "node --import tsx scripts/backfill-visited.mjs",
+    "fill-locations": "node --import tsx scripts/fill-locations.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "auth:generate": "npx @better-auth/cli generate --config src/lib/auth.ts --output src/db/auth-schema.ts"
@@ -60,6 +62,7 @@
     "drizzle-kit": "^0.31.10",
     "shadcn": "^4.12.0",
     "tailwindcss": "^4.3.2",
+    "tsx": "4.23.1",
     "typescript": "^6",
     "vitest": "^4.1.10",
     "world-countries": "^5.1.0"
