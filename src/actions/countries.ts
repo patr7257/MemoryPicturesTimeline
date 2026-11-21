@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { personCountries } from "@/db/schema";
@@ -14,14 +14,15 @@ import {
   type CountryStore,
 } from "@/lib/country-actions-core";
 import { getPersonTarget } from "@/lib/country-queries";
-import type { CountryActionResult } from "@/lib/countries";
+import { currentYearIn, YEAR_ZONE, type CountryActionResult, type CountryStatus } from "@/lib/countries";
 
 // Thin wrappers: every decision (validation, check order, permission, refusal
 // texts, the removal rule) lives in country-actions-core.ts. Expected refusals
 // come back as results; anything unexpected (a database error) still throws.
 
-// The Drizzle-backed store the core decides against.
-function dbStore(): CountryStore {
+// The Drizzle-backed store the core decides against. viewerId is written as
+// updated_by where the store interface carries no author.
+function dbStore(viewerId: string): CountryStore {
   const db = getDb();
   const match = (personId: string, countryKey: string) =>
     and(eq(personCountries.personId, personId), eq(personCountries.countryKey, countryKey));
@@ -71,13 +72,30 @@ function dbStore(): CountryStore {
         .returning({ countryKey: personCountries.countryKey });
       return rows.length;
     },
-    async markExists(personId, countryKey) {
+    async dismissMark(personId, countryKey, { onlyWithoutNote }) {
+      // One statement: only a visited row, and with onlyWithoutNote only one
+      // without a note, becomes dismissed with year and note cleared.
+      const visited = and(match(personId, countryKey), eq(personCountries.status, "visited"));
+      const rows = await db
+        .update(personCountries)
+        .set({ status: "dismissed", year: null, note: null, updatedBy: viewerId, updatedAt: new Date() })
+        .where(onlyWithoutNote ? and(visited, isNull(personCountries.note)) : visited)
+        .returning({ countryKey: personCountries.countryKey });
+      return rows.length;
+    },
+    async findMark(personId, countryKey) {
+      // Whether a year or a note exists is computed in SQL; the note itself
+      // is never selected.
       const [row] = await db
-        .select({ countryKey: personCountries.countryKey })
+        .select({
+          status: personCountries.status,
+          hasYear: sql<boolean>`${personCountries.year} is not null`,
+          hasNote: sql<boolean>`${personCountries.note} is not null`,
+        })
         .from(personCountries)
         .where(match(personId, countryKey))
         .limit(1);
-      return row !== undefined;
+      return row ? { status: row.status as CountryStatus, hasYear: row.hasYear === true, hasNote: row.hasNote === true } : null;
     },
     async noteExists(personId, countryKey) {
       // Only the existence is read, never the note itself.
@@ -105,10 +123,10 @@ export async function setCountryStatus(
   const viewer = await getViewer();
   return afterWrite(
     await setCountryStatusCore(
-      dbStore(),
+      dbStore(viewer.userId),
       viewer,
       { personId, countryKey, status, year },
-      new Date().getUTCFullYear(),
+      currentYearIn(YEAR_ZONE, new Date()),
     ),
   );
 }
@@ -120,7 +138,12 @@ export async function setCountryYear(
 ): Promise<CountryActionResult> {
   const viewer = await getViewer();
   return afterWrite(
-    await setCountryYearCore(dbStore(), viewer, { personId, countryKey, year }, new Date().getUTCFullYear()),
+    await setCountryYearCore(
+      dbStore(viewer.userId),
+      viewer,
+      { personId, countryKey, year },
+      currentYearIn(YEAR_ZONE, new Date()),
+    ),
   );
 }
 
@@ -130,10 +153,17 @@ export async function setCountryNote(
   note: unknown,
 ): Promise<CountryActionResult> {
   const viewer = await getViewer();
-  return afterWrite(await setCountryNoteCore(dbStore(), viewer, { personId, countryKey, note }));
+  return afterWrite(await setCountryNoteCore(dbStore(viewer.userId), viewer, { personId, countryKey, note }));
 }
 
-export async function removeCountry(personId: string, countryKey: string): Promise<CountryActionResult> {
+// confirmed: the person saw and accepted that a year or a note goes too.
+export async function removeCountry(
+  personId: string,
+  countryKey: string,
+  confirmed: boolean,
+): Promise<CountryActionResult> {
   const viewer = await getViewer();
-  return afterWrite(await removeCountryCore(dbStore(), viewer, { personId, countryKey }));
+  return afterWrite(
+    await removeCountryCore(dbStore(viewer.userId), viewer, { personId, countryKey, confirmed }),
+  );
 }
