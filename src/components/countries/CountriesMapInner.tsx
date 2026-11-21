@@ -5,15 +5,16 @@
 // imported directly. Country shapes come from world-atlas (50m) converted in
 // the browser; the style is built in code (src/lib/country-map-style.ts), so
 // the map requests no tiles, sprites or fonts. Each shape carries its catalog
-// key as `properties.key`, promoted to the feature id, and its fill is
-// feature state, so marking a country repaints one shape (at once: MapLibre
-// does not fade feature-state changes).
+// key as `properties.key`, promoted to the feature id, and its fill colour
+// is feature state, so marking a country repaints one shape (at once:
+// MapLibre does not fade feature-state changes).
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Map, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import type { GeoJSONSource } from "maplibre-gl";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import { unwrapPolygon } from "@/lib/antimeridian";
 import { countryByKey, shapeKey } from "@/lib/country-catalog";
 import {
   countryMapStyle,
@@ -21,10 +22,9 @@ import {
   fillStateEntries,
   rotationFor,
   type MapColors,
+  type MapFills,
 } from "@/lib/country-map-style";
 import { cn } from "@/lib/utils";
-
-import type { FillState } from "@/lib/countries";
 
 import type { CountriesMapProps, MapCapture } from "./CountriesMap";
 import type { MapProjection } from "./useMapProjection";
@@ -50,6 +50,11 @@ function loadShapes(): Promise<Shapes> {
       // Nothing is dropped: a shape the catalog cannot mark keeps no key and
       // stays land coloured.
       for (const f of collection.features) {
+        // Rings stitched across the antimeridian or cut at the pole would be
+        // drawn as wedges across the whole world (src/lib/antimeridian.ts).
+        const g = f.geometry;
+        if (g?.type === "Polygon") g.coordinates = unwrapPolygon(g.coordinates);
+        else if (g?.type === "MultiPolygon") g.coordinates = g.coordinates.map(unwrapPolygon);
         const key = shapeKey({ id: f.id, properties: f.properties });
         if (key) {
           f.properties.key = key;
@@ -71,9 +76,6 @@ const VAR: Record<keyof MapColors, string> = {
   border: "--border",
   visited: "--country-visited",
   wishlist: "--country-wishlist",
-  onlyA: "--country-a",
-  onlyB: "--country-b",
-  both: "--country-both",
 };
 
 // Used only when a variable is unexpectedly empty, so nothing renders clear.
@@ -83,9 +85,6 @@ const NEUTRAL: Record<keyof MapColors, string> = {
   border: "rgb(214,206,192)",
   visited: "rgb(180,110,70)",
   wishlist: "rgb(80,150,160)",
-  onlyA: "rgb(40,110,120)",
-  onlyB: "rgb(160,110,40)",
-  both: "rgb(180,110,70)",
 };
 
 // The theme is written in oklch, which the map's colour parser does not read.
@@ -150,6 +149,8 @@ export default function CountriesMapInner({
   projection,
   onProjectionChange,
   mapRef,
+  onReadyChange,
+  label,
 }: Omit<CountriesMapProps, "legend">) {
   const ref = useRef<MapRef>(null);
   const [setup, setSetup] = useState<Setup>({ status: "checking" });
@@ -186,6 +187,32 @@ export default function CountriesMapInner({
     fillsRef.current = fills;
   }, [fills]);
 
+  // The country whose hover tint is on, so it can be cleared exactly.
+  const tinted = useRef<string | null>(null);
+  const clearTint = useCallback(() => {
+    const key = tinted.current;
+    tinted.current = null;
+    if (key === null) return;
+    try {
+      ref.current?.getMap().setFeatureState({ source: "countries", id: key }, { hover: false });
+    } catch {
+      // The map is gone; there is no tint left to clear.
+    }
+  }, []);
+
+  // Ready once the map and its shapes are in; not ready again on unmount.
+  const onReadyRef = useRef(onReadyChange);
+  useEffect(() => {
+    onReadyRef.current = onReadyChange;
+  }, [onReadyChange]);
+  const ready = loaded && keys !== null;
+  useEffect(() => {
+    if (ready) onReadyRef.current?.(true);
+  }, [ready]);
+  useEffect(() => () => onReadyRef.current?.(false), []);
+
+  const colors = setup.status === "ready" ? setup.colors : null;
+
   // Null until the map and its shapes are in, then the capture used by
   // "Share map". The canvas keeps its drawing buffer (canvasContextAttributes
   // below), and the frame is copied inside the idle event, after the given
@@ -194,16 +221,20 @@ export default function CountriesMapInner({
     mapRef,
     () => {
       const map = ref.current?.getMap();
-      if (!loaded || !keys || !map) return null;
-      const apply = (f: Record<string, FillState>) => {
-        for (const { key, fill } of fillStateEntries(f, keys)) {
-          map.setFeatureState({ source: "countries", id: key }, { fill });
+      if (!loaded || !keys || !map || !colors) return null;
+      const apply = (f: MapFills) => {
+        for (const { key, color } of fillStateEntries(f, keys, colors)) {
+          map.setFeatureState({ source: "countries", id: key }, { color });
         }
       };
       return {
         async capture(only) {
           capturing.current = true;
           try {
+            // The image never shows a hover tint or the hovered name; hover
+            // starts again with the next pointer move.
+            clearTint();
+            setHovered(null);
             apply(only);
             return await new Promise<HTMLCanvasElement>((resolve, reject) => {
               // Runs inside a map event: anything it throws would never reach
@@ -250,7 +281,7 @@ export default function CountriesMapInner({
         },
       };
     },
-    [loaded, keys],
+    [loaded, keys, colors, clearTint],
   );
 
   const effective: MapProjection = effectiveProjection(projection, globeOk);
@@ -332,11 +363,22 @@ export default function CountriesMapInner({
   // key gets a value so a removed mark goes back to land colour.
   useEffect(() => {
     const map = ref.current?.getMap();
-    if (!loaded || !map || !keys || capturing.current) return;
-    for (const { key, fill } of fillStateEntries(fills, keys)) {
-      map.setFeatureState({ source: "countries", id: key }, { fill });
+    if (!loaded || !map || !keys || !colors || capturing.current) return;
+    for (const { key, color } of fillStateEntries(fills, keys, colors)) {
+      map.setFeatureState({ source: "countries", id: key }, { color });
     }
-  }, [loaded, keys, fills]);
+  }, [loaded, keys, colors, fills]);
+
+  // Hover tint: on the hovered country only, never while a capture runs.
+  useEffect(() => {
+    const map = ref.current?.getMap();
+    if (!loaded || !map || !keys || capturing.current) return;
+    if (tinted.current === hovered) return;
+    clearTint();
+    if (hovered === null) return;
+    map.setFeatureState({ source: "countries", id: hovered }, { hover: true });
+    tinted.current = hovered;
+  }, [loaded, keys, hovered, clearTint]);
 
   // Keep the world filling the frame when the frame is resized.
   useEffect(() => {
@@ -370,7 +412,7 @@ export default function CountriesMapInner({
 
   return (
     <>
-      <div role="img" aria-label="World map of visited countries" className="size-full">
+      <div role="group" aria-label={label ?? "World map of visited countries"} className="size-full">
         <Map
           ref={ref}
           mapStyle={style}
@@ -405,7 +447,7 @@ export default function CountriesMapInner({
               fallBackToFlat();
             }
           }}
-          onMouseMove={setup.hover ? (e) => setHovered(keyOf(e)) : undefined}
+          onMouseMove={setup.hover ? (e) => !capturing.current && setHovered(keyOf(e)) : undefined}
           onMouseLeave={setup.hover ? () => setHovered(null) : undefined}
           onClick={
             onPick

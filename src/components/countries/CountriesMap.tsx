@@ -9,7 +9,7 @@
 // the globe, so the sea-coloured sphere keeps a visible edge.
 import dynamic from "next/dynamic";
 
-import type { FillState } from "@/lib/countries";
+import type { MapFill, MapFills, ThemeFill } from "@/lib/country-map-style";
 import { cn } from "@/lib/utils";
 
 import type { MapProjection } from "./useMapProjection";
@@ -23,15 +23,15 @@ const CountriesMapInner = dynamic(() => import("./CountriesMapInner"), {
   ),
 });
 
-export type MapLegendEntry = { fill: FillState; label: string };
+export type MapLegendEntry = { fill: MapFill; label: string };
 
 // Draws the map once with the given fills, copies that frame to a plain 2D
 // canvas, then puts the on-screen fills back (also when it fails). Used by
 // "Share map" so the image never shows fills it was not given.
-export type MapCapture = { capture(fills: Record<string, FillState>): Promise<HTMLCanvasElement> };
+export type MapCapture = { capture(fills: MapFills): Promise<HTMLCanvasElement> };
 
 export type CountriesMapProps = {
-  fills: Record<string, FillState>;
+  fills: MapFills;
   // Omitted means read-only: no pointer cursor and taps do nothing.
   onPick?: (countryKey: string) => void;
   projection: MapProjection;
@@ -39,15 +39,18 @@ export type CountriesMapProps = {
   mapRef?: React.Ref<MapCapture | null>;
   // State is never shown by colour alone: each fill in use gets a named swatch.
   legend?: MapLegendEntry[];
+  // True once the map and its shapes are in, false again when it unmounts.
+  onReadyChange?: (ready: boolean) => void;
+  // Name of the map group for assistive technology.
+  label?: string;
 };
 
-const SWATCH: Record<FillState, string> = {
+const SWATCH: Record<ThemeFill, string> = {
   visited: "bg-country-visited",
   wishlist: "bg-country-wishlist",
-  onlyA: "bg-country-a",
-  onlyB: "bg-country-b",
-  both: "bg-country-both",
 };
+
+const isTheme = (fill: MapFill): fill is ThemeFill => fill === "visited" || fill === "wishlist";
 
 export function CountriesMap({ legend, ...props }: CountriesMapProps) {
   return (
@@ -59,8 +62,12 @@ export function CountriesMap({ legend, ...props }: CountriesMapProps) {
         <figcaption>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {legend.map((e) => (
-              <li key={e.fill} className="flex items-center gap-1.5">
-                <span aria-hidden className={cn("size-3 rounded-[3px] ring-1 ring-black/10", SWATCH[e.fill])} />
+              <li key={e.fill + e.label} className="flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className={cn("size-3 rounded-[3px] ring-1 ring-black/10", isTheme(e.fill) && SWATCH[e.fill])}
+                  style={isTheme(e.fill) ? undefined : { backgroundColor: e.fill }}
+                />
                 {e.label}
               </li>
             ))}

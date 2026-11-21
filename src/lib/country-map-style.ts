@@ -1,21 +1,27 @@
 // The countries map style, built in code: a sea-coloured background, one
 // GeoJSON source of country shapes (filled in after load by the map
-// component) and a fill plus a line layer. No sprite, no glyphs, no tile or
-// style URL, so the map makes no network requests of its own. Fill colour
-// comes from per-feature state keyed by catalog key (promoteId), so marking a
-// country repaints one feature. MapLibre does not animate feature-state
+// component), a fill, a hover tint and a line layer. No sprite, no glyphs, no
+// tile or style URL, so the map makes no network requests of its own. Fill
+// colour is data: the colour string itself is per-feature state keyed by
+// catalog key (promoteId), so marking a country repaints one feature and any
+// person colour works without a style change. Colours must be rgb or hex
+// (MapLibre cannot parse oklch). MapLibre does not animate feature-state
 // changes, so the new colour appears at once.
 import type { StyleSpecification } from "maplibre-gl";
 
-import type { FillState } from "./countries";
+import { HOVER_TINT, type Hex } from "./person-colors";
 
-export type MapColors = { sea: string; land: string; border: string } & Record<FillState, string>;
+// A theme colour, resolved from CSS by the map, or a person colour.
+export type ThemeFill = "visited" | "wishlist";
+export type MapFill = ThemeFill | Hex;
+// Country key to fill.
+export type MapFills = Record<string, MapFill>;
+export type MapColors = { sea: string; land: string; border: string; visited: string; wishlist: string };
 
-const FILL_STATES: readonly FillState[] = ["visited", "wishlist", "onlyA", "onlyB", "both"];
+// How strongly the pale hover tint covers the hovered country's own colour.
+export const HOVER_OPACITY = 0.35;
 
 export function countryMapStyle(colors: MapColors): StyleSpecification {
-  const cases: unknown[] = [];
-  for (const s of FILL_STATES) cases.push(["==", ["feature-state", "fill"], s], colors[s]);
   return {
     version: 8,
     sources: {
@@ -32,7 +38,18 @@ export function countryMapStyle(colors: MapColors): StyleSpecification {
         type: "fill",
         source: "countries",
         paint: {
-          "fill-color": ["case", ...cases, colors.land] as never,
+          // Checked against the installed style spec: to-color falls through
+          // a missing or null state to the land colour.
+          "fill-color": ["to-color", ["feature-state", "color"], colors.land] as never,
+        },
+      },
+      {
+        id: "country-hover",
+        type: "fill",
+        source: "countries",
+        paint: {
+          "fill-color": HOVER_TINT,
+          "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], HOVER_OPACITY, 0] as never,
         },
       },
       {
@@ -64,10 +81,16 @@ export function effectiveProjection(chosen: Projection, globeWorks: boolean): Pr
 }
 
 // Every key gets a value, so a country whose mark was removed is set back to
-// "none" (the land colour) instead of keeping its old fill.
+// null (the land colour) instead of keeping its old fill. A theme fill
+// becomes its resolved colour; a person colour is passed through.
 export function fillStateEntries(
-  fills: Record<string, FillState>,
+  fills: MapFills,
   allKeys: readonly string[],
-): { key: string; fill: FillState | "none" }[] {
-  return allKeys.map((key) => ({ key, fill: Object.hasOwn(fills, key) ? fills[key] : "none" }));
+  theme: Pick<MapColors, "visited" | "wishlist">,
+): { key: string; color: string | null }[] {
+  return allKeys.map((key) => {
+    if (!Object.hasOwn(fills, key)) return { key, color: null };
+    const fill = fills[key];
+    return { key, color: fill === "visited" || fill === "wishlist" ? theme[fill] : fill };
+  });
 }

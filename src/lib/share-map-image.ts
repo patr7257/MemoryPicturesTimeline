@@ -2,7 +2,8 @@
 // built in the browser on a plain 2D canvas. Nothing here touches the map
 // library; the caller hands in a canvas that already holds the map. Only
 // visited countries and counts go into the image: a wishlist is private.
-import { countrySearchKey, type CountryStats, type FillState } from "./countries";
+import { countrySearchKey, type CountryStats } from "./countries";
+import type { MapFills } from "./country-map-style";
 
 export const SHARE_WIDTH = 1200;
 export const SHARE_HEIGHT = 1500;
@@ -97,9 +98,9 @@ export function shareFileName(subject: ShareSubject): string {
 }
 
 // The fills the image is drawn with: visited only. A wishlist on screen (an
-// editor sees it) and any compare colouring never reach the image.
-export function shareFills(fills: Record<string, FillState>): Record<string, FillState> {
-  const out: Record<string, FillState> = {};
+// editor sees it) and any person or compare colouring never reach the image.
+export function shareFills(fills: MapFills): MapFills {
+  const out: MapFills = {};
   for (const [key, fill] of Object.entries(fills)) if (fill === "visited") out[key] = "visited";
   return out;
 }

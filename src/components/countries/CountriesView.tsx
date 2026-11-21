@@ -38,6 +38,8 @@ import {
   type MarkChange,
 } from "@/lib/countries";
 import { countryByKey } from "@/lib/country-catalog";
+import type { MapFill, MapFills } from "@/lib/country-map-style";
+import { PALETTE, SHARED_COLOR } from "@/lib/person-colors";
 
 import { CountriesMap, type MapCapture, type MapLegendEntry } from "./CountriesMap";
 import { CountryCard } from "./CountryCard";
@@ -69,6 +71,7 @@ export type CountriesViewProps =
 export function CountriesView(props: CountriesViewProps) {
   const view = useMapProjection();
   const mapRef = useRef<MapCapture | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   if (props.mode === "single") return <SingleCountries {...props} view={view} />;
 
   if (props.mode === "compare") {
@@ -79,13 +82,13 @@ export function CountriesView(props: CountriesViewProps) {
     for (const k of onlyB) rows[k] = { kind: "b", label: b.name };
     for (const k of both) rows[k] = { kind: "both", label: "Both" };
     const legend: MapLegendEntry[] = [
-      { fill: "onlyA", label: `${a.name} only` },
-      { fill: "onlyB", label: `${b.name} only` },
-      { fill: "both", label: "Both" },
+      { fill: LEGACY_FILL.onlyA, label: `${a.name} only` },
+      { fill: LEGACY_FILL.onlyB, label: `${b.name} only` },
+      { fill: LEGACY_FILL.both, label: "Both" },
     ];
     return (
       <div className="flex flex-col gap-8">
-        <CountriesMap fills={fillsForCompare(a.visited, b.visited)} legend={legend} {...view} />
+        <CountriesMap fills={legacyFills(fillsForCompare(a.visited, b.visited))} legend={legend} {...view} />
         <CountryStatsPanel
           mode="compare"
           a={{ name: a.name, total: countryStats(a.visited).total }}
@@ -101,18 +104,25 @@ export function CountriesView(props: CountriesViewProps) {
 
   const rows: Record<string, RowState> = {};
   for (const k of props.visited) rows[k] = { kind: "visited" };
-  const fills = fillsForUnion(props.visited);
+  const fills = legacyFills(fillsForUnion(props.visited));
   const stats = countryStats(props.visited);
   // The share image names the family only when every person is in the union.
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <CountriesMap fills={fills} legend={legendFor(fills)} mapRef={mapRef} {...view} />
+        <CountriesMap
+          fills={fills}
+          legend={legendFor(fillsForUnion(props.visited))}
+          mapRef={mapRef}
+          onReadyChange={setMapReady}
+          {...view}
+        />
         <ShareMapButton
           mapRef={mapRef}
           fills={fills}
           subject={{ kind: props.everyone ? "family" : "group" }}
           stats={stats}
+          ready={mapReady}
         />
       </div>
       <CountryStatsPanel mode="single" label={props.label} stats={stats} />
@@ -126,7 +136,22 @@ const LEGEND_LABEL: Partial<Record<FillState, string>> = { visited: "Visited", w
 // Single and union maps: a legend entry for every fill in use, also when
 // every fill is visited.
 const legendFor = (fills: Record<string, FillState>): MapLegendEntry[] =>
-  legendFills(fills).map((fill) => ({ fill, label: LEGEND_LABEL[fill] ?? fill }));
+  legendFills(fills).map((fill) => ({ fill: LEGACY_FILL[fill], label: LEGEND_LABEL[fill] ?? fill }));
+
+// Temporary: S2a replaces compare and union. Maps the old fill states to
+// map fills: the two compared people get the first two palette colours.
+const LEGACY_FILL: Record<FillState, MapFill> = {
+  visited: "visited",
+  wishlist: "wishlist",
+  onlyA: PALETTE[0].hex,
+  onlyB: PALETTE[1].hex,
+  both: SHARED_COLOR,
+};
+function legacyFills(f: Record<string, FillState>): MapFills {
+  const out: MapFills = {};
+  for (const [key, fill] of Object.entries(f)) out[key] = LEGACY_FILL[fill];
+  return out;
+}
 
 // Expected refusals arrive as results; a thrown error is unexpected and
 // production hides its message, so it gets the fallback text.
@@ -151,6 +176,7 @@ function SingleCountries({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const mapRef = useRef<MapCapture | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Shows the change at once. Each action revalidates the page, so when its
   // transition ends the fresh marks prop is the base; a refusal or a failure
@@ -258,7 +284,8 @@ function SingleCountries({
   }
   // On screen an editor also sees the wishlist; the share button keeps only
   // the visited fills for the image.
-  const fills = fillsForMarks(shown);
+  const marked = fillsForMarks(shown);
+  const fills = legacyFills(marked);
   const stats = countryStats(visitedKeys);
 
   const openCountry = openKey ? countryByKey(openKey) : undefined;
@@ -269,12 +296,20 @@ function SingleCountries({
   return (
     <div className="flex flex-col gap-8" data-unsaved-work={pending ? "" : undefined}>
       <div className="flex flex-col gap-3">
-        <CountriesMap fills={fills} onPick={pick} legend={legendFor(fills)} mapRef={mapRef} {...view} />
+        <CountriesMap
+          fills={fills}
+          onPick={pick}
+          legend={legendFor(marked)}
+          mapRef={mapRef}
+          onReadyChange={setMapReady}
+          {...view}
+        />
         <ShareMapButton
           mapRef={mapRef}
           fills={fills}
           subject={{ kind: "person", name: person.name }}
           stats={stats}
+          ready={mapReady}
         />
       </div>
       <CountryStatsPanel mode="single" label={person.name} stats={stats} />
