@@ -42,8 +42,8 @@ in through one pull request. The repo has no CI workflows: the gate is
 3. Check the guesses from the archive import and correct them in the app:
    places and dates of the video vacations (no date on the tapes), the
    Campingferie 2001 place (set to Harzen from the footage), and whether
-   every tagged person was really on each old vacation (the ski trips are
-   tagged with the whole family and marked France for all of them).
+   every tagged person was really on each old vacation (the four ski trips
+   from the action camera are corrected to Patrick only).
 4. Add photos to the vacations that have none yet; their notes say where to
    look.
 5. Carried over: fix the doubtful backfilled photo locations by hand with the
