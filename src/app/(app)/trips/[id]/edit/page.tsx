@@ -4,7 +4,7 @@ import { CoverPicker } from "@/components/trip/CoverPicker";
 import { EditTripForm } from "@/components/trip/EditTripForm";
 import { getViewer } from "@/lib/access";
 import { getTripPageData } from "@/lib/photo-queries";
-import { getTagTargets } from "@/lib/share-queries";
+import { getTagTargets, getTripSharing } from "@/lib/share-queries";
 
 export default async function EditTripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,7 +12,11 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   // Editing belongs to the creator and super admins.
   if (!data || !data.canManage) notFound();
   // Who may be tagged: the people the viewer sees plus those already tagged.
-  const allPeople = await getTagTargets(await getViewer(), data.people.map((p) => p.id));
+  const viewer = await getViewer();
+  const [allPeople, sharing] = await Promise.all([
+    getTagTargets(viewer, data.people.map((p) => p.id)),
+    getTripSharing(viewer, data.trip),
+  ]);
 
   return (
     <div className="flex max-w-2xl flex-col gap-10">
@@ -41,6 +45,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           }}
           allPeople={allPeople}
           taggedIds={data.people.map((p) => p.id)}
+          sharing={sharing}
         />
       </section>
     </div>

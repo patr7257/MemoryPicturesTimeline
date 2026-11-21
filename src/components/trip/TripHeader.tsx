@@ -3,14 +3,18 @@
 import { Images, MapPin } from "lucide-react";
 
 import { formatTripDates } from "@/lib/dates";
+import type { TripSharing } from "@/lib/share-queries";
 import { rotationFor } from "@/lib/scrapbook";
+import { ShareWithPeople } from "./ShareWithPeople";
 
 export function TripHeader({
   trip,
   people,
   photoCount,
+  sharing,
 }: {
   trip: {
+    id: string;
     title: string;
     startDate: string;
     endDate: string | null;
@@ -19,6 +23,8 @@ export function TripHeader({
   };
   people: { id: string; name: string }[];
   photoCount: number;
+  // Shown only to someone who may share it and has anyone to share with.
+  sharing?: TripSharing;
 }) {
   return (
     <header className="py-5 sm:py-6">
@@ -51,6 +57,11 @@ export function TripHeader({
       )}
       {trip.description && (
         <p className="mt-3 max-w-prose text-sm whitespace-pre-wrap">{trip.description}</p>
+      )}
+      {sharing?.canShare && sharing.targets.length > 0 && (
+        <div className="mt-4">
+          <ShareWithPeople tripId={trip.id} targets={sharing.targets} sharedIds={sharing.sharedIds} />
+        </div>
       )}
     </header>
   );

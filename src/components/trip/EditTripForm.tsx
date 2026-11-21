@@ -18,6 +18,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { TripSharing } from "@/lib/share-queries";
+import { ShareWithPeople } from "./ShareWithPeople";
 
 type Person = { id: string; name: string };
 
@@ -25,6 +27,7 @@ export function EditTripForm({
   trip,
   allPeople,
   taggedIds,
+  sharing,
 }: {
   trip: {
     id: string;
@@ -36,6 +39,7 @@ export function EditTripForm({
   };
   allPeople: Person[];
   taggedIds: string[];
+  sharing?: TripSharing;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -154,6 +158,13 @@ export function EditTripForm({
           </div>
         )}
       </div>
+
+      {sharing?.canShare && sharing.targets.length > 0 && (
+        <div className="flex flex-col items-start gap-2">
+          <Label>Shared with</Label>
+          <ShareWithPeople tripId={trip.id} targets={sharing.targets} sharedIds={sharing.sharedIds} />
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-2">
         <Button
