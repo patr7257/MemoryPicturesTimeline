@@ -1,4 +1,6 @@
 import { CONTINENTS, countryByKey, UN_MEMBER_TOTAL, COUNTRIES, type Continent } from "./country-catalog";
+import type { MapFill, MapFills, ThemeFill } from "./country-map-style";
+import type { Hex } from "./person-colors";
 
 export type CountryStatus = "visited" | "wishlist" | "dismissed";
 export type CountryMark = {
@@ -76,80 +78,62 @@ export function countryStats(visitedKeys: readonly string[]): CountryStats {
   };
 }
 
-export type Selection =
-  | { mode: "single"; personId: string }
-  | { mode: "compare"; a: string; b: string }
-  | { mode: "union"; personIds: string[] };
+// The year limit for a visited year follows the family's calendar, so New
+// Year's Eve after 23:00 UTC already counts as the new year.
+export const YEAR_ZONE = "Europe/Copenhagen";
 
-export function resolveSelection(input: {
-  personIds: readonly string[];
-  family: boolean;
-  viewerPersonId: string | null;
-  allPersonIds: readonly string[];
-}): Selection {
-  const { family, viewerPersonId, allPersonIds } = input;
-  if (family) return { mode: "union", personIds: [...allPersonIds] };
-  const known = new Set(allPersonIds);
-  const ids = uniq(input.personIds).filter((id) => known.has(id));
-  if (ids.length === 0) {
-    return viewerPersonId !== null && known.has(viewerPersonId)
-      ? { mode: "single", personId: viewerPersonId }
-      : { mode: "union", personIds: [...allPersonIds] };
-  }
-  if (ids.length === 1) return { mode: "single", personId: ids[0] };
-  if (ids.length === 2) return { mode: "compare", a: ids[0], b: ids[1] };
-  return { mode: "union", personIds: ids };
+export function currentYearIn(timeZone: string, now: Date): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric" }).format(now));
 }
 
-export function comparePartition(
-  a: readonly string[],
-  b: readonly string[],
-): { onlyA: string[]; onlyB: string[]; both: string[] } {
-  const ua = uniq(a);
-  const ub = uniq(b);
-  const inA = new Set(ua);
-  const inB = new Set(ub);
-  return {
-    onlyA: ua.filter((k) => !inB.has(k)),
-    onlyB: ub.filter((k) => !inA.has(k)),
-    both: ua.filter((k) => inB.has(k)),
-  };
-}
-
-export type FillState = "visited" | "wishlist" | "onlyA" | "onlyB" | "both";
-
-export function fillsForMarks(marks: readonly CountryMark[]): Record<string, FillState> {
-  const out: Record<string, FillState> = {};
+export function fillsForMarks(marks: readonly CountryMark[]): MapFills {
+  const out: MapFills = {};
   for (const m of marks) {
     if (m.status === "visited" || m.status === "wishlist") out[m.countryKey] = m.status;
   }
   return out;
 }
 
-export function fillsForCompare(
-  a: readonly string[],
-  b: readonly string[],
-): Record<string, FillState> {
-  const { onlyB, both } = comparePartition(a, b);
-  const out: Record<string, FillState> = {};
-  for (const k of uniq(a)) out[k] = both.includes(k) ? "both" : "onlyA";
-  for (const k of onlyB) out[k] = "onlyB";
-  return out;
-}
+const LEGEND_ORDER: readonly ThemeFill[] = ["visited", "wishlist"];
 
-export function fillsForUnion(keys: readonly string[]): Record<string, FillState> {
-  const out: Record<string, FillState> = {};
-  for (const k of keys) out[k] = "visited";
-  return out;
-}
-
-const LEGEND_ORDER: readonly FillState[] = ["visited", "wishlist", "onlyA", "onlyB", "both"];
-
-// The fill states in use, once each: the map legend names every one of them,
-// so a colour on the map is never left unexplained.
-export function legendFills(fills: Record<string, FillState>): FillState[] {
-  const used = new Set(Object.values(fills));
+// The theme fills in use, once each: the map legend names every one of them,
+// so a colour on the map is never left unexplained. Person colours get their
+// legend entries from the view, which knows the names.
+export function legendFills(fills: MapFills): ThemeFill[] {
+  const used = new Set<MapFill>(Object.values(fills));
   return LEGEND_ORDER.filter((f) => used.has(f));
+}
+
+type ByPerson = Readonly<Record<string, readonly string[]>>;
+
+// For each country the people (in the order given) who visited it, and the
+// countries more than one of them visited.
+export function partitionVisitors(byPerson: ByPerson): {
+  visitorsByKey: Record<string, string[]>;
+  sharedKeys: string[];
+} {
+  const visitorsByKey: Record<string, string[]> = {};
+  for (const [personId, keys] of Object.entries(byPerson)) {
+    for (const key of uniq(keys)) (visitorsByKey[key] ??= []).push(personId);
+  }
+  const sharedKeys = Object.keys(visitorsByKey).filter((k) => visitorsByKey[k].length > 1);
+  return { visitorsByKey, sharedKeys };
+}
+
+// One visitor: that person's colour. More than one: the shared colour.
+export function fillsForPeople(byPerson: ByPerson, colors: Readonly<Record<string, Hex>>, shared: Hex): MapFills {
+  const out: MapFills = {};
+  for (const [key, visitors] of Object.entries(partitionVisitors(byPerson).visitorsByKey)) {
+    out[key] = visitors.length > 1 ? shared : colors[visitors[0]] ?? shared;
+  }
+  return out;
+}
+
+export function multiStats(byPerson: ByPerson): { perPerson: Record<string, number>; shared: number; total: number } {
+  const perPerson: Record<string, number> = {};
+  for (const [personId, keys] of Object.entries(byPerson)) perPerson[personId] = uniq(keys).length;
+  const { visitorsByKey, sharedKeys } = partitionVisitors(byPerson);
+  return { perPerson, shared: sharedKeys.length, total: Object.keys(visitorsByKey).length };
 }
 
 // Search form of a country name or query: lower case, no diacritics, and the
