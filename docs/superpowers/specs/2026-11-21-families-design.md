@@ -384,11 +384,11 @@ no auto-visited country, and filtering on that person does not match it.
   sampling of photos without a country name, the unused `tripId`, the
   unqualified `rn`).
 
-Accepted consequence, please confirm when reading: a person's map is seen by
-their families, and it now fills from every vacation they are tagged on,
-including vacations their family cannot open. The earlier design accepted
-that a mark can hint at a hidden vacation, but then the person chose each
-mark. Now it happens by itself; the person can remove it afterwards.
+Accepted by Patrick: a person's map is seen by their families, and it now
+fills from every vacation they are tagged on, including vacations their
+family cannot open. The earlier design accepted that a mark can hint at a
+hidden vacation, but then the person chose each mark. Now it happens by
+itself; the person can remove it afterwards.
 
 ## Rollout
 
@@ -442,6 +442,4 @@ see.
 
 ## Still open with Patrick
 
-- The accepted consequence under Auto-visited (a map filling from vacations
-  the family cannot open).
 - The split in `docs/free-vs-premium.md` and the questions at its end.
