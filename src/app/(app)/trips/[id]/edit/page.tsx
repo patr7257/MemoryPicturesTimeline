@@ -2,14 +2,17 @@ import { notFound } from "next/navigation";
 
 import { CoverPicker } from "@/components/trip/CoverPicker";
 import { EditTripForm } from "@/components/trip/EditTripForm";
+import { getViewer } from "@/lib/access";
 import { getTripPageData } from "@/lib/photo-queries";
-import { getAllPeople } from "@/lib/queries";
+import { getTagTargets } from "@/lib/share-queries";
 
 export default async function EditTripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [data, allPeople] = await Promise.all([getTripPageData(id), getAllPeople()]);
+  const data = await getTripPageData(id);
   // Editing belongs to the creator and super admins.
   if (!data || !data.canManage) notFound();
+  // Who may be tagged: the people the viewer sees plus those already tagged.
+  const allPeople = await getTagTargets(await getViewer(), data.people.map((p) => p.id));
 
   return (
     <div className="flex max-w-2xl flex-col gap-10">

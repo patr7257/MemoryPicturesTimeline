@@ -34,7 +34,7 @@ export function VacationForm({ people, viewerPersonId, onCreated, onCancel }: Va
     }
     setBusy(true);
     try {
-      const { id } = await createTrip({
+      const res = await createTrip({
         title: draft.title,
         startDate: draft.startDate,
         endDate: draft.endDate || null,
@@ -42,10 +42,19 @@ export function VacationForm({ people, viewerPersonId, onCreated, onCancel }: Va
         description: draft.description || null,
         personIds: draft.personIds,
       });
+      if (!res.ok) {
+        // Errors stay until dismissed; the form stays open with its values.
+        toast.error(res.error, { duration: Infinity, closeButton: true });
+        setBusy(false);
+        return;
+      }
       toast.success("Vacation created");
-      onCreated(id);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create the vacation");
+      onCreated(res.id);
+    } catch {
+      toast.error("Could not create the vacation. Check the connection and try again.", {
+        duration: Infinity,
+        closeButton: true,
+      });
       setBusy(false);
     }
   }

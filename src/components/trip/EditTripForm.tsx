@@ -67,11 +67,20 @@ export function EditTripForm({
           locationName: locationName || null,
           description: description || null,
         });
-        await setTripPeople(trip.id, Array.from(selected));
+        const res = await setTripPeople(trip.id, Array.from(selected));
+        if (!res.ok) {
+          // The details are saved; the people are not. Stay on the form.
+          toast.error(res.error, { duration: Infinity, closeButton: true });
+          router.refresh();
+          return;
+        }
         toast.success("Vacation saved");
         router.push(`/trips/${trip.id}`);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Save failed");
+        toast.error(err instanceof Error ? err.message : "Save failed", {
+          duration: Infinity,
+          closeButton: true,
+        });
       }
     });
   }
@@ -124,7 +133,7 @@ export function EditTripForm({
         <Label>Who was along?</Label>
         {allPeople.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No people yet; add them on the People page first.
+            No people to tag yet; add them on the Family page first.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
