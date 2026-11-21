@@ -54,6 +54,12 @@ export function TimelineView({
   const query = q.trim();
   const shownYears = useMemo(() => searchYears(years, q), [years, q]);
   const shownTrips = useMemo(() => shownYears.flatMap((y) => y.trips), [shownYears]);
+  // Whether the unfiltered list has any vacation with a location: then the
+  // globe's canvas stays up even when the search leaves it no pins.
+  const hasPins = useMemo(
+    () => years.some((y) => y.trips.some((t) => t.lat !== null && t.lng !== null)),
+    [years],
+  );
 
   function change(next: string) {
     setQ(next);
@@ -98,7 +104,8 @@ export function TimelineView({
               enterKeyHint="search"
               autoComplete="off"
               spellCheck={false}
-              className="h-11 bg-card pr-11 pl-9 text-base md:h-8 md:pr-9 md:text-xs pointer-coarse:h-11 pointer-coarse:pr-11 [&::-webkit-search-cancel-button]:appearance-none"
+              // 16px text on touch screens, at every width, stops iOS from zooming on focus.
+              className="h-11 bg-card pr-11 pl-9 text-base md:h-8 md:pr-9 md:text-xs pointer-coarse:h-11 pointer-coarse:pr-11 pointer-coarse:text-base [&::-webkit-search-cancel-button]:appearance-none"
             />
             {q && (
               <button
@@ -138,6 +145,14 @@ export function TimelineView({
         keep={query ? { q: query } : undefined}
       />
 
+      {/* Mounted for the whole visit, even when the search matches nothing,
+          so the WebGL scene (and its rotation and zoom) survives a search. */}
+      <GlobeOfMemories
+        trips={shownTrips}
+        keepCanvas={hasPins}
+        emptyHint={query ? "None of the matching vacations has a location yet." : undefined}
+      />
+
       {shownTrips.length === 0 ? (
         <section className="mx-auto max-w-md px-6 py-16 text-center">
           <SearchX className="mx-auto size-10 text-muted-foreground" aria-hidden />
@@ -162,13 +177,7 @@ export function TimelineView({
           </div>
         </section>
       ) : (
-        <>
-          <GlobeOfMemories
-            trips={shownTrips}
-            emptyHint={query ? "None of the matching vacations has a location yet." : undefined}
-          />
-          <Timeline years={shownYears} />
-        </>
+        <Timeline years={shownYears} />
       )}
     </>
   );

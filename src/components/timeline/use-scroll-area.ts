@@ -5,14 +5,46 @@
 // a page-by-page scroll for those arrows, dragging with the mouse (touch
 // scrolls natively), and on a sideways strip the vertical mouse wheel scrolls
 // it while the pointer is over it. At either end the wheel goes back to the
-// page. Everything is measured in effects, never during render, so server
-// and client render the same markup (arrows hidden until measured). `dep`
+// page, and a page scroll that only passes over a strip keeps scrolling the
+// page (rules in scroll-rules.ts). Everything is measured in effects, never
+// during render, so server and client render the same markup (arrows hidden
+// until measured). `dep`
 // must change whenever the content changes or the element is mounted anew.
 import { useCallback, useEffect, useState, type RefObject } from "react";
+
+import { wheelAction } from "./scroll-rules";
 
 export type ScrollAxis = "x" | "y";
 
 const DRAG_THRESHOLD = 5;
+
+// The last two wheel events seen anywhere on the page, and which strip (if
+// any) handled each. One passive capture listener on window, shared by every
+// strip, runs before a strip's own listener and moves `latest` to `previous`.
+type WheelSeen = { time: number; handledBy: HTMLElement | null };
+const wheels: { previous: WheelSeen; latest: WheelSeen } = {
+  previous: { time: Number.NEGATIVE_INFINITY, handledBy: null },
+  latest: { time: Number.NEGATIVE_INFINITY, handledBy: null },
+};
+let wheelWatchers = 0;
+
+function onAnyWheel(e: WheelEvent) {
+  wheels.previous = wheels.latest;
+  wheels.latest = { time: e.timeStamp, handledBy: null };
+}
+
+function watchWheels(): () => void {
+  if (wheelWatchers++ === 0) {
+    window.addEventListener("wheel", onAnyWheel, { capture: true, passive: true });
+  }
+  return () => {
+    if (--wheelWatchers === 0) {
+      window.removeEventListener("wheel", onAnyWheel, { capture: true });
+      wheels.previous = { time: Number.NEGATIVE_INFINITY, handledBy: null };
+      wheels.latest = { time: Number.NEGATIVE_INFINITY, handledBy: null };
+    }
+  };
+}
 
 export function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -76,20 +108,43 @@ export function useScrollArea(ref: RefObject<HTMLElement | null>, axis: ScrollAx
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const stopWatching = watchWheels();
 
+    // Who takes the wheel is decided in scroll-rules.ts: a page scroll that
+    // merely passes over the strip keeps scrolling the page.
     function onWheel(e: WheelEvent) {
-      if (!el || axis !== "x" || e.ctrlKey) return;
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // sideways wheels work natively
-      const { pos, size, total } = metrics(el, "x");
-      const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-      const atStart = pos <= 0;
-      const atEnd = pos + size >= total - 1;
-      if ((delta < 0 && atStart) || (delta > 0 && atEnd)) return; // let the page scroll
+      if (!el) return;
+      const { pos, size, total } = metrics(el, axis);
+      const action = wheelAction({
+        axis,
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        shiftKey: e.shiftKey,
+        ctrlKey: e.ctrlKey,
+        sincePrevious: e.timeStamp - wheels.previous.time,
+        previousWasMine: wheels.previous.handledBy === el,
+        canScrollBack: pos > 0,
+        canScrollForward: pos + size < total - 1,
+      });
+      if (action === "native" || action === "strip") wheels.latest.handledBy = el;
+      if (action === "pass" || action === "native") return;
       e.preventDefault();
-      el.scrollLeft += delta;
+      const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if (action === "strip") el.scrollLeft += delta;
+      else window.scrollBy({ top: delta, behavior: "auto" });
     }
 
     let drag: { from: number; scroll: number; id: number; moved: boolean } | null = null;
+
+    // Drops a drag, also one whose release never reached the strip (the
+    // mouse was let go outside it, or the window lost focus).
+    function endDrag() {
+      if (!el || !drag) return;
+      const { id } = drag;
+      drag = null;
+      delete el.dataset.dragging;
+      if (el.hasPointerCapture(id)) el.releasePointerCapture(id);
+    }
 
     function onPointerDown(e: PointerEvent) {
       if (!el || e.pointerType !== "mouse" || e.button !== 0) return;
@@ -103,6 +158,11 @@ export function useScrollArea(ref: RefObject<HTMLElement | null>, axis: ScrollAx
 
     function onPointerMove(e: PointerEvent) {
       if (!el || !drag || e.pointerId !== drag.id) return;
+      // No button held: the release happened somewhere the strip never heard of.
+      if (e.buttons === 0) {
+        endDrag();
+        return;
+      }
       const delta = (axis === "x" ? e.clientX : e.clientY) - drag.from;
       if (!drag.moved) {
         if (Math.abs(delta) < DRAG_THRESHOLD) return;
@@ -132,17 +192,35 @@ export function useScrollArea(ref: RefObject<HTMLElement | null>, axis: ScrollAx
       window.setTimeout(() => el.removeEventListener("click", swallowClick, { capture: true }), 0);
     }
 
+    // Before the drag threshold nothing is captured, so the strip would never
+    // hear the release once the mouse leaves it: give up on that press.
+    function onPointerLeave(e: PointerEvent) {
+      if (drag && e.pointerId === drag.id && !drag.moved) endDrag();
+    }
+
+    function onLostCapture(e: PointerEvent) {
+      if (drag && e.pointerId === drag.id) endDrag();
+    }
+
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("pointerdown", onPointerDown);
     el.addEventListener("pointermove", onPointerMove);
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("pointercancel", onPointerUp);
+    el.addEventListener("pointerleave", onPointerLeave);
+    el.addEventListener("lostpointercapture", onLostCapture);
+    window.addEventListener("blur", endDrag);
     return () => {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("pointerleave", onPointerLeave);
+      el.removeEventListener("lostpointercapture", onLostCapture);
+      window.removeEventListener("blur", endDrag);
+      endDrag();
+      stopWatching();
     };
   }, [ref, axis, dep]);
 

@@ -37,12 +37,16 @@ const STRIP_INSET = 64;
 // `trips` is whatever the page shows (people filter and search already
 // applied); `emptyHint` replaces the "no locations yet" line when the page
 // knows better (a search left only vacations without a location).
+// `keepCanvas` keeps the globe mounted with zero pins (the hint is laid over
+// it), so a search that matches nothing does not throw the WebGL scene away.
 export function GlobeOfMemories({
   trips,
   emptyHint,
+  keepCanvas = false,
 }: {
   trips: GlobeInputTrip[];
   emptyHint?: string;
+  keepCanvas?: boolean;
 }) {
   const flight = useFlight();
   const chipsRef = useRef<HTMLUListElement>(null);
@@ -128,13 +132,13 @@ export function GlobeOfMemories({
         </Button>
       </div>
 
-      {!hidden && pins.length === 0 && (
+      {!hidden && pins.length === 0 && !keepCanvas && (
         <p className="mt-2 rounded-xl border border-dashed border-border bg-card/60 px-4 py-6 text-center text-sm text-muted-foreground">
           {emptyHint ?? "Vacations show up here once a photo with a location is added."}
         </p>
       )}
 
-      {!hidden && pins.length > 0 && (
+      {!hidden && (pins.length > 0 || keepCanvas) && (
         <>
           <div
             onMouseLeave={() => setHoveredId(null)}
@@ -169,6 +173,13 @@ export function GlobeOfMemories({
                 onReady={() => setStatus("ready")}
                 onUnavailable={() => setStatus("unavailable")}
               />
+            )}
+            {/* No pins but vacations shown: the hint, over the still running
+                globe. With no vacations at all the page says so below. */}
+            {pins.length === 0 && trips.length > 0 && status === "ready" && (
+              <p className="pointer-events-none absolute inset-x-4 top-1/2 z-10 mx-auto max-w-sm -translate-y-1/2 rounded-xl border border-border bg-card/90 px-4 py-3 text-center text-sm text-muted-foreground">
+                {emptyHint ?? "Vacations show up here once a photo with a location is added."}
+              </p>
             )}
             {status === "ready" && !interacted && (
               <p className="pointer-events-none absolute top-2.5 left-2.5 rounded-full border border-border bg-card/90 px-3 py-1 text-xs font-semibold">

@@ -10,6 +10,7 @@ import { Camera, MapPin } from "lucide-react";
 import type { TimelineYear } from "@/lib/queries";
 import { formatTripDates } from "@/lib/dates";
 import { rotationFor } from "@/lib/scrapbook";
+import { cn } from "@/lib/utils";
 import { FlightLink } from "@/components/globe/FlightProvider";
 import { PhotoCluster } from "./PhotoCluster";
 import { YearChips, YearRail, useYearSpy, yearAnchor } from "./YearNav";
@@ -28,10 +29,16 @@ export function Timeline({ years }: { years: TimelineYear[] }) {
     <MotionConfig reducedMotion="user">
       <YearChips years={yearList} spy={spy} />
       {/* The page column. From xl up a grid: the year rail in a 6rem first
-          column, the timeline body in the rest. Clipped sideways so a tilted
-          card can never widen the page; sticky still works (clip is no
-          scroll container). */}
-      <div className="mx-auto max-w-5xl overflow-x-clip px-4 pt-6 pb-24 sm:px-6 xl:grid xl:grid-cols-[6rem_minmax(0,1fr)] xl:gap-x-6">
+          column, the timeline body in the rest. With a single year there is
+          no rail (YearRail renders nothing), so no grid: the body takes the
+          full width. Clipped sideways so a tilted card can never widen the
+          page; sticky still works (clip is no scroll container). */}
+      <div
+        className={cn(
+          "mx-auto max-w-5xl overflow-x-clip px-4 pt-6 pb-24 sm:px-6",
+          yearList.length > 1 && "xl:grid xl:grid-cols-[6rem_minmax(0,1fr)] xl:gap-x-6",
+        )}
+      >
         <YearRail years={yearList} spy={spy} />
         <div ref={ref} className="relative min-w-0">
           {/* spine + beam */}

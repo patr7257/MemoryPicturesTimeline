@@ -60,6 +60,7 @@ export function PeopleFilter({
               <li key={f.id} className="shrink-0">
                 <Link
                   href={hrefFor(toggleFamily(selection, f.id, families))}
+                  prefetch={false}
                   className={chip(active)}
                   aria-current={active ? "true" : undefined}
                 >
@@ -77,6 +78,7 @@ export function PeopleFilter({
             <li key={p.id} className="shrink-0">
               <Link
                 href={hrefFor(togglePersonIn(selection, p.id))}
+                prefetch={false}
                 className={chip(active)}
                 aria-current={active ? "true" : undefined}
               >
