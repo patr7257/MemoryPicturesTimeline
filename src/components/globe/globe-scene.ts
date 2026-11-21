@@ -17,14 +17,23 @@ import {
   wheelZoomFactor,
   zoomDistance,
 } from "@/lib/globe-math";
+import {
+  arcWidthFactor,
+  fanOffsets,
+  glowOpacity,
+  pinPixelTarget,
+  pinWorldHeight,
+  pxToWorld,
+} from "@/lib/globe-pins";
 import { isCoarsePointer } from "./webgl";
 import {
   COL,
   LIGHT,
+  PIN_ASPECT,
+  PIN_TIP_V,
   createArcTube,
   createGlobe,
   createGpu,
-  createPin,
   createStage,
   createTrailMaterial,
   disposeTree,
@@ -33,6 +42,7 @@ import {
   easeOut,
   glowTexture,
   lerp,
+  pinTexture,
   skyTexture,
   sstep,
   vec3,
@@ -64,9 +74,10 @@ export type GlobeScene = {
 type Item = {
   trip: GlobeTrip;
   order: number;
+  // Where the pin's tip stands: the vacation's spot, fanned out a little when
+  // several vacations share it.
   p: THREE.Vector3;
-  head: THREE.Vector3;
-  pin: THREE.Group;
+  pin: THREE.Sprite;
   glow: THREE.Sprite;
   mat: THREE.ShaderMaterial | null;
 };
@@ -74,6 +85,14 @@ type Item = {
 type View = { lon: number; lat: number; dist: number };
 
 const INTRO_SECONDS = 3;
+// Flight arc tube radius at the zoomed-out distance (globe radii).
+const ARC_RADIUS = 0.0035;
+// Size of the soft glow under a pin, in CSS pixels.
+const GLOW_PX = 16;
+// Pick reach around the middle of a pin, in CSS pixels. The drawn pin is
+// small, so a finger gets a much larger invisible target.
+const PICK_MOUSE_PX = 15;
+const PICK_TOUCH_PX = 28;
 
 export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
   const { host, mask, reducedMotion: RM } = opts;
@@ -89,9 +108,23 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
   const globe = createGlobe(mask, low);
   scene.add(globe);
   const home = vec3(HOME.lat, HOME.lng);
-  const homePin = createPin(home, COL.ink, 1.15);
-  scene.add(homePin);
+  // Pins and glows are camera-facing sprites sharing one texture and one
+  // material each: a pin's tip is the sprite's anchor, so it stands on its spot.
+  const pinTex = pinTexture(COL.primary, COL.ink, COL.card);
+  const homeTex = pinTexture(COL.ink, COL.card, COL.primary);
   const glowTex = glowTexture("rgba(255,205,120,.95)", "rgba(255,190,100,0)");
+  const spriteMat = (map: THREE.Texture, opacity = 1) =>
+    new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, opacity });
+  const pinMat = spriteMat(pinTex);
+  const homeMat = spriteMat(homeTex);
+  const glowMat = spriteMat(glowTex, 0.4);
+  const homePin = new THREE.Sprite(homeMat);
+  homePin.center.set(0.5, PIN_TIP_V);
+  homePin.position.copy(home);
+  homePin.renderOrder = 2;
+  scene.add(homePin);
+  const marks = new THREE.Group();
+  scene.add(marks);
 
   let routes: THREE.Group | null = null;
   let items: Item[] = [];
@@ -125,11 +158,8 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
 
   function disposeRoutes() {
     if (!routes) return;
-    // The glow texture is shared by every sprite: detach it before the tree
-    // is disposed, it is released once with the scene.
-    routes.traverse((o) => {
-      if ((o as THREE.Sprite).isSprite) (o as THREE.Sprite).material.map = null;
-    });
+    // Only the arcs live here: the pin sprites share materials and textures
+    // that are released once with the scene.
     disposeTree(routes);
     scene.remove(routes);
     routes = null;
@@ -177,20 +207,27 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
     disposeRoutes();
     routes = new THREE.Group();
     scene.add(routes);
+    marks.clear();
+    const fan = fanOffsets(trips);
     items = trips.map((trip, order) => {
-      const p = vec3(trip.lat, trip.lng);
+      const o = fan.get(trip.id);
+      const p = vec3(clamp(trip.lat + (o?.dLat ?? 0), -89, 89), trip.lng + (o?.dLng ?? 0));
       const angle = home.angleTo(p);
       let mat: THREE.ShaderMaterial | null = null;
       if (angle >= 0.004) {
-        mat = createTrailMaterial(COL.primary);
+        mat = createTrailMaterial(COL.primary, true);
         mat.uniforms.uF.value = 1;
-        routes!.add(createArcTube(home, p, arcHeight(angle), 0.0045, mat));
+        routes!.add(createArcTube(home, p, arcHeight(angle), ARC_RADIUS, mat, true));
       }
-      const pin = createPin(p, COL.primary, 1.2);
-      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false }));
-      glow.position.copy(p).multiplyScalar(1.054);
-      routes!.add(pin, glow);
-      return { trip, order, p, head: p.clone().multiplyScalar(1.06), pin, glow, mat };
+      const pin = new THREE.Sprite(pinMat);
+      pin.center.set(0.5, PIN_TIP_V);
+      pin.position.copy(p);
+      pin.renderOrder = 2;
+      const glow = new THREE.Sprite(glowMat);
+      glow.position.copy(p);
+      glow.renderOrder = 1;
+      marks.add(glow, pin);
+      return { trip, order, p, pin, glow, mat };
     });
     if (sel && !items.some((i) => i.trip.id === sel)) sel = null;
     intro = RM ? 1 : 0;
@@ -250,21 +287,6 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
     },
     update(dt, time) {
       if (intro < 1) intro = Math.min(1, intro + dt / INTRO_SECONDS);
-      const n = items.length;
-      items.forEach((it, i) => {
-        const stagger = n > 1 ? (i / (n - 1)) * 1.5 : 0;
-        const pr = RM ? 1 : easeOut(clamp((intro * INTRO_SECONDS - 0.3 - stagger) / 0.9, 0, 1));
-        if (it.mat) {
-          it.mat.uniforms.uP.value = pr;
-          it.mat.uniforms.uT.value = RM ? 0.5 : time * 0.22 + i * 0.37;
-        }
-        const s = Math.max(0.001, RM ? 1 : easeBack(clamp((pr - 0.7) / 0.3, 0, 1)));
-        const lit = it.trip.id === hl || it.trip.id === hovered;
-        it.pin.scale.setScalar(1.2 * s * (lit ? 1.35 : 1));
-        const pulse = RM ? 1 : 1 + 0.2 * Math.sin(time * 2.2 + i);
-        it.glow.scale.setScalar(0.09 * s * pulse * (it.trip.id === sel || lit ? 1.6 : 1));
-      });
-
       // Where the camera distance settles: the user's zoom, else the framing.
       const goal = zoomed ?? (sel === null ? rest : null);
       if (fly) {
@@ -293,6 +315,33 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
       camera.up.set(0, 1, 0);
       camera.lookAt(0, 0, 0);
 
+      // Pins keep a small fixed size on screen: their world size follows the
+      // camera distance (see globe-pins.ts). Arcs and glows thin out as well.
+      const { h: canvasH } = stage.size();
+      const pinH = pinWorldHeight(view.dist, canvasH);
+      const glowW = pxToWorld(GLOW_PX, view.dist, canvasH);
+      const arcK = arcWidthFactor(view.dist);
+      glowMat.opacity = glowOpacity(view.dist, maxDist());
+      homePin.scale.set(pinH * PIN_ASPECT * 1.1, pinH * 1.1, 1);
+      const n = items.length;
+      items.forEach((it, i) => {
+        const stagger = n > 1 ? (i / (n - 1)) * 1.5 : 0;
+        const pr = RM ? 1 : easeOut(clamp((intro * INTRO_SECONDS - 0.3 - stagger) / 0.9, 0, 1));
+        if (it.mat) {
+          it.mat.uniforms.uP.value = pr;
+          it.mat.uniforms.uT.value = RM ? 0.5 : time * 0.22 + i * 0.37;
+          it.mat.uniforms.uK.value = arcK;
+        }
+        const s = Math.max(0.001, RM ? 1 : easeBack(clamp((pr - 0.7) / 0.3, 0, 1)));
+        const lit = it.trip.id === hl || it.trip.id === hovered;
+        const k = s * (lit ? 1.3 : 1);
+        it.pin.scale.set(pinH * PIN_ASPECT * k, pinH * k, 1);
+        it.pin.renderOrder = lit || it.trip.id === sel ? 3 : 2;
+        const pulse = RM ? 1 : 1 + 0.15 * Math.sin(time * 2.2 + i);
+        const g = glowW * s * pulse * (it.trip.id === sel || lit ? 1.6 : 1);
+        it.glow.scale.set(g, g, 1);
+      });
+
       return (
         fly !== null ||
         dragging ||
@@ -314,12 +363,14 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
   // Pins on the facing side within reach of (x, y), in canvas pixels.
   function hitsAt(x: number, y: number) {
     const { w, h } = stage.size();
-    const radius = coarse ? 30 : 20;
+    const radius = coarse ? PICK_TOUCH_PX : PICK_MOUSE_PX;
+    // The pin stands up from its tip on screen: aim at its middle.
+    const lift = pinPixelTarget(h) * 0.45;
     const hits: { it: Item; d: number }[] = [];
     for (const it of items) {
       if (it.p.dot(camera.position) < 1.03) continue;
-      v.copy(it.head).project(camera);
-      const d = Math.hypot((v.x * 0.5 + 0.5) * w - x, (-v.y * 0.5 + 0.5) * h - y);
+      v.copy(it.p).project(camera);
+      const d = Math.hypot((v.x * 0.5 + 0.5) * w - x, (-v.y * 0.5 + 0.5) * h - lift - y);
       if (d < radius) hits.push({ it, d });
     }
     return hits;
@@ -476,8 +527,10 @@ export function createGlobeScene(opts: GlobeSceneOptions): GlobeScene | null {
       canvas.removeEventListener("wheel", onWheel);
       disposeRoutes();
       disposeTree(globe);
-      disposeTree(homePin);
-      glowTex.dispose();
+      scene.remove(marks, homePin);
+      marks.clear();
+      for (const m of [pinMat, homeMat, glowMat]) m.dispose();
+      for (const t of [pinTex, homeTex, glowTex]) t.dispose();
       (scene.background as THREE.Texture | null)?.dispose();
       stage.dispose();
     },
