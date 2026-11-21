@@ -1,41 +1,34 @@
 import type { CountryStats } from "@/lib/countries";
+import { SHARED_COLOR, type Hex } from "@/lib/person-colors";
 
 type Props =
   | { mode: "single"; label: string; stats: CountryStats }
   | {
-      mode: "compare";
-      a: { name: string; total: number };
-      b: { name: string; total: number };
-      onlyA: number;
-      onlyB: number;
-      both: number;
+      mode: "multi";
+      people: { name: string; color: Hex; count: number }[];
+      shared: number;
+      total: number;
     };
 
 const countriesText = (n: number) =>
   n === 1 ? "1 country or territory" : `${n} countries and territories`;
 
-// Stats count visited only (countryStats). Every coloured swatch sits next to
-// its words, so nothing is told by colour alone.
+// Stats count visited only. Every coloured swatch sits next to its words, so
+// nothing is told by colour alone.
 export function CountryStatsPanel(props: Props) {
-  if (props.mode === "compare") {
-    const { a, b, onlyA, onlyB, both } = props;
+  if (props.mode === "multi") {
+    const { people, shared, total } = props;
     return (
       <section aria-labelledby="country-stats" className="flex flex-col gap-4">
         <h2 id="country-stats" className="sr-only">
           Stats
         </h2>
-        <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
-          <p className="font-hand text-3xl leading-tight">
-            {a.name}: {countriesText(a.total)}
-          </p>
-          <p className="font-hand text-3xl leading-tight">
-            {b.name}: {countriesText(b.total)}
-          </p>
-        </div>
+        <p className="font-hand text-3xl leading-tight">{countriesText(total)} together</p>
         <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-          <Part swatch="bg-country-a" label={`Only ${a.name}`} value={onlyA} />
-          <Part swatch="bg-country-b" label={`Only ${b.name}`} value={onlyB} />
-          <Part swatch="bg-country-both" label="Both" value={both} />
+          {people.map((p, i) => (
+            <Part key={`${i}:${p.name}`} color={p.color} label={p.name} value={p.count} />
+          ))}
+          <Part color={SHARED_COLOR} label="Shared" value={shared} />
         </ul>
       </section>
     );
@@ -67,10 +60,10 @@ export function CountryStatsPanel(props: Props) {
   );
 }
 
-function Part({ swatch, label, value }: { swatch: string; label: string; value: number }) {
+function Part({ color, label, value }: { color: Hex; label: string; value: number }) {
   return (
     <li className="flex items-center gap-2">
-      <span aria-hidden className={`size-3 shrink-0 rounded-full ${swatch}`} />
+      <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-black/10" style={{ backgroundColor: color }} />
       <span>
         {label}: <span className="font-semibold tabular-nums">{value}</span>
       </span>

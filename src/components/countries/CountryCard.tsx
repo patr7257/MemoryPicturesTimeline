@@ -20,8 +20,9 @@ import { NOTE_MAX, type CountryMark } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 
 // One country: a bottom sheet on phones, a centred dialog from sm up. Opened
-// from a list row or a map tap. `mark` never holds a
-// dismissed row (the view filters those out).
+// from a list row or a map tap; opening it stores nothing. An unmarked
+// country offers "Visited" and "Want to go", and only pressing one writes.
+// `mark` never holds a dismissed row (the view filters those out).
 export function CountryCard({
   country,
   mark,
@@ -54,15 +55,30 @@ export function CountryCard({
   const [noteError, setNoteError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
 
-  async function commitYear() {
+  // Each returns true when nothing was left unsaved. Only fields the card
+  // shows are committed: a year for a visited mark, a note for a note reader.
+  async function commitYear(): Promise<boolean> {
     const current = mark?.year ? String(mark.year) : "";
-    if (year === current) return;
-    setYearError(await onSaveYear(year));
+    if (!visited || year === current) return true;
+    const err = await onSaveYear(year);
+    setYearError(err);
+    return err === null;
   }
 
-  async function commitNote() {
-    if (note.trim() === (mark?.note ?? "")) return;
-    setNoteError(await onSaveNote(note));
+  async function commitNote(): Promise<boolean> {
+    if (tier !== "edit_notes" || !mark || note.trim() === (mark.note ?? "")) return true;
+    const err = await onSaveNote(note);
+    setNoteError(err);
+    return err === null;
+  }
+
+  // Every way of closing (Escape, backdrop, close button) saves a changed
+  // year and note first. A refused save keeps the card open with its error,
+  // so the typed value is not lost.
+  async function close() {
+    if (!editable) return onClose();
+    const [yearOk, noteOk] = await Promise.all([commitYear(), commitNote()]);
+    if (yearOk && noteOk) onClose();
   }
 
   async function remove() {
@@ -80,7 +96,7 @@ export function CountryCard({
       : "Not visited";
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && void close()}>
       <DialogContent
         className={cn(
           "top-auto bottom-0 left-0 max-w-none translate-x-0 translate-y-0 gap-5 rounded-t-xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-sm",
@@ -119,14 +135,11 @@ export function CountryCard({
               >
                 <Star data-icon="inline-start" /> Want to go
               </Button>
-              <Button
-                variant="destructive"
-                className="h-11 px-4 sm:h-9"
-                disabled={!mark || removing}
-                onClick={remove}
-              >
-                <Trash2 data-icon="inline-start" /> Remove
-              </Button>
+              {mark && (
+                <Button variant="destructive" className="h-11 px-4 sm:h-9" disabled={removing} onClick={remove}>
+                  <Trash2 data-icon="inline-start" /> Remove
+                </Button>
+              )}
             </div>
 
             {visited && (
