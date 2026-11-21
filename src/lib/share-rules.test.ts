@@ -13,6 +13,8 @@ import {
   defaultFamilySelection,
   initialTagged,
   needsSomeone,
+  soleTripsNote,
+  tagsByTrip,
   tripsOnlyTagging,
   outsideFamilies,
   toggleFamily,
@@ -292,6 +294,40 @@ describe("tripsOnlyTagging", () => {
         { tripId: "t2", personIds: ["q", "p"] },
       ]),
     ).toEqual(["t1"]);
+  });
+});
+
+describe("tagsByTrip", () => {
+  it("groups tag rows per vacation, in first-seen order", () => {
+    expect(
+      tagsByTrip([
+        { tripId: "t1", personId: "a" },
+        { tripId: "t2", personId: "b" },
+        { tripId: "t1", personId: "c" },
+      ]),
+    ).toEqual([
+      { tripId: "t1", personIds: ["a", "c"] },
+      { tripId: "t2", personIds: ["b"] },
+    ]);
+  });
+});
+
+describe("soleTripsNote", () => {
+  it("says nothing when no vacation goes", () => {
+    expect(soleTripsNote("Patrick", 0, 0)).toBe("");
+  });
+  it("counts vacations and photos", () => {
+    expect(soleTripsNote("Patrick", 4, 40)).toBe(
+      "This also deletes 4 vacations where Patrick is the only person, with their 40 photos.",
+    );
+  });
+  it("uses the singular for one", () => {
+    expect(soleTripsNote("Anna", 1, 1)).toBe(
+      "This also deletes 1 vacation where Anna is the only person, with its 1 photo.",
+    );
+  });
+  it("leaves the photos out when there are none", () => {
+    expect(soleTripsNote("Anna", 2, 0)).toBe("This also deletes 2 vacations where Anna is the only person.");
   });
 });
 

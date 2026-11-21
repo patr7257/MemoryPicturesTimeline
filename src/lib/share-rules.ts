@@ -24,6 +24,19 @@ export function needsSomeone(personIds: readonly string[]): boolean {
   return personIds.length === 0;
 }
 
+// trip_people rows grouped per vacation, for tripsOnlyTagging.
+export function tagsByTrip(
+  rows: readonly { tripId: string; personId: string }[],
+): { tripId: string; personIds: string[] }[] {
+  const out = new Map<string, string[]>();
+  for (const r of rows) {
+    const ids = out.get(r.tripId);
+    if (ids) ids.push(r.personId);
+    else out.set(r.tripId, [r.personId]);
+  }
+  return Array.from(out, ([tripId, personIds]) => ({ tripId, personIds }));
+}
+
 // The vacations that would be left with nobody tagged once `personId` is
 // gone: those whose only tagged person (duplicates ignored) is that person.
 export function tripsOnlyTagging(
@@ -36,6 +49,17 @@ export function tripsOnlyTagging(
       return ids.size === 1 && ids.has(personId);
     })
     .map((t) => t.tripId);
+}
+
+// The line in the "remove person" confirm about what goes with them: the
+// vacations only they were on (tripsOnlyTagging) and those vacations' photos.
+export function soleTripsNote(name: string, tripCount: number, photoCount: number): string {
+  if (tripCount <= 0) return "";
+  const one = tripCount === 1;
+  const trips = `${tripCount} vacation${one ? "" : "s"} where ${name} is the only person`;
+  if (photoCount <= 0) return `This also deletes ${trips}.`;
+  const photos = `${photoCount} photo${photoCount === 1 ? "" : "s"}`;
+  return `This also deletes ${trips}, with ${one ? "its" : "their"} ${photos}.`;
 }
 
 type Refusal = { ok: false; error: string };

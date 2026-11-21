@@ -5,7 +5,16 @@ import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { session, user } from "@/db/auth-schema";
-import { families, familyPeople, members, people, pushSubscriptions } from "@/db/schema";
+import {
+  families,
+  familyPeople,
+  members,
+  people,
+  photos,
+  pushSubscriptions,
+  tripPeople,
+  trips,
+} from "@/db/schema";
 import { getAdminOrNull } from "@/lib/access";
 import { fail, type ActionResult } from "@/lib/action-result";
 import { sendInviteEmail } from "@/lib/email";
@@ -18,6 +27,11 @@ import {
   parseRole,
 } from "@/lib/members";
 import { colorsForMissing, firstFreeColorKey, isPaletteKey } from "@/lib/person-colors";
+import { deleteObjects, r2Configured } from "@/lib/r2";
+import { tagsByTrip, tripsOnlyTagging } from "@/lib/share-rules";
+
+// deleteObjects takes at most 1000 keys per call.
+const R2_DELETE_BATCH = 1000;
 
 // Every action here is super admin only and answers a non admin with a refusal
 // value: production hides thrown messages, so nothing throws one.
@@ -177,20 +191,68 @@ export async function renamePerson(id: string, name: string): Promise<ActionResu
 
 // A person who still has a login cannot be deleted (members.person_id is
 // ON DELETE RESTRICT): say so instead of surfacing a database error.
+// A vacation always keeps at least one person, so the vacations only this
+// person was on go with them, photos included (rows cascade in the same
+// transaction; storage objects are removed after the commit, best effort).
 export async function deletePerson(id: string): Promise<ActionResult> {
   if (!(await getAdminOrNull())) return fail(NOT_ADMIN);
   if (!isUuid(id)) return { ok: true };
   const db = getDb();
+  let keys: string[];
   try {
     const login = await db.query.members.findFirst({ where: eq(members.personId, id) });
     if (login) return fail(HAS_LOGIN);
-    await db.delete(people).where(eq(people.id, id));
+    keys = await db.transaction(async (tx) => {
+      const own = await tx
+        .select({ tripId: tripPeople.tripId })
+        .from(tripPeople)
+        .where(eq(tripPeople.personId, id));
+      const tagged = Array.from(new Set(own.map((r) => r.tripId)));
+      const rows =
+        tagged.length > 0
+          ? await tx
+              .select({ tripId: tripPeople.tripId, personId: tripPeople.personId })
+              .from(tripPeople)
+              .where(inArray(tripPeople.tripId, tagged))
+          : [];
+      const doomed = tripsOnlyTagging(id, tagsByTrip(rows));
+      let objectKeys: string[] = [];
+      if (doomed.length > 0) {
+        const shots = await tx
+          .select({ o: photos.r2KeyOriginal, s: photos.r2Key400, l: photos.r2Key1200 })
+          .from(photos)
+          .where(inArray(photos.tripId, doomed));
+        objectKeys = shots.flatMap((p) => [p.o, p.s, p.l]);
+        // Photo rows, comments, tags and shares cascade.
+        await tx.delete(trips).where(inArray(trips.id, doomed));
+      }
+      await tx.delete(people).where(eq(people.id, id));
+      return objectKeys;
+    });
   } catch (err) {
     if (pgCode(err) === "23503") return fail(HAS_LOGIN);
     return fail(GENERIC);
   }
+  await deleteStoredObjects(keys);
   refresh();
   return { ok: true };
+}
+
+// Best effort: an orphaned object is cheap, failing an action whose rows are
+// already gone is not. Logs the error name only.
+async function deleteStoredObjects(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  if (!r2Configured()) {
+    console.error("[family] storage not configured, objects left:", keys.length);
+    return;
+  }
+  for (let i = 0; i < keys.length; i += R2_DELETE_BATCH) {
+    try {
+      await deleteObjects(keys.slice(i, i + R2_DELETE_BATCH));
+    } catch (err) {
+      console.error("[family] storage delete failed", err instanceof Error ? err.name : "error");
+    }
+  }
 }
 
 export async function setPersonColor(
