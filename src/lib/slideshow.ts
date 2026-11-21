@@ -1,6 +1,8 @@
 // Pure slideshow logic: no React, no database, no browser APIs, so it is unit
 // tested in slideshow.test.ts and shared by the server queries and the player.
 
+import { effectiveCover } from "./trip-pin";
+
 export type SlideshowComment = { authorName: string; body: string };
 
 // One photo as the player needs it. Nothing here is sensitive beyond what the
@@ -29,12 +31,24 @@ export type SlideshowOrder = "time" | "shuffle";
 // (also what the player falls back to without WebGL or with reduced motion).
 export type SlideshowStyle = "projector" | "simple";
 
+// "photo" plays one photo at a time; "vacation" plays every vacation as grids
+// of at most four photos with its title, dates and note.
+export type SlideshowKind = "photo" | "vacation";
+
+// Vacation slideshow: "selected" shows one grid of up to four photos per
+// vacation, "all" shows every photo, four at a time.
+export type VacationShow = "selected" | "all";
+
 export type SlideshowSettings = {
   order: SlideshowOrder;
   // Dates, places, captions and comments on top of the photo.
   showInfo: boolean;
   seconds: number;
   style: SlideshowStyle;
+  kind: SlideshowKind;
+  vacationShow: VacationShow;
+  // Seconds per grid in the vacation slideshow.
+  screenSeconds: number;
 };
 
 export const MIN_SECONDS = 2;
@@ -44,11 +58,14 @@ export const DEFAULT_SETTINGS: SlideshowSettings = {
   showInfo: true,
   seconds: 5,
   style: "projector",
+  kind: "photo",
+  vacationShow: "selected",
+  screenSeconds: 6,
 };
 export const SETTINGS_STORAGE_KEY = "memories.slideshow.settings.v1";
 
-export function clampSeconds(value: number): number {
-  if (!Number.isFinite(value)) return DEFAULT_SETTINGS.seconds;
+export function clampSeconds(value: number, fallback: number = DEFAULT_SETTINGS.seconds): number {
+  if (!Number.isFinite(value)) return fallback;
   return Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, Math.round(value)));
 }
 
@@ -68,6 +85,15 @@ export function parseSettings(raw: string | null | undefined): SlideshowSettings
     showInfo: typeof d.showInfo === "boolean" ? d.showInfo : DEFAULT_SETTINGS.showInfo,
     seconds: typeof d.seconds === "number" ? clampSeconds(d.seconds) : DEFAULT_SETTINGS.seconds,
     style: d.style === "projector" || d.style === "simple" ? d.style : DEFAULT_SETTINGS.style,
+    kind: d.kind === "photo" || d.kind === "vacation" ? d.kind : DEFAULT_SETTINGS.kind,
+    vacationShow:
+      d.vacationShow === "selected" || d.vacationShow === "all"
+        ? d.vacationShow
+        : DEFAULT_SETTINGS.vacationShow,
+    screenSeconds:
+      typeof d.screenSeconds === "number"
+        ? clampSeconds(d.screenSeconds, DEFAULT_SETTINGS.screenSeconds)
+        : DEFAULT_SETTINGS.screenSeconds,
   };
 }
 
@@ -209,4 +235,140 @@ export function driftFor(id: string): { x: number; y: number } {
 
 export function tripCountOf(photos: readonly { tripId: string }[]): number {
   return new Set(photos.map((p) => p.tripId)).size;
+}
+
+// ---- Vacation slideshow ----
+
+// The most photos on one screen: 2 by 2. Never more, so tiles never shrink
+// below the 2 by 2 size.
+export const MAX_PER_SCREEN = 4;
+
+export type VacationPhoto = { id: string; caption: string | null };
+
+// One vacation the viewer may see, its photos in time order.
+export type SlideshowVacation = {
+  id: string;
+  title: string;
+  // YYYY-MM-DD
+  startDate: string;
+  endDate: string | null;
+  locationName: string | null;
+  // The vacation's description.
+  note: string | null;
+  coverPhotoId: string | null;
+  photos: VacationPhoto[];
+};
+
+export type VacationScreen = {
+  // Unique per screen in one show.
+  key: string;
+  vacation: Omit<SlideshowVacation, "photos" | "coverPhotoId">;
+  // 1 to MAX_PER_SCREEN photos.
+  photos: VacationPhoto[];
+  // 1-based part of this vacation, and how many parts it has ("2 of 3").
+  part: number;
+  parts: number;
+};
+
+export type GridLayout = "single" | "pair" | "trio" | "quad";
+
+export function gridLayout(count: number): GridLayout {
+  if (count <= 1) return "single";
+  if (count === 2) return "pair";
+  if (count === 3) return "trio";
+  return "quad";
+}
+
+// The vacation's cover first (the chosen cover, else the first photo: the rule
+// in trip-pin.ts), then the rest picked evenly spread over the remaining
+// photos, kept in time order. `photos` must be in time order.
+export function pickSelected<P extends { id: string }>(
+  photos: readonly P[],
+  coverPhotoId: string | null,
+  max: number = MAX_PER_SCREEN,
+): P[] {
+  const cover = effectiveCover(coverPhotoId, photos);
+  if (!cover) return [];
+  const rest = photos.filter((p) => p !== cover);
+  const want = max - 1;
+  if (rest.length <= want) return [cover, ...rest];
+  if (want <= 0) return [cover];
+  if (want === 1) return [cover, rest[0]];
+  const step = (rest.length - 1) / (want - 1);
+  const picked: P[] = [];
+  for (let i = 0; i < want; i++) picked.push(rest[Math.round(i * step)]);
+  return [cover, ...picked];
+}
+
+export function chunkPhotos<T>(items: readonly T[], size: number = MAX_PER_SCREEN): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+// Screens for the whole show. Vacations without photos are dropped. "time":
+// oldest vacation first; "shuffle": vacations in a seeded mix, the photos and
+// screens inside one vacation always stay in time order.
+export function buildVacationScreens(
+  vacations: readonly SlideshowVacation[],
+  opts: { show: VacationShow; order: SlideshowOrder; seed: number },
+): VacationScreen[] {
+  const withPhotos = vacations
+    .map((v, i) => ({ v, i }))
+    .filter((e) => e.v.photos.length > 0)
+    .sort((a, b) => {
+      if (a.v.startDate !== b.v.startDate) return a.v.startDate < b.v.startDate ? -1 : 1;
+      return a.i - b.i;
+    })
+    .map((e) => e.v);
+  const ordered = opts.order === "shuffle" ? shuffle(withPhotos, opts.seed) : withPhotos;
+
+  const screens: VacationScreen[] = [];
+  for (const v of ordered) {
+    const { photos, coverPhotoId: _cover, ...vacation } = v;
+    const grids =
+      opts.show === "selected" ? [pickSelected(photos, v.coverPhotoId)] : chunkPhotos(photos);
+    grids.forEach((grid, i) => {
+      screens.push({
+        key: `${v.id}:${i + 1}`,
+        vacation,
+        photos: grid,
+        part: i + 1,
+        parts: grids.length,
+      });
+    });
+  }
+  return screens;
+}
+
+// "56 screens from 56 vacations, about 6 minutes"
+export function vacationSummaryLabel(
+  screenCount: number,
+  vacationCount: number,
+  seconds: number,
+): string {
+  if (screenCount === 0) return "No vacations with photos yet";
+  return `${plural(screenCount, "screen", "screens")} from ${plural(vacationCount, "vacation", "vacations")}, ${estimateLabel(screenCount, seconds)}`;
+}
+
+const DAY = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric" });
+const DAY_MONTH = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "long" });
+const MONTH_YEAR = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", month: "long", year: "numeric" });
+
+// Vacation dates are calendar days (YYYY-MM-DD), formatted in UTC so server
+// and browser agree. "July 2019" without an end date, else a range:
+// "12 - 19 July 2019", "28 July - 3 August 2019", "28 December 2019 - 3 January 2020".
+export function vacationDates(startDate: string, endDate: string | null): string {
+  const start = new Date(`${startDate}T00:00:00Z`);
+  if (Number.isNaN(start.getTime())) return "";
+  if (!endDate) return MONTH_YEAR.format(start);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  if (Number.isNaN(end.getTime()) || endDate === startDate) return DATE_FORMAT.format(start);
+  if (start.getUTCFullYear() !== end.getUTCFullYear()) {
+    return `${DATE_FORMAT.format(start)} - ${DATE_FORMAT.format(end)}`;
+  }
+  if (start.getUTCMonth() !== end.getUTCMonth()) {
+    return `${DAY_MONTH.format(start)} - ${DATE_FORMAT.format(end)}`;
+  }
+  return `${DAY.format(start)} - ${DATE_FORMAT.format(end)}`;
 }
