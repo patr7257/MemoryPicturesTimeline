@@ -224,10 +224,3 @@ export async function getMapPhotos(
   }
   return out;
 }
-
-export async function getAllPeople(): Promise<PersonRef[]> {
-  return getDb()
-    .select({ id: people.id, name: people.name })
-    .from(people)
-    .orderBy(asc(people.name));
-}
