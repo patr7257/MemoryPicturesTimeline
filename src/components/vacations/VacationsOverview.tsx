@@ -289,13 +289,14 @@ export function VacationsOverview({
           <VacationForm
             people={people}
             viewerPersonId={viewerPersonId}
+            families={filter.families}
             onCreated={(id) => router.push(`/trips/${id}`)}
             onCancel={() => setCreating(false)}
           />
         )}
       </ResponsiveDialog>
 
-      <QuickEditVacation trip={editing} people={people} onClose={() => setEditing(null)} />
+      <QuickEditVacation trip={editing} people={people} families={filter.families} onClose={() => setEditing(null)} />
 
       <AlertDialog
         open={deleting !== null}

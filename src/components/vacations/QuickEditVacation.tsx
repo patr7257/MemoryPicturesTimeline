@@ -11,8 +11,9 @@ import { toast } from "sonner";
 import { setTripPeople, updateTrip } from "@/actions/trips";
 import { draftError, sameIds, type VacationDraft, type VacationListItem } from "@/lib/vacations-view";
 import type { PersonRef } from "@/lib/queries";
-import { mergeByName } from "@/lib/share-rules";
+import { mergeByName, outsideFamilies } from "@/lib/share-rules";
 import { Button } from "@/components/ui/button";
+import type { PickerFamily } from "./PeoplePicker";
 import { ResponsiveDialog } from "./ResponsiveDialog";
 import { VacationFields } from "./VacationFields";
 
@@ -31,11 +32,13 @@ export function QuickEditVacation({
   trip,
   people,
   onClose,
+  families,
 }: {
   // The vacation being edited; null keeps the dialog closed.
   trip: VacationListItem | null;
   people: PersonRef[];
   onClose: () => void;
+  families?: PickerFamily[];
 }) {
   return (
     <ResponsiveDialog
@@ -47,7 +50,7 @@ export function QuickEditVacation({
       description="Change the details and who can see this vacation."
     >
       {/* keyed so a different vacation always starts from its own values */}
-      {trip && <EditBody key={trip.id} trip={trip} people={people} onClose={onClose} />}
+      {trip && <EditBody key={trip.id} trip={trip} people={people} families={families} onClose={onClose} />}
     </ResponsiveDialog>
   );
 }
@@ -56,10 +59,12 @@ function EditBody({
   trip,
   people,
   onClose,
+  families,
 }: {
   trip: VacationListItem;
   people: PersonRef[];
   onClose: () => void;
+  families?: PickerFamily[];
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => draftFrom(trip));
@@ -108,7 +113,14 @@ function EditBody({
 
   return (
     <form onSubmit={(e) => void save(e)} className="flex flex-col gap-5">
-      <VacationFields value={draft} onChange={setDraft} people={choices} disabled={busy} />
+      <VacationFields
+        value={draft}
+        onChange={setDraft}
+        people={choices}
+        disabled={busy}
+        families={families && families.length > 0 ? families : undefined}
+        alsoOnIds={families ? outsideFamilies(trip.people.map((p) => p.id), families) : undefined}
+      />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         <Button
           variant="ghost"

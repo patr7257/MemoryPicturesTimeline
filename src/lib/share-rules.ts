@@ -111,6 +111,38 @@ export function groupState(personIds: readonly string[], ticked: readonly string
   return on === personIds.length ? "all" : "some";
 }
 
+// Tap on a family chip: a fully on family turns all its people off, anything
+// else (none or some on) turns all of them on. Order kept, no duplicates.
+export function toggleFamily(ticked: readonly string[], personIds: readonly string[]): string[] {
+  if (groupState(personIds, ticked) === "all") {
+    const drop = new Set(personIds);
+    return ticked.filter((id) => !drop.has(id));
+  }
+  const have = new Set(ticked);
+  return [...ticked, ...Array.from(new Set(personIds)).filter((id) => !have.has(id))];
+}
+
+// What a new vacation starts with: exactly one family means everyone of it who
+// may be tagged; several (or no) families mean nothing until one is picked.
+export function defaultFamilySelection(
+  families: readonly { memberIds: readonly string[] }[],
+  allowedIds: readonly string[],
+): string[] {
+  if (families.length !== 1) return [];
+  const allowed = new Set(allowedIds);
+  return Array.from(new Set(families[0].memberIds)).filter((id) => allowed.has(id));
+}
+
+// Ids that belong to none of the given families (the "Also on this vacation"
+// group of the picker: already tagged, outside the viewer's families).
+export function outsideFamilies(
+  ids: readonly string[],
+  families: readonly { memberIds: readonly string[] }[],
+): string[] {
+  const inside = new Set(families.flatMap((f) => f.memberIds));
+  return ids.filter((id) => !inside.has(id));
+}
+
 // The visible people plus those already tagged (who stay), once each, by name.
 export function mergeByName<T extends { id: string; name: string }>(a: readonly T[], b: readonly T[]): T[] {
   const out = new Map<string, T>();

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CoverPicker } from "@/components/trip/CoverPicker";
 import { EditTripForm } from "@/components/trip/EditTripForm";
 import { getViewer } from "@/lib/access";
+import { getViewerFamilies } from "@/lib/family-queries";
 import { getTripPageData } from "@/lib/photo-queries";
 import { getTagTargets, getTripSharing } from "@/lib/share-queries";
 
@@ -13,9 +14,10 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   if (!data || !data.canManage) notFound();
   // Who may be tagged: the people the viewer sees plus those already tagged.
   const viewer = await getViewer();
-  const [allPeople, sharing] = await Promise.all([
+  const [allPeople, sharing, families] = await Promise.all([
     getTagTargets(viewer, data.people.map((p) => p.id)),
     getTripSharing(viewer, data.trip),
+    getViewerFamilies(viewer),
   ]);
 
   return (
@@ -46,6 +48,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           allPeople={allPeople}
           taggedIds={data.people.map((p) => p.id)}
           sharing={sharing}
+          families={families}
         />
       </section>
     </div>
