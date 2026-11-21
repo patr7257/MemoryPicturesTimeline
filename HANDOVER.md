@@ -49,7 +49,9 @@ in through one pull request. The repo has no CI workflows: the gate is
 5. Carried over: fix the doubtful backfilled photo locations by hand with the
    place pencil (`pnpm fill-locations` reports what is left), and find out
    whose uploads lose GPS (per-uploader query in the Neon SQL editor).
-6. Settle the split in `docs/free-vs-premium.md` (the families rows are open).
+6. iOS app: the plan from family web app to paid App Store app is in
+   `docs/ios-roadmap.md` (decisions, phases A to D, open decisions,
+   accountant questions). Start with its open decisions, then Phase A.
 7. Parked ideas: a fade when a country is marked, the share image layout,
    bulk "set location for selected photos", place search in the picker
    (Photon), HEIC via client-side conversion, video, regions and cities for
@@ -105,11 +107,9 @@ cd "C:\Users\pr\repos\1-Personal\MemoryPicturesTimeline"; pnpm backfill:visited
 
 ## Open decisions waiting on Patrick
 
-- Free vs premium: confirm or change the split in `docs/free-vs-premium.md`,
-  and settle the questions at its end.
-- Branch `docs/ios-roadmap-pointer` is not in main: it adds a pointer to
-  `docs/ios-roadmap.md` in `CLAUDE.md` and `HANDOVER.md`. Merge it or delete
-  it?
+- Free vs premium: the split in `docs/free-vs-premium.md` is confirmed. Still
+  to settle before anything is charged: the questions at its end (cap size,
+  price, trial, the current family).
 - A committed, tested script for importing photos and video stills from an
   archive folder: build it, yes or no?
 - Carried over: bulk location setting for many photos, build it, yes or no?
@@ -119,6 +119,5 @@ cd "C:\Users\pr\repos\1-Personal\MemoryPicturesTimeline"; pnpm backfill:visited
 ## Environment state
 
 - No dev server running, no Docker containers, no extra worktrees.
-- The feature branches of this session are merged and deleted, local and
-  remote. `docs/ios-roadmap-pointer` is kept.
+- All feature branches are merged and deleted, local and remote.
 - One Dokploy schedule on the memories app ("on-this-day push").
