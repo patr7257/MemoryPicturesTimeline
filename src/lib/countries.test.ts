@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { COUNTRIES, UN_MEMBER_TOTAL } from "./country-catalog";
 import {
-  applyMarkChange, markAfterStatus, legendFills, cleanNote, comparePartition, countrySearchKey, countryStats, needsRemoveConfirm, fillsForCompare, fillsForMarks,
-  fillsForUnion, NOTE_MAX, parseYear, resolveSelection,
+  applyMarkChange, markAfterStatus, legendFills, cleanNote, countrySearchKey, countryStats, currentYearIn, needsRemoveConfirm, fillsForMarks,
+  fillsForPeople, multiStats, NOTE_MAX, parseYear, partitionVisitors, YEAR_ZONE,
 } from "./countries";
-
-const A = "11111111-1111-4111-8111-111111111111";
-const B = "22222222-2222-4222-8222-222222222222";
-const C = "33333333-3333-4333-8333-333333333333";
 
 describe("countryStats", () => {
   it("is all zeros for nobody", () => {
@@ -27,50 +23,45 @@ describe("countryStats", () => {
   });
 });
 
-describe("resolveSelection", () => {
-  const all = [A, B, C];
-  it("defaults to the viewer's own person", () => {
-    expect(resolveSelection({ personIds: [], family: false, viewerPersonId: A, allPersonIds: all }))
-      .toEqual({ mode: "single", personId: A });
+describe("currentYearIn", () => {
+  it("turns the year at midnight in Copenhagen, not in UTC", () => {
+    expect(currentYearIn(YEAR_ZONE, new Date("2026-12-31T22:59:00Z"))).toBe(2026);
+    expect(currentYearIn(YEAR_ZONE, new Date("2026-12-31T23:00:00Z"))).toBe(2027);
   });
-  it("falls back to the family when the viewer has no person", () => {
-    expect(resolveSelection({ personIds: [], family: false, viewerPersonId: null, allPersonIds: all }))
-      .toEqual({ mode: "union", personIds: all });
-  });
-  it("family wins over a person list", () => {
-    expect(resolveSelection({ personIds: [A], family: true, viewerPersonId: A, allPersonIds: all }))
-      .toEqual({ mode: "union", personIds: all });
-  });
-  it("two people compare, three union", () => {
-    expect(resolveSelection({ personIds: [B, A], family: false, viewerPersonId: A, allPersonIds: all }))
-      .toEqual({ mode: "compare", a: B, b: A });
-    expect(resolveSelection({ personIds: [A, B, C], family: false, viewerPersonId: A, allPersonIds: all }))
-      .toEqual({ mode: "union", personIds: [A, B, C] });
-  });
-  it("drops unknown people, then applies the rules to what is left", () => {
-    const gone = "44444444-4444-4444-8444-444444444444";
-    expect(resolveSelection({ personIds: [gone, B], family: false, viewerPersonId: A, allPersonIds: all }))
-      .toEqual({ mode: "single", personId: B });
-    expect(resolveSelection({ personIds: [gone], family: false, viewerPersonId: A, allPersonIds: all }))
-      .toEqual({ mode: "single", personId: A });
+  it("uses the zone it is given", () => {
+    expect(currentYearIn("UTC", new Date("2026-12-31T23:00:00Z"))).toBe(2026);
   });
 });
 
-describe("compare and fills", () => {
-  it("partitions", () => {
-    expect(comparePartition(["208", "578"], ["578", "752"]))
-      .toEqual({ onlyA: ["208"], onlyB: ["752"], both: ["578"] });
+describe("several people", () => {
+  const byPerson = { ann: ["208", "578"], bo: ["208", "752"], cy: [] };
+  it("lists the visitors of each country and the shared countries", () => {
+    expect(partitionVisitors(byPerson)).toEqual({
+      visitorsByKey: { "208": ["ann", "bo"], "578": ["ann"], "752": ["bo"] },
+      sharedKeys: ["208"],
+    });
   });
-  it("fills for one person skip dismissed", () => {
+  it("counts a person once per country when a key repeats", () => {
+    expect(partitionVisitors({ ann: ["208", "208"] })).toEqual({ visitorsByKey: { "208": ["ann"] }, sharedKeys: [] });
+  });
+  it("fills with the one visitor's colour, or the shared colour", () => {
+    expect(fillsForPeople(byPerson, { ann: "#aa0000", bo: "#00bb00", cy: "#0000cc" }, "#999999"))
+      .toEqual({ "208": "#999999", "578": "#aa0000", "752": "#00bb00" });
+  });
+  it("counts per person, shared and total", () => {
+    expect(multiStats(byPerson)).toEqual({ perPerson: { ann: 2, bo: 2, cy: 0 }, shared: 1, total: 3 });
+  });
+});
+
+describe("fillsForMarks", () => {
+  it("skips dismissed", () => {
     expect(fillsForMarks([
       { countryKey: "208", status: "visited", year: null },
       { countryKey: "392", status: "wishlist", year: null },
       { countryKey: "752", status: "dismissed", year: null },
     ])).toEqual({ "208": "visited", "392": "wishlist" });
-  });
-  it("fills for compare and union", () => {
-    expect(fillsForCompare(["208", "578"], ["578"])).toEqual({ "208": "onlyA", "578": "both" });
-    expect(fillsForUnion(["208", "208"])).toEqual({ "208": "visited" });
+    expect(fillsForMarks([{ countryKey: "208", status: "visited", year: null }, { countryKey: "752", status: "dismissed", year: null }]))
+      .toEqual({ "208": "visited" });
   });
 });
 

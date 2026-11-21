@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { CONTINENTS, COUNTRIES, type Country } from "@/lib/country-catalog";
 import { countrySearchKey } from "@/lib/countries";
+import type { Hex } from "@/lib/person-colors";
 import { cn } from "@/lib/utils";
 
 // What one row shows. Only the keys in `rows` are marked; everything else is
@@ -15,7 +16,8 @@ import { cn } from "@/lib/utils";
 export type RowState =
   | { kind: "visited"; year?: number | null }
   | { kind: "wishlist" }
-  | { kind: "a" | "b" | "both"; label: string };
+  // Several people shown: who visited it, in their colour or the shared one.
+  | { kind: "people"; label: string; color: Hex };
 
 // An id without spaces ("North America" gives "continent-north-america"),
 // so aria-labelledby points at one existing id.
@@ -154,16 +156,7 @@ function Row({
 const MARKER: Record<RowState["kind"], string> = {
   visited: "border-country-visited/40 bg-country-visited/10",
   wishlist: "border-country-wishlist/40 bg-country-wishlist/10",
-  a: "border-country-a/40 bg-country-a/10",
-  b: "border-country-b/40 bg-country-b/10",
-  both: "border-country-both/40 bg-country-both/10",
-};
-const DOT: Record<RowState["kind"], string> = {
-  visited: "bg-country-visited",
-  wishlist: "bg-country-wishlist",
-  a: "bg-country-a",
-  b: "bg-country-b",
-  both: "bg-country-both",
+  people: "border-border bg-card",
 };
 
 // Icon or swatch plus words: state is never colour alone.
@@ -173,7 +166,10 @@ function Marker({ state }: { state: RowState }) {
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs text-foreground",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs text-foreground",
+        // A list of names may be long: it shrinks and truncates, the details
+        // card names everyone.
+        state.kind === "people" ? "min-w-0 max-w-[50%]" : "shrink-0",
         MARKER[state.kind],
       )}
     >
@@ -182,9 +178,13 @@ function Marker({ state }: { state: RowState }) {
       ) : state.kind === "wishlist" ? (
         <Star aria-hidden className="size-3.5 text-country-wishlist" />
       ) : (
-        <span aria-hidden className={cn("size-2.5 rounded-full", DOT[state.kind])} />
+        <span
+          aria-hidden
+          className="size-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+          style={{ backgroundColor: state.color }}
+        />
       )}
-      {text}
+      <span className="truncate">{text}</span>
     </span>
   );
 }

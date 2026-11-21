@@ -69,9 +69,18 @@ function fakeStore(rows: Record<string, Row> = {}) {
       data.delete(id(personId, countryKey));
       return 1;
     },
-    async markExists(personId, countryKey) {
-      calls.push(["markExists", personId, countryKey]);
-      return data.has(id(personId, countryKey));
+    async findMark(personId, countryKey) {
+      calls.push(["findMark", personId, countryKey]);
+      const r = data.get(id(personId, countryKey));
+      return r ? { status: r.status, hasYear: r.year !== null, hasNote: r.note !== null } : null;
+    },
+    async dismissMark(personId, countryKey, opts) {
+      calls.push(["dismissMark", personId, countryKey, opts]);
+      const r = data.get(id(personId, countryKey));
+      if (!r || r.status !== "visited") return 0;
+      if (opts.onlyWithoutNote && r.note !== null) return 0;
+      data.set(id(personId, countryKey), { status: "dismissed", year: null, note: null });
+      return 1;
     },
     async noteExists(personId, countryKey) {
       calls.push(["noteExists", personId, countryKey]);
@@ -80,7 +89,7 @@ function fakeStore(rows: Record<string, Row> = {}) {
   };
   const names = () => calls.map((c) => c[0]);
   const writes = () =>
-    names().filter((n) => ["upsertStatus", "updateYear", "updateNote", "deleteMark"].includes(n));
+    names().filter((n) => ["upsertStatus", "updateYear", "updateNote", "deleteMark", "dismissMark"].includes(n));
   return { store, data, calls, names, writes, row: (p: string, k = DK) => data.get(id(p, k)) };
 }
 
@@ -97,7 +106,7 @@ describe("check order and refusals", () => {
 
   it("refuses a person id that is not a uuid before any store call", async () => {
     const f = fakeStore();
-    const r = await removeCountryCore(f.store, owner, { personId: "not-a-uuid", countryKey: DK });
+    const r = await removeCountryCore(f.store, owner, { personId: "not-a-uuid", countryKey: DK, confirmed: true });
     expect(r).toEqual({ ok: false, error: "Person not found" });
     expect(f.calls).toEqual([]);
   });
@@ -202,44 +211,102 @@ describe("notes", () => {
 });
 
 describe("removal", () => {
-  const withNote = (p: string) => ({ [`${p}/${DK}`]: { status: "visited" as const, year: 2019, note: "Private" } });
-  const bare = (p: string) => ({ [`${p}/${DK}`]: { status: "visited" as const, year: null, note: null } });
+  const STALE = { ok: false, error: "This country has a year or a note this page did not show. Reload the page." };
+  const mark = (p: string, status: Row["status"], year: number | null, note: string | null) => ({
+    [`${p}/${DK}`]: { status, year, note },
+  });
+  const remove = (f: ReturnType<typeof fakeStore>, v: Viewer, personId: string, confirmed: unknown) =>
+    removeCountryCore(f.store, v, { personId, countryKey: DK, confirmed });
+  const DISMISSED = { status: "dismissed", year: null, note: null };
 
-  it("lets a note reader delete a row that has a note", async () => {
-    const f = fakeStore(withNote(OWNER_PERSON));
-    const r = await removeCountryCore(f.store, owner, { personId: OWNER_PERSON, countryKey: DK });
-    expect(r).toEqual({ ok: true });
-    expect(f.calls).toContainEqual(["deleteMark", OWNER_PERSON, DK, { onlyWithoutNote: false }]);
-    expect(f.row(OWNER_PERSON)).toBeUndefined();
+  it("keeps a bare visited country as dismissed, without asking", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", null, null));
+    expect(await remove(f, owner, OWNER_PERSON, false)).toEqual({ ok: true });
+    expect(f.calls).toContainEqual(["dismissMark", OWNER_PERSON, DK, { onlyWithoutNote: false }]);
+    expect(f.names()).not.toContain("deleteMark");
+    expect(f.row(OWNER_PERSON)).toEqual(DISMISSED);
   });
 
-  it("keeps a row with a private note when the remover may not read it", async () => {
-    const f = fakeStore(withNote(OWNER_PERSON));
-    const r = await removeCountryCore(f.store, admin, { personId: OWNER_PERSON, countryKey: DK });
-    expect(r).toEqual(PRIVATE_NOTE);
-    expect(f.calls).toContainEqual(["deleteMark", OWNER_PERSON, DK, { onlyWithoutNote: true }]);
+  it("refuses an unconfirmed removal of a visited country with a year, and writes nothing", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", 2019, null));
+    expect(await remove(f, owner, OWNER_PERSON, false)).toEqual(STALE);
+    expect(f.writes()).toEqual([]);
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: 2019, note: null });
+  });
+
+  it("dismisses a visited country with a year once confirmed, clearing the year", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", 2019, null));
+    expect(await remove(f, owner, OWNER_PERSON, true)).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)).toEqual(DISMISSED);
+  });
+
+  it.each(["true", 1, undefined, null])("does not take %j as a confirmation", async (confirmed) => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", 2019, null));
+    expect(await remove(f, owner, OWNER_PERSON, confirmed)).toEqual(STALE);
+    expect(f.writes()).toEqual([]);
+  });
+
+  it("refuses an unconfirmed removal when the owner may read a note the page did not show", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", null, "Fjords"));
+    expect(await remove(f, owner, OWNER_PERSON, false)).toEqual(STALE);
+    expect(f.writes()).toEqual([]);
+    expect(await remove(f, owner, OWNER_PERSON, true)).toEqual({ ok: true });
+    expect(f.row(OWNER_PERSON)).toEqual(DISMISSED);
+  });
+
+  it("refuses an admin on a noted row of a person with a login, even when confirmed", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", 2019, "Private"));
+    expect(await remove(f, admin, OWNER_PERSON, true)).toEqual(PRIVATE_NOTE);
+    expect(f.writes()).toEqual([]);
     expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: 2019, note: "Private" });
   });
 
-  it("deletes a bare row for a remover who may not read notes", async () => {
-    const f = fakeStore(bare(OWNER_PERSON));
-    const r = await removeCountryCore(f.store, admin, { personId: OWNER_PERSON, countryKey: DK });
-    expect(r).toEqual({ ok: true });
-    expect(f.calls).toContainEqual(["deleteMark", OWNER_PERSON, DK, { onlyWithoutNote: true }]);
+  it("lets an admin dismiss a bare row of a person with a login, guarded by the note", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", null, null));
+    expect(await remove(f, admin, OWNER_PERSON, false)).toEqual({ ok: true });
+    expect(f.calls).toContainEqual(["dismissMark", OWNER_PERSON, DK, { onlyWithoutNote: true }]);
+    expect(f.row(OWNER_PERSON)).toEqual(DISMISSED);
+  });
+
+  it("asks an admin about a note they may read, on a person without a login", async () => {
+    const f = fakeStore(mark(NO_LOGIN_PERSON, "visited", null, "Kept by admins"));
+    expect(await remove(f, admin, NO_LOGIN_PERSON, false)).toEqual(STALE);
+    expect(await remove(f, admin, NO_LOGIN_PERSON, true)).toEqual({ ok: true });
+    expect(f.row(NO_LOGIN_PERSON)).toEqual(DISMISSED);
+  });
+
+  it("deletes a wishlist row and never dismisses it", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "wishlist", null, null));
+    expect(await remove(f, owner, OWNER_PERSON, false)).toEqual({ ok: true });
+    expect(f.calls).toContainEqual(["deleteMark", OWNER_PERSON, DK, { onlyWithoutNote: false }]);
+    expect(f.names()).not.toContain("dismissMark");
     expect(f.row(OWNER_PERSON)).toBeUndefined();
   });
 
-  it("is ok when the row is already gone for a remover who may not read notes", async () => {
-    const f = fakeStore();
-    const r = await removeCountryCore(f.store, admin, { personId: OWNER_PERSON, countryKey: DK });
-    expect(r).toEqual({ ok: true });
-    expect(f.names()).toEqual(["findPerson", "deleteMark", "markExists"]);
+  it.each([
+    ["missing", {}],
+    ["dismissed", mark(OWNER_PERSON, "dismissed", null, null)],
+  ])("is ok for a %s row and writes nothing", async (_label, rows) => {
+    const f = fakeStore(rows);
+    expect(await remove(f, owner, OWNER_PERSON, false)).toEqual({ ok: true });
+    expect(f.names()).toEqual(["findPerson", "findMark"]);
+  });
+
+  it("refuses with the private note text when a note appears between the read and the write", async () => {
+    const f = fakeStore(mark(OWNER_PERSON, "visited", null, null));
+    const findMark = f.store.findMark;
+    f.store.findMark = async (p, k) => {
+      const found = await findMark(p, k);
+      f.data.set(`${p}/${k}`, { status: "visited", year: null, note: "Added meanwhile" });
+      return found;
+    };
+    expect(await remove(f, admin, OWNER_PERSON, false)).toEqual(PRIVATE_NOTE);
+    expect(f.row(OWNER_PERSON)).toEqual({ status: "visited", year: null, note: "Added meanwhile" });
   });
 
   it("refuses another member without writing", async () => {
-    const f = fakeStore(bare(OWNER_PERSON));
-    const r = await removeCountryCore(f.store, otherMember, { personId: OWNER_PERSON, countryKey: DK });
-    expect(r).toEqual(NOT_ALLOWED);
+    const f = fakeStore(mark(OWNER_PERSON, "visited", null, null));
+    expect(await remove(f, otherMember, OWNER_PERSON, true)).toEqual(NOT_ALLOWED);
     expect(f.writes()).toEqual([]);
     expect(f.row(OWNER_PERSON)).toBeDefined();
   });
