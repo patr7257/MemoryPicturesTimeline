@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  filterQuery,
+  MAX_FAMILY_FILTER,
   MAX_PEOPLE_FILTER,
   matchesPeople,
+  parseFamilyParam,
+  parseFilterParams,
   parsePersonParam,
   personQuery,
+  resolveFilter,
+  toggleFamily,
   togglePerson,
+  togglePersonIn,
 } from "./person-filter";
 
 const A = "0b6f2ab8-6d5f-4ceb-a2f5-9f4f3f0b6a01";
@@ -95,5 +102,138 @@ describe("matchesPeople", () => {
   it("does not match when none is tagged", () => {
     expect(matchesPeople([A], [B, C])).toBe(false);
     expect(matchesPeople([A], [])).toBe(false);
+  });
+});
+
+const id = (n: number) => `0b6f2ab8-6d5f-4ceb-a2f5-${String(n).padStart(12, "0")}`;
+const ANN = id(1), BO = id(2), CY = id(3), DI = id(4), ED = id(5), FLO = id(6), ZED = id(7);
+const FA = id(101), FB = id(102), ZED_FAMILY = id(103), BIG = id(104);
+const people = [
+  { id: ANN, name: "Ann" },
+  { id: BO, name: "Bo" },
+  { id: CY, name: "Cy" },
+  { id: DI, name: "Di" },
+  { id: ED, name: "Ed" },
+  { id: FLO, name: "Flo" },
+];
+const famA = { id: FA, name: "A", memberIds: [ANN, FLO] };
+const famB = { id: FB, name: "B", memberIds: [ANN, BO, CY, DI, ED] };
+const families = [famA, famB];
+const none = { familyIds: [] as string[], personIds: [] as string[] };
+
+describe("parseFamilyParam", () => {
+  it("follows the person rules with its own cap", () => {
+    expect(parseFamilyParam([FB, "nope", FA, FB.toUpperCase()])).toEqual([FB, FA]);
+    const many = Array.from({ length: MAX_FAMILY_FILTER + 3 }, (_, i) => id(200 + i));
+    expect(parseFamilyParam(many)).toHaveLength(MAX_FAMILY_FILTER);
+  });
+});
+
+describe("resolveFilter", () => {
+  it("narrows to the selected names inside a selected family", () => {
+    const r = resolveFilter({ selection: { familyIds: [FB], personIds: [BO] }, families, people });
+    expect(r.effective).toEqual([BO]);
+    expect(r.nameChips.map((p) => p.id)).toEqual([ANN, BO, CY, DI, ED]);
+  });
+
+  it("takes the whole family when no name is selected", () => {
+    expect(
+      resolveFilter({ selection: { familyIds: [FB], personIds: [] }, families, people }).effective,
+    ).toEqual([ANN, BO, CY, DI, ED]);
+  });
+
+  it("has no effective filter when nothing is on", () => {
+    expect(resolveFilter({ selection: none, families, people }).effective).toBeNull();
+  });
+
+  it("ignores family and person ids the viewer cannot see", () => {
+    const r = resolveFilter({
+      selection: { familyIds: [ZED_FAMILY], personIds: [BO, ZED] },
+      families,
+      people,
+    });
+    expect(r.selection).toEqual({ familyIds: [], personIds: [BO] });
+    expect(r.effective).toEqual([BO]);
+  });
+
+  it("drops a selected name that has no chip under the selected family", () => {
+    expect(
+      resolveFilter({ selection: { familyIds: [FA], personIds: [BO] }, families, people }).effective,
+    ).toEqual([ANN, FLO]);
+  });
+
+  it("shows family chips only with two or more families", () => {
+    expect(resolveFilter({ selection: none, families: [famA], people }).familyChips).toEqual([]);
+    expect(resolveFilter({ selection: none, families, people }).familyChips).toEqual(families);
+  });
+
+  it("lists a person in no family as the only chip", () => {
+    const lone = { id: ANN, name: "Ann" };
+    expect(resolveFilter({ selection: none, families: [], people: [lone] }).nameChips).toEqual([lone]);
+  });
+
+  it("does not cap the effective list", () => {
+    const twenty = Array.from({ length: 20 }, (_, i) => ({ id: id(300 + i), name: `P${i}` }));
+    const big = { id: BIG, name: "Big", memberIds: twenty.map((p) => p.id) };
+    expect(
+      resolveFilter({ selection: { familyIds: [BIG], personIds: [] }, families: [big], people: twenty })
+        .effective,
+    ).toHaveLength(20);
+  });
+});
+
+describe("toggleFamily and togglePersonIn", () => {
+  it("drops names that belong to no other selected family when a family goes off", () => {
+    expect(toggleFamily({ familyIds: [FA, FB], personIds: [ANN, BO] }, FB, families)).toEqual({
+      familyIds: [FA],
+      personIds: [ANN],
+    });
+  });
+
+  it("keeps a person who is in the other selected family", () => {
+    expect(toggleFamily({ familyIds: [FA, FB], personIds: [ANN] }, FA, families)).toEqual({
+      familyIds: [FB],
+      personIds: [ANN],
+    });
+  });
+
+  it("adds a family without touching the names", () => {
+    expect(toggleFamily({ familyIds: [], personIds: [BO] }, FA, families)).toEqual({
+      familyIds: [FA],
+      personIds: [BO],
+    });
+  });
+
+  it("toggles a person", () => {
+    expect(togglePersonIn({ familyIds: [FA], personIds: [ANN] }, BO)).toEqual({
+      familyIds: [FA],
+      personIds: [ANN, BO],
+    });
+    expect(togglePersonIn({ familyIds: [], personIds: [ANN] }, ANN)).toEqual(none);
+  });
+});
+
+describe("parseFilterParams and filterQuery", () => {
+  it("is bare with no params", () => {
+    expect(parseFilterParams({})).toEqual({ selection: none, nothingPicked: false, bare: true });
+  });
+
+  it("reads pick=none", () => {
+    const r = parseFilterParams({ pick: "none" });
+    expect(r.nothingPicked).toBe(true);
+    expect(r.bare).toBe(false);
+  });
+
+  it("reads family and person", () => {
+    const r = parseFilterParams({ family: FB, person: [BO, "nope"] });
+    expect(r.selection).toEqual({ familyIds: [FB], personIds: [BO] });
+    expect(r.bare).toBe(false);
+  });
+
+  it("builds queries", () => {
+    expect(filterQuery(none)).toEqual({});
+    expect(filterQuery(none, { emptyAs: "none" })).toEqual({ pick: "none" });
+    expect(filterQuery({ familyIds: [FB], personIds: [BO] })).toEqual({ family: [FB], person: [BO] });
+    expect(filterQuery({ familyIds: [], personIds: [BO] }, { emptyAs: "none" })).toEqual({ person: [BO] });
   });
 });
