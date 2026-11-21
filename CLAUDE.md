@@ -3,6 +3,10 @@
 Family photo memory timeline at `https://memories.patrickrobel.dk`. Private:
 family-only login, photos never publicly reachable.
 
+iOS app plan (Capacitor, TestFlight, then paid App Store with multi-family
+subscriptions): `docs/ios-roadmap.md`. Read it before any iOS, payment or
+multi-tenancy work.
+
 ## Facts a session needs
 
 - **Deploy**: Dokploy app `memories` (applicationId `aO-snDweznAl5O7zsPhHc`,

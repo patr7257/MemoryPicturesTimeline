@@ -26,8 +26,8 @@ Status: **built** (in the app today), **planned** (designed, not built),
 | Core | Notes on vacations and photos | built | yes | yes |
 | Family | Members, invites, passkey sign-in | built | yes | yes |
 | Family | People tagging, family and person filter | built | yes | yes |
-| Family | Several families in one space, each private to its members | built | open | open |
-| Family | Share a vacation with people who were not on it | built | open | open |
+| Family | Several families in one space, each private to its members | built | yes | yes |
+| Family | Share a vacation with people who were not on it | built | yes | yes |
 | Maps | Photo map (every GPS photo at its spot) | built | yes | yes |
 | Maps | Globe with vacation pins | built | yes | yes |
 | Slideshow | Plain fade slideshow | built | yes | yes |
@@ -50,8 +50,8 @@ Status: **built** (in the app today), **planned** (designed, not built),
 | App | Installable on the home screen | built | yes | yes |
 | App | Native iPhone app, native photo picker, share sheet | planned | yes | yes |
 
-The split of each row is a proposal until Patrick confirms it; the model
-above is decided. Rows marked open have no proposal yet.
+Patrick confirmed this split. It can change freely until the day something
+is charged for; nothing here is enforced in code yet.
 
 ## Open decisions
 
@@ -61,6 +61,4 @@ above is decided. Rows marked open have no proposal yet.
 | Premium cap | Unlimited, or a large fair-use number |
 | Price, billing period, free trial | Monthly and yearly, trial length |
 | The current family | For example a free "founder" family with everything unlocked |
-| Is the 3D projector slideshow really premium | It is the most striking thing a new family sees; gating it may cost more sign-ups than it earns |
-| Is "On this day" premium | It is the feature that brings people back, which also argues for free |
 | Countries map without a family space | Could the free countries map work for one person before they add any photos |
