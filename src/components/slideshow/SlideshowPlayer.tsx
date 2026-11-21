@@ -83,6 +83,14 @@ export function SlideshowPlayer(props: SlideshowPlayerProps) {
   const [ended, setEnded] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [loadedId, setLoadedId] = useState<string | null>(null);
+  // Vacation slideshow: every screen key that has reported loaded, for this
+  // list of screens (`of`). A screen still fading out is re-used when the
+  // viewer goes back to it and never reports again, so "loaded" must not
+  // depend on the last report alone.
+  const [loadedScreens, setLoadedScreens] = useState<{
+    of: VacationScreen[] | null;
+    keys: ReadonlySet<string>;
+  }>({ of: null, keys: new Set() });
   const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
   const [controlsVisible, setControlsVisible] = useState(true);
   const [activity, setActivity] = useState(0);
@@ -110,7 +118,16 @@ export function SlideshowPlayer(props: SlideshowPlayerProps) {
       break;
     }
   }
-  const loaded = loadedId === slideIds[index];
+  const loaded = isVacation
+    ? loadedScreens.of === screens && loadedScreens.keys.has(slideIds[index])
+    : loadedId === slideIds[index];
+
+  function screenLoaded(key: string) {
+    setLoadedScreens((prev) => ({
+      of: screens,
+      keys: prev.of === screens ? new Set(prev.keys).add(key) : new Set([key]),
+    }));
+  }
   const running = playing && !ended && loaded;
 
   function go(dir: 1 | -1, alsoFailed?: string) {
@@ -137,6 +154,10 @@ export function SlideshowPlayer(props: SlideshowPlayerProps) {
     setDirection(1);
     setElapsed(0);
     setPlaying(true);
+    // The slides mount again and report loaded again: start from nothing, so
+    // a show of one slide does not start its timer before the images load.
+    setLoadedId(null);
+    setLoadedScreens({ of: null, keys: new Set() });
   }
 
   function bump() {
@@ -425,8 +446,9 @@ export function SlideshowPlayer(props: SlideshowPlayerProps) {
           screen={screen}
           reducedMotion={reducedMotion}
           // A screen still fading out keeps its old callbacks: only the
-          // screen on show may start the timer or skip ahead.
-          onLoaded={(key) => key === currentScreenKey.current && setLoadedId(key)}
+          // screen on show may skip ahead. Any screen may record that it
+          // loaded; the timer runs only when the screen on show is recorded.
+          onLoaded={screenLoaded}
           onFailed={(key) => key === currentScreenKey.current && go(1, key)}
         />
       )}
