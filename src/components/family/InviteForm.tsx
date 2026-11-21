@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 
-import { inviteMember } from "@/actions/members";
-import { createPerson } from "@/actions/people";
+import { addPerson, inviteMember } from "@/actions/family";
+import { FamilyChecks } from "@/components/family/FamilyChecks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -13,7 +13,7 @@ const selectClass =
   "h-11 w-full border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:text-sm";
 const inputClass = "h-11 text-base sm:h-9 sm:text-sm";
 
-type Person = { id: string; name: string };
+type Option = { id: string; name: string };
 
 const NEW = "__new__";
 
@@ -21,12 +21,14 @@ const NEW = "__new__";
 // server action rejects a missing person too.
 export function InviteForm({
   people,
+  families,
   initialPersonId,
   prefillEmail,
   defaultSendEmail,
   onDone,
 }: {
-  people: Person[];
+  people: Option[];
+  families: Option[];
   initialPersonId: string | null;
   prefillEmail: string;
   defaultSendEmail: boolean;
@@ -35,6 +37,7 @@ export function InviteForm({
   const [pending, startTransition] = useTransition();
   const [choice, setChoice] = useState<string>(initialPersonId ?? "");
   const [newName, setNewName] = useState("");
+  const [newFamilies, setNewFamilies] = useState<string[]>([]);
   const [email, setEmail] = useState(prefillEmail);
   const [role, setRole] = useState("member");
   const [sendEmail, setSendEmail] = useState(defaultSendEmail);
@@ -50,7 +53,12 @@ export function InviteForm({
       try {
         let personId = choice;
         if (creating) {
-          personId = (await createPerson(newName)).id;
+          const created = await addPerson({ name: newName, familyIds: newFamilies });
+          if (!created.ok) {
+            toast.error(created.error);
+            return;
+          }
+          personId = created.id;
           setChoice(personId);
         }
         const res = await inviteMember({ personId, email, role, sendEmail });
@@ -93,17 +101,25 @@ export function InviteForm({
           <option value={NEW}>+ New person...</option>
         </select>
         {creating && (
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Name of the new person"
-            aria-label="Name of the new person"
-            className={inputClass}
-            autoFocus
-          />
+          <>
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Name of the new person"
+              aria-label="Name of the new person"
+              className={inputClass}
+              autoFocus
+            />
+            <FamilyChecks
+              legend="Families of the new person"
+              options={families}
+              selected={newFamilies}
+              onChange={setNewFamilies}
+            />
+          </>
         )}
         <p className="text-xs text-muted-foreground">
-          Every login belongs to someone in People. Pick them, or create them here.
+          Every login belongs to someone on the People tab. Pick them, or create them here.
         </p>
       </div>
 

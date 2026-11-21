@@ -1,11 +1,12 @@
-// Server-only reads for the Members and People pages.
+// Server-only reads for the /family admin page.
 import "server-only";
 
 import { asc, count, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { passkey, user } from "@/db/auth-schema";
-import { members, people } from "@/db/schema";
+import { families, familyPeople, members, people } from "@/db/schema";
+import type { FamilyWithMembers } from "@/lib/family-queries";
 import { mergeLogins, normalizeEmail, type LoginEntry, type MemberStatus } from "@/lib/members";
 
 async function loginFacts() {
@@ -27,14 +28,29 @@ async function loginFacts() {
   return { userEmails, passkeyCounts };
 }
 
-export type PersonOption = { id: string; name: string };
+export type AdminPerson = {
+  id: string;
+  name: string;
+  color: string | null;
+  familyIds: string[];
+  logins: { email: string; status: MemberStatus }[];
+};
 
-export async function getMembersPageData(): Promise<{
+// Everything the super admin /family page needs, in one go: all families with
+// their members, every person with families and logins, and the merged logins.
+export async function getFamilyAdminData(): Promise<{
+  families: FamilyWithMembers[];
+  people: AdminPerson[];
   logins: LoginEntry[];
-  people: PersonOption[];
 }> {
   const db = getDb();
-  const [rows, peopleRows, facts] = await Promise.all([
+  const [familyRows, peopleRows, links, memberRows, facts] = await Promise.all([
+    db.select({ id: families.id, name: families.name }).from(families).orderBy(asc(families.name)),
+    db
+      .select({ id: people.id, name: people.name, color: people.color })
+      .from(people)
+      .orderBy(asc(people.name)),
+    db.select({ familyId: familyPeople.familyId, personId: familyPeople.personId }).from(familyPeople),
     db
       .select({
         id: members.id,
@@ -46,43 +62,28 @@ export async function getMembersPageData(): Promise<{
       .from(members)
       .innerJoin(people, eq(members.personId, people.id))
       .orderBy(asc(people.name), asc(members.email)),
-    db.select({ id: people.id, name: people.name }).from(people).orderBy(asc(people.name)),
     loginFacts(),
   ]);
+  const logins = mergeLogins(memberRows, facts.userEmails, facts.passkeyCounts, process.env);
+  // peopleRows is ordered by name, so member lists come out in name order.
   return {
-    logins: mergeLogins(rows, facts.userEmails, facts.passkeyCounts, process.env),
-    people: peopleRows,
-  };
-}
-
-export type PersonView = {
-  id: string;
-  name: string;
-  hasLogin: boolean;
-  // Only filled for super admins: other members never see emails here.
-  logins: { email: string; status: MemberStatus }[];
-};
-
-export async function getPeopleView(includeLogins: boolean): Promise<PersonView[]> {
-  const db = getDb();
-  const [peopleRows, memberRows, facts] = await Promise.all([
-    db.select({ id: people.id, name: people.name }).from(people).orderBy(asc(people.name)),
-    db.select({ email: members.email, personId: members.personId }).from(members),
-    includeLogins ? loginFacts() : Promise.resolve(null),
-  ]);
-  return peopleRows.map((p) => {
-    const mine = memberRows.filter((m) => m.personId === p.id);
-    return {
+    families: familyRows.map((f) => ({
+      id: f.id,
+      name: f.name,
+      memberIds: peopleRows
+        .filter((p) => links.some((l) => l.familyId === f.id && l.personId === p.id))
+        .map((p) => p.id),
+    })),
+    people: peopleRows.map((p) => ({
       id: p.id,
       name: p.name,
-      hasLogin: mine.length > 0,
-      logins:
-        includeLogins && facts
-          ? mine.map((m) => ({
-              email: m.email,
-              status: facts.userEmails.has(normalizeEmail(m.email)) ? ("active" as const) : ("invited" as const),
-            }))
-          : [],
-    };
-  });
+      color: p.color,
+      familyIds: links.filter((l) => l.personId === p.id).map((l) => l.familyId),
+      logins: logins
+        .filter((l): l is Extract<LoginEntry, { kind: "member" }> => l.kind === "member")
+        .filter((l) => l.personId === p.id)
+        .map((l) => ({ email: l.email, status: l.status })),
+    })),
+    logins,
+  };
 }
