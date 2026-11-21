@@ -18,6 +18,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PeoplePicker, type PickerFamily } from "@/components/vacations/PeoplePicker";
+import { outsideFamilies } from "@/lib/share-rules";
 import type { TripSharing } from "@/lib/share-queries";
 import { ShareWithPeople } from "./ShareWithPeople";
 
@@ -28,6 +30,7 @@ export function EditTripForm({
   allPeople,
   taggedIds,
   sharing,
+  families,
 }: {
   trip: {
     id: string;
@@ -40,6 +43,7 @@ export function EditTripForm({
   allPeople: Person[];
   taggedIds: string[];
   sharing?: TripSharing;
+  families?: PickerFamily[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -49,16 +53,9 @@ export function EditTripForm({
   const [locationName, setLocationName] = useState(trip.locationName ?? "");
   const [description, setDescription] = useState(trip.description ?? "");
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set(taggedIds));
-
-  function togglePerson(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  const [selected, setSelected] = useState<string[]>(taggedIds);
+  // Already tagged people outside the viewer's families stay removable.
+  const alsoOnIds = families ? outsideFamilies(taggedIds, families) : undefined;
 
   function save() {
     startTransition(async () => {
@@ -71,7 +68,7 @@ export function EditTripForm({
           locationName: locationName || null,
           description: description || null,
         });
-        const res = await setTripPeople(trip.id, Array.from(selected));
+        const res = await setTripPeople(trip.id, selected);
         if (!res.ok) {
           // The details are saved; the people are not. Stay on the form.
           toast.error(res.error, { duration: Infinity, closeButton: true });
@@ -140,22 +137,14 @@ export function EditTripForm({
             No people to tag yet; add them on the Family page first.
           </p>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {allPeople.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => togglePerson(p.id)}
-                className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-                  selected.has(p.id)
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
+          <PeoplePicker
+            people={allPeople}
+            value={selected}
+            onChange={setSelected}
+            disabled={pending}
+            families={families && families.length > 0 ? families : undefined}
+            alsoOnIds={alsoOnIds}
+          />
         )}
       </div>
 

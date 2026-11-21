@@ -9,7 +9,7 @@ import type { PersonRef } from "@/lib/queries";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PeoplePicker } from "./PeoplePicker";
+import { PeoplePicker, type PickerFamily } from "./PeoplePicker";
 
 // 16px text on touch layouts stops iOS from zooming into the field on focus.
 export const FIELD = "h-11 text-base md:h-8 md:text-xs";
@@ -19,9 +19,21 @@ export type VacationFieldsProps = {
   onChange: (next: VacationDraft) => void;
   people: PersonRef[];
   disabled?: boolean;
+  // All three are optional: without `families` the picker is the flat row.
+  families?: PickerFamily[];
+  alsoOnIds?: string[];
+  promptForFamily?: boolean;
 };
 
-export function VacationFields({ value, onChange, people, disabled }: VacationFieldsProps) {
+export function VacationFields({
+  value,
+  onChange,
+  people,
+  disabled,
+  families,
+  alsoOnIds,
+  promptForFamily,
+}: VacationFieldsProps) {
   const uid = useId();
   const set = <K extends keyof VacationDraft>(key: K, v: VacationDraft[K]) =>
     onChange({ ...value, [key]: v });
@@ -97,6 +109,9 @@ export function VacationFields({ value, onChange, people, disabled }: VacationFi
           value={value.personIds}
           onChange={(personIds) => set("personIds", personIds)}
           disabled={disabled}
+          families={families}
+          alsoOnIds={alsoOnIds}
+          promptForFamily={promptForFamily}
         />
       </div>
     </div>

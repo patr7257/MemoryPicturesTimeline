@@ -9,6 +9,9 @@ import {
   cleanIdList,
   decideShares,
   decideTags,
+  defaultFamilySelection,
+  outsideFamilies,
+  toggleFamily,
   groupShareTargets,
   groupState,
   mergeByName,
@@ -226,6 +229,42 @@ describe("groupState", () => {
     expect(groupState(ids, [])).toBe("none");
     expect(groupState(ids, ["b", "x"])).toBe("some");
     expect(groupState(ids, ["a", "b", "x"])).toBe("all");
+  });
+});
+
+describe("toggleFamily", () => {
+  it("turns every person of an off family on, without duplicates", () => {
+    expect(toggleFamily(["x", "a"], ["a", "b", "c"])).toEqual(["x", "a", "b", "c"]);
+  });
+  it("a mixed family goes to all on", () => {
+    expect(groupState(["a", "b"], toggleFamily(["a"], ["a", "b"]))).toBe("all");
+  });
+  it("a fully on family goes off, including a person shared with another family", () => {
+    const next = toggleFamily(["a", "b", "x"], ["a", "b"]);
+    expect(next).toEqual(["x"]);
+    // "b" also lives in a second family: that one drops to some or none too
+    expect(groupState(["b", "y"], toggleFamily(["b", "y", "a"], ["a", "b"]))).toBe("some");
+  });
+});
+
+describe("defaultFamilySelection", () => {
+  const fam = (fid: string, name: string, memberIds: string[]) => ({ id: fid, name, memberIds });
+  it("one family: all its allowed people", () => {
+    expect(defaultFamilySelection([fam(FAM_A, "A", ["a", "b", "z"])], ["a", "b"])).toEqual(["a", "b"]);
+  });
+  it("two families: nothing", () => {
+    expect(defaultFamilySelection([fam(FAM_A, "A", ["a"]), fam(FAM_B, "B", ["b"])], ["a", "b"])).toEqual([]);
+  });
+  it("no families: nothing", () => {
+    expect(defaultFamilySelection([], ["a"])).toEqual([]);
+  });
+});
+
+describe("outsideFamilies", () => {
+  it("keeps only ids that are in none of the families", () => {
+    const fams = [{ memberIds: ["a"] }, { memberIds: ["b"] }];
+    expect(outsideFamilies(["a", "x", "b", "y"], fams)).toEqual(["x", "y"]);
+    expect(outsideFamilies(["a"], [])).toEqual(["a"]);
   });
 });
 
