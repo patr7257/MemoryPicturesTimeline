@@ -163,14 +163,24 @@ export async function getTripWithPhotos(viewer: Viewer, tripId: string) {
   return { trip, photos: tripPhotos, people: tripPersons, canManage: canManageTrip(viewer, trip) };
 }
 
-export type TripOption = { id: string; title: string; startDate: string };
+export type TripOption = {
+  id: string;
+  title: string;
+  startDate: string;
+  locationName: string | null;
+};
 
 // Trips the viewer may upload to (every trip they can see), newest first.
 export async function getVisibleTripOptions(viewer: Viewer): Promise<TripOption[]> {
   const [visible, rows] = await Promise.all([
     visibleTripIds(viewer),
     getDb()
-      .select({ id: trips.id, title: trips.title, startDate: trips.startDate })
+      .select({
+        id: trips.id,
+        title: trips.title,
+        startDate: trips.startDate,
+        locationName: trips.locationName,
+      })
       .from(trips)
       .orderBy(desc(trips.startDate)),
   ]);
