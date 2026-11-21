@@ -8,12 +8,13 @@
 // "Open" link; the hovered pin's chip is highlighted and scrolled into view.
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Camera, ChevronLeft, ChevronRight, Eye, EyeOff, MapPin } from "lucide-react";
+import { Camera, Eye, EyeOff, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ScrollArrow } from "@/components/timeline/ScrollArrow";
+import { revealIn, useScrollArea } from "@/components/timeline/use-scroll-area";
 import { formatTripDates } from "@/lib/dates";
 import { imgUrl } from "@/lib/img-url";
-import { useScrollEdges } from "@/lib/use-scroll-edges";
 import { cn } from "@/lib/utils";
 import { FlightLink, useFlight } from "./FlightProvider";
 import type { GlobeTrip } from "./types";
@@ -30,10 +31,19 @@ export type GlobeInputTrip = Omit<GlobeTrip, "lat" | "lng"> & {
 
 type Status = "loading" | "ready" | "unavailable";
 
-const STRIP_ARROW =
-  "absolute top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-md [@media(hover:hover)]:flex";
+// Room an arrow and its fade take at either end of the chip row.
+const STRIP_INSET = 64;
 
-export function GlobeOfMemories({ trips }: { trips: GlobeInputTrip[] }) {
+// `trips` is whatever the page shows (people filter and search already
+// applied); `emptyHint` replaces the "no locations yet" line when the page
+// knows better (a search left only vacations without a location).
+export function GlobeOfMemories({
+  trips,
+  emptyHint,
+}: {
+  trips: GlobeInputTrip[];
+  emptyHint?: string;
+}) {
   const flight = useFlight();
   const chipsRef = useRef<HTMLUListElement>(null);
   // "unknown" until the stored preference is read, so a hidden globe never loads three.js.
@@ -64,20 +74,17 @@ export function GlobeOfMemories({ trips }: { trips: GlobeInputTrip[] }) {
   );
   const selected = pins.find((t) => t.id === selectedId) ?? null;
   const shown = pins.find((t) => t.id === hoveredId) ?? selected;
-  const { edges, page } = useScrollEdges(chipsRef, pins.length);
+  const pinKey = pins.map((t) => t.id).join("|");
+  // The row unmounts while the globe is hidden: re-attach when it comes back.
+  const { edges, page } = useScrollArea(chipsRef, "x", `${pref}|${pinKey}`);
 
-  // Keep the hovered vacation's chip in view, scrolling the strip only (never the page).
+  // Keep the hovered vacation's chip in view, clear of the arrows, scrolling
+  // the strip only (never the page).
   useEffect(() => {
     const strip = chipsRef.current;
     if (!strip || !hoveredId) return;
     const chip = strip.querySelector<HTMLElement>(`[data-trip="${CSS.escape(hoveredId)}"]`);
-    if (!chip) return;
-    const left = chip.offsetLeft - strip.offsetLeft;
-    const inView =
-      left >= strip.scrollLeft && left + chip.offsetWidth <= strip.scrollLeft + strip.clientWidth;
-    if (!inView) {
-      strip.scrollTo({ left: left - (strip.clientWidth - chip.offsetWidth) / 2, behavior: "smooth" });
-    }
+    if (chip) revealIn(strip, chip, "x", STRIP_INSET, true);
   }, [hoveredId]);
 
   function toggleHidden() {
@@ -123,7 +130,7 @@ export function GlobeOfMemories({ trips }: { trips: GlobeInputTrip[] }) {
 
       {!hidden && pins.length === 0 && (
         <p className="mt-2 rounded-xl border border-dashed border-border bg-card/60 px-4 py-6 text-center text-sm text-muted-foreground">
-          Vacations show up here once a photo with a location is added.
+          {emptyHint ?? "Vacations show up here once a photo with a location is added."}
         </p>
       )}
 
@@ -220,7 +227,12 @@ export function GlobeOfMemories({ trips }: { trips: GlobeInputTrip[] }) {
             <ul
               ref={chipsRef}
               aria-label="Vacations on the globe"
-              className="flex gap-2 overflow-x-auto overscroll-x-contain py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              onFocus={(e) => {
+                if (chipsRef.current && e.target instanceof HTMLElement) {
+                  revealIn(chipsRef.current, e.target, "x", STRIP_INSET);
+                }
+              }}
+              className="flex gap-2 overflow-x-auto overscroll-x-contain py-0.5 [scrollbar-width:none] data-[dragging=true]:cursor-grabbing data-[dragging=true]:select-none [&::-webkit-scrollbar]:hidden"
             >
               {pins.map((t) => {
                 const active = t.id === selected?.id;
@@ -249,28 +261,13 @@ export function GlobeOfMemories({ trips }: { trips: GlobeInputTrip[] }) {
                 );
               })}
             </ul>
-            {/* Mouse convenience only: keyboard users tab through the chips, touch swipes. */}
+            {/* Pinned inside the row's own edges, over a fade. Keyboard users tab
+                through the chips (each scrolls into view), touch swipes. */}
             {edges.start && (
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-hidden
-                onClick={() => page(-1)}
-                className={`${STRIP_ARROW} left-0`}
-              >
-                <ChevronLeft className="size-5" />
-              </button>
+              <ScrollArrow direction="left" label="Newer vacations" onPress={() => page(-1)} />
             )}
             {edges.end && (
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-hidden
-                onClick={() => page(1)}
-                className={`${STRIP_ARROW} right-0`}
-              >
-                <ChevronRight className="size-5" />
-              </button>
+              <ScrollArrow direction="right" label="Older vacations" onPress={() => page(1)} />
             )}
           </div>
         </>
