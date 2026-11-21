@@ -29,6 +29,7 @@ import {
   loadProjectorStage,
   type SlideTransitionProps,
 } from "@/components/slideshow/transitions";
+import { VacationStage } from "@/components/slideshow/VacationStage";
 import { Button } from "@/components/ui/button";
 import { imgUrl } from "@/lib/img-url";
 import {
@@ -36,6 +37,7 @@ import {
   tripCountOf,
   type SlideshowPhoto,
   type SlideshowSettings,
+  type VacationScreen,
 } from "@/lib/slideshow";
 
 const CONTROLS_HIDE_MS = 3000;
@@ -46,23 +48,33 @@ const iconButton =
 
 type WakeLockSentinelLike = { release: () => Promise<void> };
 
-// Full-window dark stage. `photos` is already in the order to play (the
-// launcher shuffles in its click handler). Owns timing, controls, keyboard,
-// swipe, wake lock and fullscreen; what is on screen is delegated to one
-// persistent stage (see transitions.tsx): the 3D projector by default, the plain
-// fade when the style is Simple, reduced motion is on, WebGL is unavailable, or
-// the projector chunk fails to load.
-export function SlideshowPlayer({
-  photos,
-  settings,
-  onExit,
-}: {
-  photos: SlideshowPhoto[];
+const NO_PHOTOS: SlideshowPhoto[] = [];
+
+type SlideshowPlayerProps = {
   settings: SlideshowSettings;
   onExit: () => void;
-}) {
+} & (
+  | { photos: SlideshowPhoto[]; screens?: undefined }
+  | { screens: VacationScreen[]; photos?: undefined }
+);
+
+// Full-window dark stage. `photos` (photo slideshow) or `screens` (vacation
+// slideshow) is already in the order to play (the launcher shuffles in its
+// click handler). Owns timing, controls, keyboard, swipe, wake lock and
+// fullscreen for both kinds; each slide is a photo or a screen. What is on
+// screen is delegated to one persistent stage (see transitions.tsx): for
+// photos the 3D projector by default, the plain fade when the style is Simple,
+// reduced motion is on, WebGL is unavailable, or the projector chunk fails to
+// load; for screens always VacationStage (never the projector).
+export function SlideshowPlayer(props: SlideshowPlayerProps) {
+  const { settings, onExit } = props;
+  const photos = props.photos ?? NO_PHOTOS;
+  const screens = props.screens ?? null;
+  const isVacation = screens !== null;
+  // One id per slide: the photo id, or the screen key.
+  const slideIds = screens ? screens.map((s) => s.key) : photos.map((p) => p.id);
   const reducedMotion = useReducedMotion() ?? false;
-  const holdMs = settings.seconds * 1000;
+  const holdMs = (isVacation ? settings.screenSeconds : settings.seconds) * 1000;
   const showTripTitle = tripCountOf(photos) > 1;
 
   const [index, setIndex] = useState(0);
@@ -86,7 +98,9 @@ export function SlideshowPlayer({
   const preloaded = useRef<HTMLImageElement | null>(null);
 
   const photo = photos[index];
-  const wantProjector = settings.style === "projector" && !reducedMotion && !projectorFailed;
+  const screen = screens?.[index];
+  const wantProjector =
+    !isVacation && settings.style === "projector" && !reducedMotion && !projectorFailed;
   // Blank (black) until the projector chunk arrives; the fade needs no wait.
   const Stage = wantProjector ? Projector : FadeTransition;
   let nextPhoto: SlideshowPhoto | null = null;
@@ -96,15 +110,15 @@ export function SlideshowPlayer({
       break;
     }
   }
-  const loaded = loadedId === photo?.id;
+  const loaded = loadedId === slideIds[index];
   const running = playing && !ended && loaded;
 
   function go(dir: 1 | -1, alsoFailed?: string) {
     const skip = new Set<number>();
-    photos.forEach((p, i) => {
-      if (failed.has(p.id) || p.id === alsoFailed) skip.add(i);
+    slideIds.forEach((id, i) => {
+      if (failed.has(id) || id === alsoFailed) skip.add(i);
     });
-    const step = stepIndex(index, dir, photos.length, skip);
+    const step = stepIndex(index, dir, slideIds.length, skip);
     if (alsoFailed) setFailed((prev) => new Set(prev).add(alsoFailed));
     if (step.kind === "end") {
       setEnded(true);
@@ -198,6 +212,30 @@ export function SlideshowPlayer({
       };
     }
   }, [index, photos, failed]);
+
+  // Vacation slideshow: preload every photo of the next playable screen so
+  // the fade never shows empty tiles. A photo that fails here is handled by
+  // the stage when its screen comes up.
+  const preloadedScreen = useRef<HTMLImageElement[]>([]);
+  const currentScreenKey = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    currentScreenKey.current = screen?.key;
+  }, [screen?.key]);
+  useEffect(() => {
+    if (!screens) return;
+    for (let i = index + 1; i < screens.length; i++) {
+      const next = screens[i];
+      if (failed.has(next.key)) continue;
+      preloadedScreen.current = next.photos.flatMap((p) =>
+        ([400, 1200] as const).map((size) => {
+          const img = new Image();
+          img.src = imgUrl(p.id, size);
+          return img;
+        }),
+      );
+      return;
+    }
+  }, [index, screens, failed]);
 
   // Pause when the tab is hidden.
   useEffect(() => {
@@ -382,6 +420,17 @@ export function SlideshowPlayer({
         </>
       )}
 
+      {!ended && screen && (
+        <VacationStage
+          screen={screen}
+          reducedMotion={reducedMotion}
+          // A screen still fading out keeps its old callbacks: only the
+          // screen on show may start the timer or skip ahead.
+          onLoaded={(key) => key === currentScreenKey.current && setLoadedId(key)}
+          onFailed={(key) => key === currentScreenKey.current && go(1, key)}
+        />
+      )}
+
       {/* Time left on this photo. */}
       <div className="absolute inset-x-0 top-0 h-1 bg-white/15" aria-hidden>
         <div
@@ -399,22 +448,30 @@ export function SlideshowPlayer({
         }
       >
         <p className="px-2 text-sm tabular-nums" aria-live="off">
-          {ended ? `${photos.length} photos` : `${index + 1} / ${photos.length}`}
+          {isVacation
+            ? ended
+              ? `${slideIds.length} screens`
+              : `${index + 1} / ${slideIds.length}`
+            : ended
+              ? `${photos.length} photos`
+              : `${index + 1} / ${photos.length}`}
           {!ended && (
             <span className="ml-2 text-white/70">{playing ? `${remaining}s` : "paused"}</span>
           )}
         </p>
         <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={iconButton}
-            aria-label={infoOn ? "Hide dates and notes" : "Show dates and notes"}
-            aria-pressed={infoOn}
-            onClick={() => setInfoOn((v) => !v)}
-          >
-            <Info />
-          </Button>
+          {!isVacation && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={iconButton}
+              aria-label={infoOn ? "Hide dates and notes" : "Show dates and notes"}
+              aria-pressed={infoOn}
+              onClick={() => setInfoOn((v) => !v)}
+            >
+              <Info />
+            </Button>
+          )}
           {canFullscreen && (
             <Button
               variant="ghost"
@@ -445,7 +502,7 @@ export function SlideshowPlayer({
             variant="ghost"
             size="icon"
             className={iconButton}
-            aria-label="Previous photo"
+            aria-label={isVacation ? "Previous screen" : "Previous photo"}
             onClick={() => go(-1)}
           >
             <SkipBack />
@@ -463,7 +520,7 @@ export function SlideshowPlayer({
             variant="ghost"
             size="icon"
             className={iconButton}
-            aria-label="Next photo"
+            aria-label={isVacation ? "Next screen" : "Next photo"}
             onClick={() => go(1)}
           >
             <SkipForward />
@@ -475,9 +532,13 @@ export function SlideshowPlayer({
       {ended && (
         <div className="absolute inset-0 grid place-items-center bg-black/85 px-6 text-center">
           <div className="space-y-5">
-            <p className="font-hand text-4xl">That was the last photo</p>
+            <p className="font-hand text-4xl">
+              {isVacation ? "That was the last vacation" : "That was the last photo"}
+            </p>
             <p className="text-sm text-white/70">
-              {photos.length - failed.size} of {photos.length} photos shown
+              {isVacation
+                ? `${slideIds.length - failed.size} of ${slideIds.length} screens shown`
+                : `${photos.length - failed.size} of ${photos.length} photos shown`}
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Button className="h-11 px-5 text-sm" autoFocus onClick={replay}>

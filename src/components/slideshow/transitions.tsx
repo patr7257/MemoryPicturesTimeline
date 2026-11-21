@@ -38,8 +38,9 @@ export function loadProjectorStage(): Promise<ComponentType<SlideTransitionProps
   return import("@/components/slideshow/ProjectorStage").then((m) => m.ProjectorStage);
 }
 
-const FADE_S = 0.9;
-const FADE_REDUCED_S = 0.3;
+// Also used by the vacation slideshow's grids (VacationStage).
+export const FADE_S = 0.9;
+export const FADE_REDUCED_S = 0.3;
 
 // Baseline: cross-fade plus a slow Ken Burns drift, blurred backdrop behind
 // the uncropped photo. Reduced motion: plain short fade, no drift.
