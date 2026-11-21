@@ -22,6 +22,14 @@ export function distinctPoints(points: readonly LatLng[], decimals: number = POI
   return out;
 }
 
+// The points a vacation is located by: its GPS photos, or, only when it has
+// none, its own place. The own place of a vacation with photos is a leftover
+// (the spot of the first photo ever uploaded to it) and can be wrong.
+export function vacationPoints(photoPoints: readonly LatLng[], place: LatLng | null): LatLng[] {
+  if (photoPoints.length > 0) return [...photoPoints];
+  return place ? [place] : [];
+}
+
 export function rowKey(personId: string, countryKey: string): string {
   return `${personId}|${countryKey}`;
 }

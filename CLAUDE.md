@@ -99,8 +99,9 @@ family-only login, photos never publicly reachable.
   as approximate. Runs after every upload; `pnpm fill-locations`
   backfills (dry run first, `FILL_LOCATIONS_UNDO=1` reverts). Setting a
   location by hand clears the flag.
-- **Auto-visited**: a country found in a vacation's GPS photos, or at the
-  vacation's own place (`trips.lat`, `trips.lng`), is marked `visited` for
+- **Auto-visited**: a country found in a vacation's GPS photos, or, only
+  when it has no located photo, at the vacation's own place (`trips.lat`,
+  `trips.lng`; `vacationPoints`), is marked `visited` for
   every person tagged on it, with the year of the earliest such vacation.
   Planner in `src/lib/auto-visited.ts` (pure, tested), runner
   `syncVisitedForTrip` in `src/lib/auto-visited-sync.ts` (never throws; call

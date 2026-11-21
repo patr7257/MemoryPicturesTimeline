@@ -353,10 +353,12 @@ no auto-visited country, and filtering on that person does not match it.
 
 ## Auto-visited
 
-- A vacation's countries: the countries its GPS photos fall in, plus the
-  country of the vacation's own place (`trips.lat` and `trips.lng`) when it
-  has one, so an old vacation without photos still counts once its place is
-  set. Found with the existing point-in-country lookup (nearest coast rule
+- A vacation's countries: the countries its GPS photos fall in. A vacation
+  with no located photo counts through its own place (`trips.lat` and
+  `trips.lng`) instead, so an old vacation without photos still counts once
+  its place is set. The own place of a vacation that has located photos is
+  ignored: it is a leftover of the first upload and was found to be wrong on
+  a real vacation. Found with the existing point-in-country lookup (nearest coast rule
   included, inferred locations included). Every distinct place counts: the old
   "a few points per country name" sampling is replaced by distinct rounded
   coordinates, so a multi-country vacation without country names yields all

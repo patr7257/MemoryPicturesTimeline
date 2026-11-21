@@ -5,6 +5,7 @@ import {
   planVisitedRows,
   rowKey,
   syncVacationCore,
+  vacationPoints,
   type LatLng,
   type VisitedInsert,
   type VisitedStore,
@@ -100,6 +101,14 @@ describe("syncVacationCore", () => {
     expect(await syncVacationCore(store, "t1", locate)).toEqual([]);
     expect(existingCalls).toEqual([]);
     expect(inserted).toEqual([]);
+  });
+
+  it("the own place locates a vacation only when it has no located photo", () => {
+    const stockholm = { lat: 59.33, lng: 18.06 };
+    const lisbon = { lat: 38.72, lng: -9.14 };
+    expect(vacationPoints([], stockholm)).toEqual([stockholm]);
+    expect(vacationPoints([lisbon], stockholm)).toEqual([lisbon]);
+    expect(vacationPoints([], null)).toEqual([]);
   });
 
   it("a vacation with no photos but its own place still yields its country", async () => {

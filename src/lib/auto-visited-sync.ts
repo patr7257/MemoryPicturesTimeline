@@ -3,7 +3,7 @@ import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { personCountries, photos, tripPeople, trips } from "@/db/schema";
-import { rowKey, syncVacationCore, type LatLng, type VisitedStore } from "./auto-visited";
+import { rowKey, syncVacationCore, vacationPoints, type LatLng, type VisitedStore } from "./auto-visited";
 import { countryKeyAt } from "./country-lookup";
 
 function drizzleStore(): VisitedStore {
@@ -24,11 +24,14 @@ function drizzleStore(): VisitedStore {
         .select({ lat: photos.lat, lng: photos.lng })
         .from(photos)
         .where(and(eq(photos.tripId, tripId), isNotNull(photos.lat), isNotNull(photos.lng)));
-      const points: LatLng[] = [];
-      for (const p of gps) if (p.lat !== null && p.lng !== null) points.push({ lat: p.lat, lng: p.lng });
-      // The vacation's own place counts too, so one without photos still yields its country.
-      if (trip.lat !== null && trip.lng !== null) points.push({ lat: trip.lat, lng: trip.lng });
-      return { startDate: trip.startDate, personIds: people.map((p) => p.personId), points };
+      const photoPoints: LatLng[] = [];
+      for (const p of gps) if (p.lat !== null && p.lng !== null) photoPoints.push({ lat: p.lat, lng: p.lng });
+      const place = trip.lat !== null && trip.lng !== null ? { lat: trip.lat, lng: trip.lng } : null;
+      return {
+        startDate: trip.startDate,
+        personIds: people.map((p) => p.personId),
+        points: vacationPoints(photoPoints, place),
+      };
     },
     async existingKeys(personIds) {
       if (personIds.length === 0) return new Set();

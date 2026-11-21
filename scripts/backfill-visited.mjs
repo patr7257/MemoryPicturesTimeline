@@ -47,7 +47,7 @@ async function buildShapes() {
 // tripIds null: every vacation, read in start_date order. Returns the rows planned
 // (and written when apply is true). Throws when the TypeScript modules cannot load.
 export async function syncTrips(pool, tripIds, opts) {
-  const { planVisitedRows, distinctPoints, rowKey } = await import("../src/lib/auto-visited.ts");
+  const { planVisitedRows, distinctPoints, rowKey, vacationPoints } = await import("../src/lib/auto-visited.ts");
   const { resolveKey } = await import("../src/lib/point-in-country.ts");
   const shapes = await buildShapes();
 
@@ -79,9 +79,9 @@ export async function syncTrips(pool, tripIds, opts) {
   const existing = new Set(existingRes.rows.map((r) => rowKey(r.person_id, r.country_key)));
 
   const vacations = tripsRes.rows.map((t) => {
-    const pts = points.get(t.id) ?? [];
-    // The vacation's own place counts too, so a vacation without photos still yields its country.
-    if (t.lat !== null && t.lng !== null) pts.push({ lat: Number(t.lat), lng: Number(t.lng) });
+    // Photos locate a vacation; its own place only when it has no located photo.
+    const place = t.lat !== null && t.lng !== null ? { lat: Number(t.lat), lng: Number(t.lng) } : null;
+    const pts = vacationPoints(points.get(t.id) ?? [], place);
     const keys = new Set();
     for (const p of distinctPoints(pts)) {
       const key = resolveKey(shapes, p.lat, p.lng);
