@@ -71,29 +71,6 @@ export function parseSettings(raw: string | null | undefined): SlideshowSettings
   };
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Repeated `person` query params (Next hands over string | string[] | undefined):
-// keeps only well-formed ids, lower-cased, deduped, in first-seen order. Whether
-// an id belongs to a real person is the caller's business. This is the one place
-// that parses the param, so it can be swapped for the shared person-filter helper.
-export function parsePersonParam(raw: string | readonly string[] | undefined): string[] {
-  const list = raw === undefined ? [] : typeof raw === "string" ? [raw] : raw;
-  const out: string[] = [];
-  for (const value of list) {
-    if (typeof value !== "string" || !UUID.test(value)) continue;
-    const id = value.toLowerCase();
-    if (!out.includes(id)) out.push(id);
-  }
-  return out;
-}
-
-// The selection after clicking a person's chip: removes the id when it is
-// selected, otherwise appends it.
-export function togglePerson(selected: readonly string[], id: string): string[] {
-  return selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
-}
-
 // "everyone", "Anna", "Anna and Ben", "Anna, Ben and Cleo".
 export function selectionTitle(names: readonly string[]): string {
   if (names.length === 0) return "everyone";
