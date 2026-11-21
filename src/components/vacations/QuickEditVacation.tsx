@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { setTripPeople, updateTrip } from "@/actions/trips";
 import { draftError, sameIds, type VacationDraft, type VacationListItem } from "@/lib/vacations-view";
 import type { PersonRef } from "@/lib/queries";
+import { mergeByName } from "@/lib/share-rules";
 import { Button } from "@/components/ui/button";
 import { ResponsiveDialog } from "./ResponsiveDialog";
 import { VacationFields } from "./VacationFields";
@@ -63,6 +64,8 @@ function EditBody({
   const router = useRouter();
   const [draft, setDraft] = useState(() => draftFrom(trip));
   const [busy, setBusy] = useState(false);
+  // People already tagged stay choosable even when outside the viewer's families.
+  const choices = mergeByName(people, trip.people);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -82,20 +85,30 @@ function EditBody({
         description: draft.description || null,
       });
       if (!sameIds(draft.personIds, trip.people.map((p) => p.id))) {
-        await setTripPeople(trip.id, draft.personIds);
+        const res = await setTripPeople(trip.id, draft.personIds);
+        if (!res.ok) {
+          // The details are saved; the tags are not. Stay open so they can be fixed.
+          toast.error(res.error, { duration: Infinity, closeButton: true });
+          router.refresh();
+          setBusy(false);
+          return;
+        }
       }
       toast.success("Saved");
       router.refresh();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
+      toast.error(err instanceof Error ? err.message : "Could not save", {
+        duration: Infinity,
+        closeButton: true,
+      });
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={(e) => void save(e)} className="flex flex-col gap-5">
-      <VacationFields value={draft} onChange={setDraft} people={people} disabled={busy} />
+      <VacationFields value={draft} onChange={setDraft} people={choices} disabled={busy} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         <Button
           variant="ghost"

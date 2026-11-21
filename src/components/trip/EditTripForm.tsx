@@ -18,6 +18,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { TripSharing } from "@/lib/share-queries";
+import { ShareWithPeople } from "./ShareWithPeople";
 
 type Person = { id: string; name: string };
 
@@ -25,6 +27,7 @@ export function EditTripForm({
   trip,
   allPeople,
   taggedIds,
+  sharing,
 }: {
   trip: {
     id: string;
@@ -36,6 +39,7 @@ export function EditTripForm({
   };
   allPeople: Person[];
   taggedIds: string[];
+  sharing?: TripSharing;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -67,11 +71,20 @@ export function EditTripForm({
           locationName: locationName || null,
           description: description || null,
         });
-        await setTripPeople(trip.id, Array.from(selected));
+        const res = await setTripPeople(trip.id, Array.from(selected));
+        if (!res.ok) {
+          // The details are saved; the people are not. Stay on the form.
+          toast.error(res.error, { duration: Infinity, closeButton: true });
+          router.refresh();
+          return;
+        }
         toast.success("Vacation saved");
         router.push(`/trips/${trip.id}`);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Save failed");
+        toast.error(err instanceof Error ? err.message : "Save failed", {
+          duration: Infinity,
+          closeButton: true,
+        });
       }
     });
   }
@@ -124,7 +137,7 @@ export function EditTripForm({
         <Label>Who was along?</Label>
         {allPeople.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No people yet; add them on the People page first.
+            No people to tag yet; add them on the Family page first.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -145,6 +158,13 @@ export function EditTripForm({
           </div>
         )}
       </div>
+
+      {sharing?.canShare && sharing.targets.length > 0 && (
+        <div className="flex flex-col items-start gap-2">
+          <Label>Shared with</Label>
+          <ShareWithPeople tripId={trip.id} targets={sharing.targets} sharedIds={sharing.sharedIds} />
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-2">
         <Button
