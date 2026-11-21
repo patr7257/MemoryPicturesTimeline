@@ -17,9 +17,9 @@ const MISSING_PERSON = "44444444-4444-4444-8444-444444444444";
 const DK = "208";
 const NOW = 2026;
 
-const owner: Viewer = { userId: "u-owner", email: "o@x.dk", name: "O", role: "member", personId: OWNER_PERSON };
-const otherMember: Viewer = { userId: "u-other", email: "m@x.dk", name: "M", role: "member", personId: OTHER_PERSON };
-const admin: Viewer = { userId: "u-admin", email: "a@x.dk", name: "A", role: "super_admin", personId: null };
+const owner: Viewer = { userId: "u-owner", email: "o@x.dk", name: "O", role: "member", personId: OWNER_PERSON, familyIds: [] };
+const otherMember: Viewer = { userId: "u-other", email: "m@x.dk", name: "M", role: "member", personId: OTHER_PERSON, familyIds: [] };
+const admin: Viewer = { userId: "u-admin", email: "a@x.dk", name: "A", role: "super_admin", personId: null, familyIds: [] };
 
 type Row = { status: "visited" | "wishlist" | "dismissed"; year: number | null; note: string | null };
 type Call = [string, ...unknown[]];
