@@ -10,7 +10,8 @@ import { Loader2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import type { CountryStats, FillState } from "@/lib/countries";
+import type { CountryStats } from "@/lib/countries";
+import type { MapFills } from "@/lib/country-map-style";
 import { composeShareImage, shareFileName, shareFills, type ShareSubject } from "@/lib/share-map-image";
 
 import type { MapCapture } from "./CountriesMap";
@@ -40,12 +41,15 @@ export function ShareMapButton({
   fills,
   subject,
   stats,
+  ready,
 }: {
   mapRef: React.RefObject<MapCapture | null>;
   // The fills on screen; only the visited ones reach the image (shareFills).
-  fills: Record<string, FillState>;
+  fills: MapFills;
   subject: ShareSubject;
   stats: CountryStats;
+  // False until the map and its shapes are in: there is nothing to capture.
+  ready: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [slow, setSlow] = useState(false);
@@ -60,7 +64,7 @@ export function ShareMapButton({
   }, [busy]);
 
   async function share() {
-    if (busy) return;
+    if (busy || !ready) return;
     setBusy(true);
     try {
       const map = mapRef.current;
@@ -94,7 +98,7 @@ export function ShareMapButton({
       type="button"
       variant="outline"
       onClick={share}
-      disabled={busy}
+      disabled={busy || !ready}
       aria-busy={busy}
       className="h-11 self-end md:h-8"
     >

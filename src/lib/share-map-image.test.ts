@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countryStats, fillsForMarks } from "./countries";
+import type { MapFills } from "./country-map-style";
 import { fitFontSize, looksBlank, shareFileName, shareFills, shareLines, truncateToFit } from "./share-map-image";
 
 describe("share image text", () => {
@@ -49,11 +50,11 @@ describe("share image fills", () => {
       { countryKey: "578", status: "dismissed", year: null },
     ]);
     expect(fills["304"]).toBe("wishlist");
-    expect(shareFills(fills)).toEqual({ "208": "visited" });
+    // fillsForMarks gives only visited and wishlist, both map fills.
+    expect(shareFills(fills as MapFills)).toEqual({ "208": "visited" });
   });
-  it("never carries any fill other than visited", () => {
-    const out = shareFills({ a: "onlyA", b: "onlyB", c: "both", d: "wishlist", e: "visited" });
-    expect(out).toEqual({ e: "visited" });
+  it("never carries any fill other than visited, person colours included", () => {
+    expect(shareFills({ a: "visited", b: "wishlist", c: "#112233" })).toEqual({ a: "visited" });
   });
 });
 
