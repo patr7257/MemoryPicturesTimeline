@@ -1,33 +1,15 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
-import { getViewer } from "@/lib/access";
-import { canAdminister } from "@/lib/access-policy";
-import { getMembersPageData } from "@/lib/member-queries";
-import { MembersManager } from "@/components/members/MembersManager";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// /members?invite=<personId> opens the invite form with that person chosen.
+// Old links /members?invite=<personId> land on the People tab of /family.
 export default async function MembersPage({
   searchParams,
 }: {
   searchParams: Promise<{ invite?: string | string[] }>;
 }) {
-  const viewer = await getViewer();
-  if (!canAdminister(viewer)) notFound();
-
   const { invite } = await searchParams;
-  const { logins, people } = await getMembersPageData();
   const wanted = Array.isArray(invite) ? invite[0] : invite;
-  const invitePersonId = people.some((p) => p.id === wanted) ? (wanted ?? null) : null;
-
-  return (
-    <main className="mx-auto max-w-2xl px-4 pt-6 pb-24 sm:px-6">
-      <h1 className="font-hand mb-6 text-4xl">Members</h1>
-      <MembersManager
-        logins={logins}
-        people={people}
-        viewerEmail={viewer.email}
-        invitePersonId={invitePersonId}
-      />
-    </main>
-  );
+  if (wanted && UUID.test(wanted)) redirect(`/family?invite=${wanted}#people`);
+  redirect("/family#people");
 }
