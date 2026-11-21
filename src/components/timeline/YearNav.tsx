@@ -1,17 +1,16 @@
 "use client";
 
 // Year jump control for a long timeline. Below xl: a sticky, horizontally
-// scrollable chip row under the top bar. From xl up: a sticky rail in the
-// left margin of the timeline. The active year follows the scroll position.
+// scrollable chip row under the top bar. From xl up: a sticky, scrollable rail
+// in the first column of the timeline. The active year follows the scroll
+// position.
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { ScrollArrow } from "./ScrollArrow";
+import { prefersReducedMotion, revealIn, useScrollArea } from "./use-scroll-area";
 
 export const yearAnchor = (year: number) => `year-${year}`;
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 export type YearSpy = {
   active: number | null;
@@ -20,8 +19,10 @@ export type YearSpy = {
 };
 
 export function useYearSpy(years: number[]): YearSpy {
-  const [active, setActive] = useState<number | null>(years[0] ?? null);
+  const [spied, setActive] = useState<number | null>(years[0] ?? null);
   const rowRef = useRef<HTMLUListElement>(null);
+  // A search can remove the spied year: fall back to the first one left.
+  const active = spied !== null && years.includes(spied) ? spied : (years[0] ?? null);
 
   // Scrollspy: the year section crossing the upper third of the viewport.
   useEffect(() => {
@@ -118,26 +119,50 @@ export function YearChips({ years, spy }: { years: number[]; spy: YearSpy }) {
   );
 }
 
-// Wide desktops: sticky rail in the left margin of the timeline column. Render
-// it inside the timeline container (position: relative).
+// Room an arrow and its fade take at either end of the rail.
+const RAIL_INSET = 56;
+
+// Wide desktops: a sticky rail in the first column of the timeline grid,
+// inside the page column. It is its own scroll area, as tall as the window
+// under the top bar: wheel, drag, or the arrows pinned at its ends scroll the
+// years, and the active year is kept in view as the page scrolls.
 export function YearRail({ years, spy }: { years: number[]; spy: YearSpy }) {
+  const railRef = useRef<HTMLUListElement>(null);
+  const { edges, page } = useScrollArea(railRef, "y", years.join(","));
+
+  useEffect(() => {
+    const rail = railRef.current;
+    const year = rail?.querySelector<HTMLElement>("[data-active='true']");
+    if (rail && year) revealIn(rail, year, "y", RAIL_INSET, true);
+  }, [spy.active, years]);
+
   if (years.length < 2) return null;
   return (
     <nav
       aria-label="Jump to year"
-      className="pointer-events-none absolute top-0 right-full bottom-0 hidden w-24 xl:block"
+      className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1.5rem)] hidden self-start xl:block"
     >
-      <ul className="pointer-events-auto sticky top-[calc(3.5rem+env(safe-area-inset-top)+1.5rem)] flex flex-col items-end gap-1 pr-2">
+      <ul
+        ref={railRef}
+        onFocus={(e) => {
+          if (railRef.current && e.target instanceof HTMLElement) {
+            revealIn(railRef.current, e.target, "y", RAIL_INSET);
+          }
+        }}
+        className="flex max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top)-3rem)] flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-1 [scrollbar-width:none] data-[dragging=true]:cursor-grabbing data-[dragging=true]:select-none [&::-webkit-scrollbar]:hidden"
+      >
         {years.map((y) => (
           <li key={y}>
             <YearButton
               year={y}
               spy={spy}
-              className="min-w-16 rounded-sm px-3 py-1 text-right text-2xl shadow-[0_1px_4px_var(--paper-shadow)]"
+              className="w-full rounded-sm px-2 py-1 text-center text-2xl shadow-[0_1px_4px_var(--paper-shadow)] pointer-coarse:min-h-11"
             />
           </li>
         ))}
       </ul>
+      {edges.start && <ScrollArrow direction="up" label="Later years" onPress={() => page(-1)} />}
+      {edges.end && <ScrollArrow direction="down" label="Earlier years" onPress={() => page(1)} />}
     </nav>
   );
 }
