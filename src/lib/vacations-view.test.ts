@@ -18,6 +18,7 @@ import {
   serializeViewState,
   sortVacations,
   type VacationItem,
+  type ViewState,
 } from "./vacations-view";
 
 const A = "11111111-1111-4111-8111-111111111111";
@@ -106,7 +107,7 @@ describe("serializeViewState", () => {
   });
 
   it("round-trips a full state", () => {
-    const state = { q: "garda lake", family: [F], person: [A, B], year: 2019, sort: "title", view: "cards" } as const;
+    const state: ViewState = { q: "garda lake", family: [F], person: [A, B], year: 2019, sort: "title", view: "cards" };
     expect(parseViewState(new URLSearchParams(serializeViewState(state)))).toEqual(state);
     expect(new URLSearchParams(serializeViewState(state)).getAll("person")).toEqual([A, B]);
   });
